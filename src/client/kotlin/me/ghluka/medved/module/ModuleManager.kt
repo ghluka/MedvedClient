@@ -13,6 +13,11 @@ object ModuleManager {
     private val logger = LoggerFactory.getLogger("medved/modules")
     private val modules = mutableListOf<Module>()
 
+    fun init() {
+        ClientTickEvents.END_CLIENT_TICK.register { client ->
+            modules.forEach { it.dispatchTick(client) }
+        }
+
         LevelRenderEvents.END_MAIN.register { ctx ->
             modules.forEach { it.dispatchLevelRender(ctx) }
         }
