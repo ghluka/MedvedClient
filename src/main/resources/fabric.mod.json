@@ -5,25 +5,35 @@
 	"name": "Medved",
 	"description": "This is an example description! Tell everyone what your mod is about!",
 	"authors": [
-		"Me!"
+		"ghluka"
 	],
+	"custom": {
+		"firmament:hide_from_modlist": true
+	},
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "https://luka.onl/medved/",
+		"sources": "https://github.com/ghluka/MedvedClient"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/medved/icon.png",
 	"environment": "*",
 	"entrypoints": {
-		"main": [
+		"client": [
 			{
-				"value": "me.ghluka.medved.Medved",
+				"value": "me.ghluka.medved.MedvedClient",
 				"adapter": "kotlin"
 			}
 		]
 	},
 	"mixins": [
-		"medved.mixins.json"
+		{
+			"config": "medved.mixins.json",
+			"environment": "client"
+		},
+		{
+			"config": "medved.client.mixins.json",
+			"environment": "client"
+		}
 	],
 	"depends": {
 		"fabricloader": ">=0.18.5",

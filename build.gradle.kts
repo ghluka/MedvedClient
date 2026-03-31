@@ -21,6 +21,17 @@ repositories {
 	// for more information about repositories.
 }
 
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		register("medved") {
+			sourceSet(sourceSets.main.get())
+			sourceSet(sourceSets.getByName("client"))
+		}
+	}
+}
+
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft("com.mojang:minecraft:${providers.gradleProperty("minecraft_version").get()}")
