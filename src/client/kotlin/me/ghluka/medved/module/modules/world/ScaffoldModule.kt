@@ -35,6 +35,10 @@ object ScaffoldModule : Module("Scaffold", "Automatically places blocks under yo
     private val crouchDelay = intRange("crouch delay", 40 to 90, 0, 500).also {
         it.visibleWhen = { bridgeMode.value == BridgeMode.NINJA }
     }
+    /**
+     * When we move while rotating it flags on predictive anticheats,
+     * this just pauses all movement while we rotate the yaw.
+     */
     private val pauseOnRotate = boolean("pause on rotate", true)
     private val autoclickCps = intRange("autoclick cps", 8 to 12, 1, 20)
 

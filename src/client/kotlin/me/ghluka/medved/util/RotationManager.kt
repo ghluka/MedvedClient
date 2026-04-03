@@ -31,9 +31,6 @@ object RotationManager {
     private var currentYaw = 0f
     private var currentPitch = 0f
 
-    // True camera rotation, tracked independently from player.yRot/xRot.
-    // Updated only from turn() (mouse input) so server look-sync packets
-    // cannot corrupt it.
     private var clientYaw = 0f
     private var clientPitch = 0f
     private var overriding = false
@@ -43,11 +40,10 @@ object RotationManager {
     var pendingFireAction: Runnable? = null
 
     /**
-     * Set by ScaffoldModule each tick.
-     * allowStrafe: A or D held — keep the strafe component in the packet.
-     * allowForward: W or S held — keep the forward component in the packet.
-     * When both false (no keys), both components are near-zero anyway.
-     * When both true (diagonal), neither is clamped — full diagonal movement passes through.
+     * allowStrafe: A or D held, keep the strafe component in the packet.
+     * allowForward: W or S held, keep the forward component in the packet.
+     * When both false (no keys): both components are near-zero anyway.
+     * When both true (diagonal): neither is clamped, full diagonal movement passes through.
      */
     @JvmField var allowStrafe: Boolean = false
     @JvmField var allowForward: Boolean = false
@@ -69,9 +65,6 @@ object RotationManager {
     /** Set the target rotation to smoothly move toward. */
     fun setTargetRotation(yaw: Float, pitch: Float) {
         if (targetYaw == null) {
-            // First call: seed both tracking variables from the player's
-            // actual rotation. From here on, clientYaw/Pitch are updated
-            // only from turn() (mouse), not from player.getYRot().
             val player = Minecraft.getInstance().player
             if (player != null) {
                 currentYaw = player.getYRot()
@@ -88,7 +81,6 @@ object RotationManager {
     fun clearRotation() {
         targetYaw = null
         targetPitch = null
-        // Let MC recompute hit result normally next tick
     }
 
     /** Whether an override is currently active. */
@@ -114,9 +106,7 @@ object RotationManager {
         if (targetYaw == null) return
         val mc = Minecraft.getInstance()
         val player = mc.player ?: return
-        // Use the FINAL target rotation (not the interpolated current) so the
-        // hitResult is always the correct block/face from the very first tick,
-        // regardless of how far rotation has visually converged.
+        
         val savedYaw = player.getYRot()
         val savedPitch = player.getXRot()
         player.setYRot(targetYaw!!)
@@ -160,10 +150,6 @@ object RotationManager {
 
     /**
      * Advances the current rotation toward the target.
-     * Uses distance-proportional speed: moves 50-80% of the remaining
-     * distance per tick, like a real mouse flick (fast initial snap,
-     * then fine-tune). Quantized to sensitivity mouse-counts with
-     * fractional jitter so deltas aren't clean integers.
      */
     fun tick() {
         val tYaw = targetYaw ?: return
@@ -183,7 +169,7 @@ object RotationManager {
         val f = sensitivity * 0.6 + 0.2
         val degreesPerCount = (f * f * f * 8.0).toFloat()
 
-        // Move 50-80% of remaining distance (like a real flick: fast then fine-tune)
+        // Move 50-80% of remaining distance
         val fraction = 0.5f + Random.nextFloat() * 0.3f
         val rawStep = dist * fraction
         // Quantize to sensitivity mouse counts + jitter
@@ -205,9 +191,7 @@ object RotationManager {
 
     /**
      * Called after the server's rotation packet (S08 / ClientboundPlayerRotationPacket)
-     * has been processed. The packet may legitimately update our yRot/xRot, but we must
-     * restore the client camera to our independently-tracked values so the player
-     * doesn't see a forced look-snap.
+     * has been processed.
      */
     @JvmStatic
     fun restoreClientCamera(player: LocalPlayer) {
@@ -219,7 +203,6 @@ object RotationManager {
     @JvmStatic
     fun applyOverride(player: LocalPlayer) {
         if (targetYaw == null) {
-            // Even without rotation override, still fire pending action
             pendingFireAction?.let { it.run(); pendingFireAction = null }
             return
         }
@@ -227,16 +210,6 @@ object RotationManager {
         player.setYRot(currentYaw)
         player.setXRot(currentPitch)
 
-        // Drift correction: aiStep() computed the position delta using the CLIENT
-        // camera yaw, but the packet will carry the SERVER (spoofed) yaw. Grim
-        // simulates movement using the sent yaw and checks that the position
-        // delta matches one of the 8 possible input directions at that yaw.
-        // When client yaw is even a few degrees off from the server yaw, the
-        // actual movement direction doesn't match any valid input → simulation flag.
-        //
-        // Fix: find the closest valid movement direction at the server yaw (from
-        // the 8 input combos) and project the actual delta onto it. This removes
-        // the perpendicular angle error while preserving movement speed.
         val mc = Minecraft.getInstance()
         val opts = mc.options
         var forwardInput = 0f
@@ -296,7 +269,20 @@ object RotationManager {
             }
         }
 
-        // Fire AFTER rotation override so BlockPlace uses spoofed rotation
+        // If movement is frozen (pauseOnRotate) the keys are zeroed so aiStep()
+        // adds no new velocity, but the player still has residual momentum from the
+        // previous tick. Without this, the server sees a non-zero position delta
+        // while the yaw is rotating. Snap position back to xLast/zLast so the
+        // packet sends zero movement.
+        if (freezeMovement) {
+            val acc2 = player as me.ghluka.medved.mixin.client.LocalPlayerAccessor
+            val rdx = player.x - acc2.xLast
+            val rdz = player.z - acc2.zLast
+            if (rdx * rdx + rdz * rdz > 1e-10) {
+                player.setPos(acc2.xLast, player.y, acc2.zLast)
+            }
+        }
+
         pendingFireAction?.let { it.run(); pendingFireAction = null }
     }
 
@@ -304,8 +290,6 @@ object RotationManager {
     @JvmStatic
     fun restoreRotation(player: LocalPlayer) {
         if (targetYaw == null) return
-        // Restore to our independently tracked client rotation — NOT player.getYRot()
-        // which may have been corrupted by a server-forced look sync packet.
         player.setYRot(clientYaw)
         player.setXRot(clientPitch)
         overriding = false
@@ -313,8 +297,6 @@ object RotationManager {
 
     /**
      * Called by mixin at LocalPlayer.turn() RETURN.
-     * This is the ONLY place clientYaw/clientPitch are updated: from real
-     * mouse movement. Server look-sync packets cannot interfere here.
      */
     @JvmStatic
     fun onTurn(player: LocalPlayer) {
