@@ -52,6 +52,9 @@ abstract class Config(val name: String) {
     protected inline fun <reified T : Enum<T>> enum(name: String, default: T) =
         register(EnumEntry(name, default, T::class.java))
 
+    protected fun intRange(name: String, default: Pair<Int, Int>, min: Int, max: Int) =
+        register(IntRangeEntry(name, default, min, max))
+
     fun serialize(): JsonObject = JsonObject().also { obj ->
         _entries.forEach { obj.add(it.name, it.toJson()) }
     }

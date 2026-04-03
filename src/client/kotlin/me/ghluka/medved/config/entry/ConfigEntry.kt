@@ -8,6 +8,9 @@ abstract class ConfigEntry<T>(
 ) {
     private val changeListeners = mutableListOf<(T) -> Unit>()
 
+    /** When set, the entry is only shown in the GUI if this returns true. */
+    var visibleWhen: (() -> Boolean)? = null
+
     var value: T = defaultValue
         set(newValue) {
             val old = field

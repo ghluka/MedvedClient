@@ -8,5 +8,5 @@ object ColorModule : Module("Color", "Global accent color for GUI and HUD elemen
     override val isProtected = true
     init { enabled.value = true }
 
-    val accent = color("accent", Color(195, 50, 75), allowAlpha = false)
+    val accent = color("accent", Color(150, 75, 0), allowAlpha = false)
 }

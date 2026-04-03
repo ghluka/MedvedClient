@@ -2,7 +2,15 @@
 	"required": true,
 	"package": "me.ghluka.medved.mixin.client",
 	"compatibilityLevel": "JAVA_25",
-	"client": [],
+	"client": [
+		"ClientPacketListenerMixin",
+		"EntityMixin",
+		"KeyboardInputMixin",
+		"LivingEntityMixin",
+		"LocalPlayerAccessor",
+		"LocalPlayerMixin",
+		"MinecraftMixin"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	},

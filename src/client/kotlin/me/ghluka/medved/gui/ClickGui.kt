@@ -6,12 +6,14 @@ import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.other.ClickGuiModule
 import me.ghluka.medved.module.modules.other.ColorModule
 import me.ghluka.medved.module.modules.other.FontModule
+import net.minecraft.client.KeyMapping
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
+import com.mojang.blaze3d.platform.InputConstants
 import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
 
@@ -35,12 +37,17 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private var hoveredMod: Module? = null
     private var draggingSlider: SliderDrag? = null
 
+    private var enumDropdownX = 0
+    private var enumDropdownY = 0
+    private var enumDropdownW = 0
+
     /** Tracks an active slider drag (numeric entry or color channel). */
     private sealed interface SliderDrag {
         val barX: Int
         val barW: Int
         data class Numeric(val entry: ConfigEntry<*>, override val barX: Int, override val barW: Int) : SliderDrag
         data class ColorChannel(val entry: ColorEntry, val channel: Int, override val barX: Int, override val barW: Int) : SliderDrag
+        data class Range(val entry: IntRangeEntry, val isHigh: Boolean, override val barX: Int, override val barW: Int) : SliderDrag
     }
 
     private val PNL_W = 160  // panel width
@@ -82,6 +89,26 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
     override fun init() {
         super.init()
+        // close container
+        minecraft.player?.let { player ->
+            if (player.containerMenu !== player.inventoryMenu) {
+                player.closeContainer()
+            }
+        }
+        // re-sync movement KeyMappings from the physical GLFW state
+        val window = minecraft.window.handle()
+        for (km in listOf(
+            minecraft.options.keyUp, minecraft.options.keyDown,
+            minecraft.options.keyLeft, minecraft.options.keyRight,
+            minecraft.options.keyJump, minecraft.options.keySprint,
+            minecraft.options.keyShift
+        )) {
+            val bound = InputConstants.getKey(km.saveString())
+            if (bound.type == InputConstants.Type.KEYSYM) {
+                val held = GLFW.glfwGetKey(window, bound.value) == GLFW.GLFW_PRESS
+                KeyMapping.set(bound, held)
+            }
+        }
         if (positions.isEmpty()) {
             collapsed.addAll(Module.Category.entries)
             val gap = 6
@@ -103,6 +130,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
         hoveredMod = null
         g.fill(0, 0, width, height, BG)
         for (cat in Module.Category.entries) drawCategoryPanel(g, cat, mx, my)
+        // draw dropdown overlay
+        val enumExp = expandedEnum
+        if (enumExp != null) {
+            drawEnumDropdown(g, enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)
+        }
         val hov = hoveredMod
         if (hov != null && ClickGuiModule.showDescriptions.value && hov.description.isNotBlank()) {
             drawTooltip(g, hov.description, mx, my)
@@ -142,14 +174,19 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 for (entry in entries) {
                     drawEntry(g, entry, px + 3, y, PNL_W - 3, mx, my)
                     y += ENT_H
+                    if (entry is IntRangeEntry) {
+                        drawRangeSliders(g, entry, px + 6, y, PNL_W - 6)
+                        y += ENT_H
+                    }
                     if (entry == expandedColorEntry && entry is ColorEntry) {
                         drawColorPicker(g, entry, px + 6, y, PNL_W - 6)
                         y += colorChannelCount(entry) * ENT_H
                     }
                     if (entry == expandedEnum && entry is EnumEntry<*>) {
-                        val ew = enumWidth(entry)
-                        drawEnumDropdown(g, entry, px + PNL_W - ew, y, ew, mx, my)
-                        y += entry.constants.size * ENT_H
+                        val ew = enumDropdownWidth(entry)
+                        enumDropdownX = px + PNL_W - ew
+                        enumDropdownY = y
+                        enumDropdownW = ew
                     }
                 }
             }
@@ -165,10 +202,12 @@ class ClickGui : Screen(Component.literal("Medved")) {
             if (mod in expandedModules) {
                 val entries = configEntries(mod)
                 h += entries.size * ENT_H
+                for (e in entries) {
+                    if (e is IntRangeEntry) h += ENT_H
+                }
                 val colorExp = entries.firstOrNull { it == expandedColorEntry } as? ColorEntry
                 if (colorExp != null) h += colorChannelCount(colorExp) * ENT_H
                 val enumExp = entries.firstOrNull { it == expandedEnum } as? EnumEntry<*>
-                if (enumExp != null) h += enumExp.constants.size * ENT_H
             }
         }
         return h
@@ -225,13 +264,19 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 g.centeredText(guiFont, styled(if (listening) "..." else keyName(entry.value)), kx + 24, y + (ENT_H - 8) / 2, TEXT)
             }
             is EnumEntry<*> -> {
-                val ew = enumWidth(entry)
+                val ew = enumButtonWidth(entry)
                 val ex = x + w - ew
                 g.fill(ex, y + 1, ex + ew, y + ENT_H - 1, BTN_BG)
                 val isOpen = entry == expandedEnum
                 val label = fmtLabel(entry.value.name)
                 g.text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
                 g.text(guiFont, plain(if (isOpen) "▾" else "▸"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
+            }
+            is IntRangeEntry -> {
+                val txt = "${entry.value.first} - ${entry.value.second}"
+                val styledTxt = styled(txt)
+                val tw = guiFont.width(styledTxt)
+                g.text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
             }
         }
     }
@@ -250,6 +295,22 @@ class ClickGui : Screen(Component.literal("Medved")) {
         }
         val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
         g.text(guiFont, styled(txt), x + w - 22, y + (ENT_H - 8) / 2, TEXT)
+    }
+
+    private fun drawRangeSliders(g: GuiGraphicsExtractor, entry: IntRangeEntry, x: Int, y: Int, w: Int) {
+        g.fill(x, y, x + w, y + ENT_H, ENT_BG)
+        val bx = x + 4; val bw = w - 8
+        if (bw > 0) {
+            g.fill(bx, y + 2, bx + bw, y + ENT_H - 2, SLI_BG)
+            val range = (entry.max - entry.min).toFloat()
+            val loFrac = ((entry.value.first - entry.min) / range).coerceIn(0f, 1f)
+            val hiFrac = ((entry.value.second - entry.min) / range).coerceIn(0f, 1f)
+            val loX = (loFrac * bw).roundToInt()
+            val hiX = (hiFrac * bw).roundToInt()
+            if (hiX > loX) g.fill(bx + loX, y + 2, bx + hiX, y + ENT_H - 2, SLI_FG)
+            g.fill(bx + loX, y + 1, bx + loX + 2, y + ENT_H - 1, TEXT)
+            g.fill(bx + hiX - 1, y + 1, bx + hiX + 1, y + ENT_H - 1, TEXT)
+        }
     }
 
     private fun drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry, x: Int, y: Int, w: Int) {
@@ -283,8 +344,14 @@ class ClickGui : Screen(Component.literal("Medved")) {
         }
     }
 
-    /** Width of the enum button: fits the widest option label + padding + arrow. */
-    private fun enumWidth(entry: EnumEntry<*>): Int {
+    /** Width of the enum button: fits the current selection + padding + arrow. */
+    private fun enumButtonWidth(entry: EnumEntry<*>): Int {
+        val labelW = guiFont.width(styled(fmtLabel(entry.value.name)))
+        return (labelW + 16).coerceAtMost(PNL_W - 10)
+    }
+
+    /** Width of the enum dropdown: fits the widest option label. */
+    private fun enumDropdownWidth(entry: EnumEntry<*>): Int {
         val maxLabel = entry.constants.maxOf { guiFont.width(styled(fmtLabel(it.name))) }
         return (maxLabel + 16).coerceAtMost(PNL_W - 10)
     }
@@ -293,6 +360,14 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val mx = event.x().toInt(); val my = event.y().toInt(); val btn = event.button()
 
         if (editingString != null) { editingString!!.value = editText; editingString = null }
+
+        val enumExp = expandedEnum
+        if (enumExp != null) {
+            if (handleEnumDropdownClick(enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)) return true
+            // clicked outside dropdown, close it.
+            expandedEnum = null
+            return true
+        }
 
         for (cat in Module.Category.entries) {
             val (px, py) = positions[cat] ?: continue
@@ -331,14 +406,13 @@ class ClickGui : Screen(Component.literal("Medved")) {
                         }
                         y += ENT_H
 
+                        if (entry is IntRangeEntry) {
+                            if (handleRangeClick(entry, px + 6, y, PNL_W - 6, mx, my)) return true
+                            y += ENT_H
+                        }
                         if (entry == expandedColorEntry && entry is ColorEntry) {
                             if (handleColorClick(entry, px + 6, y, PNL_W - 6, mx, my)) return true
                             y += colorChannelCount(entry) * ENT_H
-                        }
-                        if (entry == expandedEnum && entry is EnumEntry<*>) {
-                            val ew = enumWidth(entry)
-                            if (handleEnumDropdownClick(entry, px + PNL_W - ew, y, ew, mx, my)) return true
-                            y += entry.constants.size * ENT_H
                         }
                     }
                 }
@@ -398,6 +472,21 @@ class ClickGui : Screen(Component.literal("Medved")) {
         return false
     }
 
+    private fun handleRangeClick(entry: IntRangeEntry, x: Int, y: Int, w: Int, mx: Int, my: Int): Boolean {
+        if (my !in y until y + ENT_H) return false
+        val bx = x + 4; val bw = w - 8
+        if (mx !in bx until bx + bw) return false
+        val t = ((mx - bx).toFloat() / bw).coerceIn(0f, 1f)
+        val clickVal = entry.min + t * (entry.max - entry.min)
+        val (lo, hi) = entry.value
+        val mid = (lo + hi) / 2f
+        val isHigh = clickVal >= mid
+        val v = clickVal.roundToInt()
+        entry.value = if (isHigh) lo to v.coerceAtLeast(lo) else v.coerceAtMost(hi) to hi
+        draggingSlider = SliderDrag.Range(entry, isHigh, bx, bw)
+        return true
+    }
+
     private fun handleEnumDropdownClick(entry: EnumEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int): Boolean {
         if (mx !in x until x + w) return false
         for ((i, _) in entry.constants.withIndex()) {
@@ -432,8 +521,22 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return true
         }
 
-        if (key == GLFW.GLFW_KEY_ESCAPE) { onClose(); return true }
-        return super.keyPressed(event)
+        if (key == GLFW.GLFW_KEY_ESCAPE || key == ClickGuiModule.keybind.value) { onClose(); return true }
+
+        // route unhandled keys to game input
+        val inputKey = InputConstants.getKey(event)
+        KeyMapping.set(inputKey, true)
+        KeyMapping.click(inputKey)
+        return false
+    }
+
+    override fun keyReleased(event: KeyEvent): Boolean {
+        if (listeningKeybind != null || editingString != null) return true
+        val inputKey = InputConstants.getKey(event)
+        // release keys only if not physically held
+        val physHeld = GLFW.glfwGetKey(minecraft.window.handle(), event.key()) == GLFW.GLFW_PRESS
+        if (!physHeld) KeyMapping.set(inputKey, false)
+        return false
     }
 
     override fun charTyped(event: CharacterEvent): Boolean {
@@ -456,6 +559,12 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     val v = (t * 255).roundToInt()
                     applyColorChannel(slider.entry, slider.channel, v)
                 }
+                is SliderDrag.Range -> {
+                    val e = slider.entry
+                    val v = (e.min + t * (e.max - e.min)).roundToInt()
+                    val (lo, hi) = e.value
+                    e.value = if (slider.isHigh) lo to v.coerceAtLeast(lo) else v.coerceAtMost(hi) to hi
+                }
             }
             return true
         }
@@ -476,7 +585,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     private fun configEntries(mod: Module) = mod.entries.filter {
-        it.name != "enabled" && !(mod.isProtected && it.name == "keybind")
+        it.name != "enabled" && !(mod.isProtected && it.name == "keybind") &&
+        (it.visibleWhen?.invoke() != false)
     }
 
     private fun colorChannelCount(entry: ColorEntry) = if (entry.allowAlpha) 4 else 3

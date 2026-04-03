@@ -26,10 +26,7 @@
 		]
 	},
 	"mixins": [
-		{
-			"config": "medved.mixins.json",
-			"environment": "client"
-		},
+		"medved.mixins.json",
 		{
 			"config": "medved.client.mixins.json",
 			"environment": "client"

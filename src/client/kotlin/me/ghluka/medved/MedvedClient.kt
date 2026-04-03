@@ -6,6 +6,7 @@ import me.ghluka.medved.module.modules.movement.SprintModule
 import me.ghluka.medved.module.modules.other.ClickGuiModule
 import me.ghluka.medved.module.modules.other.ColorModule
 import me.ghluka.medved.module.modules.other.FontModule
+import me.ghluka.medved.module.modules.world.ScaffoldModule
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.loader.api.FabricLoader
@@ -24,6 +25,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(ClickGuiModule)
         ModuleManager.register(FontModule)
         ModuleManager.register(ColorModule)
+        ModuleManager.register(ScaffoldModule)
 
         ModuleManager.init()
 
