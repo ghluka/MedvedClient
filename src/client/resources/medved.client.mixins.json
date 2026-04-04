@@ -4,12 +4,17 @@
 	"compatibilityLevel": "JAVA_25",
 	"client": [
 		"ClientPacketListenerMixin",
+		"ConnectionMixin",
 		"EntityMixin",
+		"JoinMultiplayerScreenMixin",
 		"KeyboardInputMixin",
 		"LivingEntityMixin",
 		"LocalPlayerAccessor",
 		"LocalPlayerMixin",
-		"MinecraftMixin"
+		"MinecraftMixin",
+		"MinecraftUserAccessor",
+		"PlayerMixin",
+		"TitleScreenMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

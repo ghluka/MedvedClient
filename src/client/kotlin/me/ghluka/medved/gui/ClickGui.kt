@@ -1,11 +1,12 @@
 package me.ghluka.medved.gui
 
 import me.ghluka.medved.config.entry.*
+import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.ModuleManager
-import me.ghluka.medved.module.modules.other.ClickGuiModule
-import me.ghluka.medved.module.modules.other.ColorModule
-import me.ghluka.medved.module.modules.other.FontModule
+import me.ghluka.medved.module.modules.other.ClickGui
+import me.ghluka.medved.module.modules.other.Colour
+import me.ghluka.medved.module.modules.other.Font
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -13,6 +14,9 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.FontDescription
+import net.minecraft.network.chat.Style
+import net.minecraft.resources.Identifier
 import com.mojang.blaze3d.platform.InputConstants
 import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
@@ -26,6 +30,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val expandedModules = mutableSetOf<Module>()
         var expandedColorEntry: ColorEntry? = null
         var expandedEnum: EnumEntry<*>? = null
+        val renderOrder = mutableListOf<Module.Category>()
     }
 
     private var editingString: StringEntry? = null
@@ -48,6 +53,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         data class Numeric(val entry: ConfigEntry<*>, override val barX: Int, override val barW: Int) : SliderDrag
         data class ColorChannel(val entry: ColorEntry, val channel: Int, override val barX: Int, override val barW: Int) : SliderDrag
         data class Range(val entry: IntRangeEntry, val isHigh: Boolean, override val barX: Int, override val barW: Int) : SliderDrag
+        data class FloatRange(val entry: FloatRangeEntry, val isHigh: Boolean, override val barX: Int, override val barW: Int) : SliderDrag
     }
 
     private val PNL_W = 160  // panel width
@@ -61,7 +67,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
     /** Blend a gray base toward the accent color. */
     private fun shade(base: Int, mix: Float, alpha: Int = 255): Int {
-        val c = ColorModule.accent.value
+        val c = Colour.accent.value
         val r = (base + (c.r - base) * mix).toInt().coerceIn(0, 255)
         val g = (base + (c.g - base) * mix).toInt().coerceIn(0, 255)
         val b = (base + (c.b - base) * mix).toInt().coerceIn(0, 255)
@@ -71,21 +77,24 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private val BG       get() = shade(8, 0.05f, 100)
     private val PNL_BG   get() = shade(18, 0.08f, 240)
     private val HDR_BG   get() = shade(20, 0.20f)
-    private val HDR_ACC  get() = ColorModule.accent.value.argb
+    private val HDR_ACC  get() = Colour.accent.value.argb
     private val MOD_NORM get() = shade(20, 0.06f)
     private val MOD_HOV  get() = shade(30, 0.10f)
-    private val ACCENT   get() = ColorModule.accent.value.argb
+    private val ACCENT   get() = Colour.accent.value.argb
     private val ENT_BG   get() = shade(14, 0.04f)
     private val SLI_BG   get() = shade(30, 0.12f)
-    private val SLI_FG   get() = with(ColorModule.accent.value) { argb(255, (r * 0.8).toInt(), (g * 0.8).toInt(), (b * 0.8).toInt()) }
+    private val SLI_FG   get() = with(Colour.accent.value) { argb(255, (r * 0.8).toInt(), (g * 0.8).toInt(), (b * 0.8).toInt()) }
     private val BTN_BG   get() = shade(35, 0.12f)
     private val BTN_ON   = argb(255,  50, 175,  60)
     private val BTN_OFF  = argb(255, 170,  55,  55)
     private val TEXT     = argb(255, 215, 215, 228)
     private val TEXT_DIM = argb(255, 118, 118, 140)
-    private val guiFont  get() = FontModule.getFont()
-    private fun styled(text: String) = FontModule.styledText(text)
+    private val guiFont  get() = Font.getFont()
+    private fun styled(text: String) = Font.styledText(text)
     private fun plain(text: String): Component = Component.literal(text)
+    private fun jbMono(text: String): Component = Component.literal(text).withStyle(
+        Style.EMPTY.withFont(FontDescription.Resource(
+            Identifier.fromNamespaceAndPath("medved", "jetbrains_mono"))))
 
     override fun init() {
         super.init()
@@ -121,6 +130,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 x += PNL_W + gap
             }
         }
+        if (renderOrder.isEmpty()) {
+            renderOrder.addAll(Module.Category.entries)
+        }
     }
 
     override fun isPauseScreen() = false
@@ -129,14 +141,14 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun extractRenderState(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
         hoveredMod = null
         g.fill(0, 0, width, height, BG)
-        for (cat in Module.Category.entries) drawCategoryPanel(g, cat, mx, my)
+        for (cat in renderOrder) drawCategoryPanel(g, cat, mx, my)
         // draw dropdown overlay
         val enumExp = expandedEnum
         if (enumExp != null) {
             drawEnumDropdown(g, enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)
         }
         val hov = hoveredMod
-        if (hov != null && ClickGuiModule.showDescriptions.value && hov.description.isNotBlank()) {
+        if (hov != null && ClickGui.showDescriptions.value && hov.description.isNotBlank()) {
             drawTooltip(g, hov.description, mx, my)
         }
     }
@@ -152,7 +164,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         g.fill(px, py, px + PNL_W, py + HDR_H, HDR_BG)
         g.fill(px, py, px + 3, py + HDR_H, HDR_ACC)
         g.centeredText(guiFont, styled(cat.name), px + PNL_W / 2, py + (HDR_H - 8) / 2, -1)
-        g.text(guiFont, plain(if (expanded) "▾" else "▸"), px + PNL_W - 12, py + (HDR_H - 8) / 2, TEXT_DIM)
+        g.text(guiFont, jbMono(if (expanded) "\u25bc" else "\u25b2"), px + PNL_W - 12, py + (HDR_H - 8) / 2, TEXT_DIM)
 
         if (!expanded) return
 
@@ -167,15 +179,43 @@ class ClickGui : Screen(Component.literal("Medved")) {
             g.text(guiFont, styled(mod.name), px + 7, y + (MOD_H - 8) / 2, if (mod.isEnabled()) TEXT else TEXT_DIM)
             val entries = configEntries(mod)
             if (entries.isNotEmpty())
-                g.text(guiFont, plain(if (mod in expandedModules) "▾" else "▸"), px + PNL_W - 11, y + (MOD_H - 8) / 2, TEXT_DIM)
+                g.text(guiFont, jbMono(if (mod in expandedModules) "\u25bc" else "\u25b2"), px + PNL_W - 11, y + (MOD_H - 8) / 2, TEXT_DIM)
             y += MOD_H
 
             if (mod in expandedModules) {
                 for (entry in entries) {
                     drawEntry(g, entry, px + 3, y, PNL_W - 3, mx, my)
                     y += ENT_H
+                    if (entry is IntEntry) {
+                        val bounded = entry.min != Int.MIN_VALUE && entry.max != Int.MAX_VALUE
+                        drawNumericSliderBar(g, bounded, entry.value.toFloat(),
+                            if (bounded) entry.min.toFloat() else 0f,
+                            if (bounded) entry.max.toFloat() else 1f,
+                            px + 3, y, PNL_W - 3)
+                        y += ENT_H
+                    }
+                    if (entry is FloatEntry) {
+                        val bounded = entry.min != -Float.MAX_VALUE && entry.max != Float.MAX_VALUE
+                        drawNumericSliderBar(g, bounded, entry.value,
+                            entry.min.takeIf { it != -Float.MAX_VALUE } ?: 0f,
+                            entry.max.takeIf { it != Float.MAX_VALUE } ?: 1f,
+                            px + 3, y, PNL_W - 3)
+                        y += ENT_H
+                    }
+                    if (entry is DoubleEntry) {
+                        val bounded = entry.min != -Double.MAX_VALUE && entry.max != Double.MAX_VALUE
+                        drawNumericSliderBar(g, bounded, entry.value.toFloat(),
+                            entry.min.takeIf { it != -Double.MAX_VALUE }?.toFloat() ?: 0f,
+                            entry.max.takeIf { it != Double.MAX_VALUE }?.toFloat() ?: 1f,
+                            px + 3, y, PNL_W - 3)
+                        y += ENT_H
+                    }
                     if (entry is IntRangeEntry) {
                         drawRangeSliders(g, entry, px + 6, y, PNL_W - 6)
+                        y += ENT_H
+                    }
+                    if (entry is FloatRangeEntry) {
+                        drawFloatRangeSliders(g, entry, px + 6, y, PNL_W - 6)
                         y += ENT_H
                     }
                     if (entry == expandedColorEntry && entry is ColorEntry) {
@@ -203,7 +243,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 val entries = configEntries(mod)
                 h += entries.size * ENT_H
                 for (e in entries) {
-                    if (e is IntRangeEntry) h += ENT_H
+                    if (e is IntRangeEntry || e is FloatRangeEntry || e is IntEntry || e is FloatEntry || e is DoubleEntry) h += ENT_H
                 }
                 val colorExp = entries.firstOrNull { it == expandedColorEntry } as? ColorEntry
                 if (colorExp != null) h += colorChannelCount(colorExp) * ENT_H
@@ -214,6 +254,12 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     private fun drawEntry(g: GuiGraphicsExtractor, entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int) {
+        if (entry is HudEditEntry) {
+            g.fill(x, y, x + w, y + ENT_H, BTN_BG)
+            g.fill(x, y, x + 2, y + ENT_H, ACCENT)
+            g.centeredText(guiFont, styled("Edit Position"), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
+            return
+        }
         g.fill(x, y, x + w, y + ENT_H, ENT_BG)
         g.text(guiFont, styled(fmtLabel(entry.name)), x + 2, y + (ENT_H - 8) / 2, TEXT_DIM)
 
@@ -223,27 +269,20 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 g.fill(bx, y + 1, bx + 26, y + ENT_H - 1, if (entry.value) BTN_ON else BTN_OFF)
                 g.centeredText(guiFont, styled(if (entry.value) "ON" else "OFF"), bx + 13, y + (ENT_H - 8) / 2, TEXT)
             }
-            is IntEntry -> drawNumericSlider(
-                g, entry.min != Int.MIN_VALUE && entry.max != Int.MAX_VALUE,
-                entry.value.toFloat(),
-                if (entry.min != Int.MIN_VALUE) entry.min.toFloat() else 0f,
-                if (entry.max != Int.MAX_VALUE) entry.max.toFloat() else 100f,
-                x, y, w
-            )
-            is FloatEntry -> drawNumericSlider(
-                g, entry.min != -Float.MAX_VALUE && entry.max != Float.MAX_VALUE,
-                entry.value,
-                entry.min.takeIf { it != -Float.MAX_VALUE } ?: 0f,
-                entry.max.takeIf { it != Float.MAX_VALUE } ?: 1f,
-                x, y, w
-            )
-            is DoubleEntry -> drawNumericSlider(
-                g, entry.min != -Double.MAX_VALUE && entry.max != Double.MAX_VALUE,
-                entry.value.toFloat(),
-                entry.min.takeIf { it != -Double.MAX_VALUE }?.toFloat() ?: 0f,
-                entry.max.takeIf { it != Double.MAX_VALUE }?.toFloat() ?: 1f,
-                x, y, w
-            )
+            is IntEntry -> {
+                val txt = "${entry.value}"
+                g.text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+            }
+            is FloatEntry -> {
+                val v = entry.value
+                val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
+                g.text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+            }
+            is DoubleEntry -> {
+                val v = entry.value.toFloat()
+                val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
+                g.text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+            }
             is StringEntry -> {
                 val fx = x + w - 66
                 g.fill(fx, y + 1, fx + 64, y + ENT_H - 1, BTN_BG)
@@ -255,7 +294,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 g.fill(sx, y + 1, sx + 14, y + ENT_H - 1, entry.value.argb)
                 g.outline(sx, y + 1, 14, ENT_H - 2, TEXT_DIM)
                 if (entry == expandedColorEntry)
-                    g.text(guiFont, plain("▾"), sx - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
+                    g.text(guiFont, jbMono("\u25bc"), sx - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
             }
             is KeybindEntry -> {
                 val kx = x + w - 50
@@ -270,7 +309,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 val isOpen = entry == expandedEnum
                 val label = fmtLabel(entry.value.name)
                 g.text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
-                g.text(guiFont, plain(if (isOpen) "▾" else "▸"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
+                g.text(guiFont, jbMono(if (isOpen) "\u25bc" else "\u25b2"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
             }
             is IntRangeEntry -> {
                 val txt = "${entry.value.first} - ${entry.value.second}"
@@ -278,23 +317,28 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 val tw = guiFont.width(styledTxt)
                 g.text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
             }
+            is FloatRangeEntry -> {
+                val txt = "%.1f - %.1f".format(entry.value.first, entry.value.second)
+                val styledTxt = styled(txt)
+                val tw = guiFont.width(styledTxt)
+                g.text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
+            }
         }
     }
 
-    private fun drawNumericSlider(
+    private fun drawNumericSliderBar(
         g: GuiGraphicsExtractor,
         bounded: Boolean, v: Float, minV: Float, maxV: Float,
         x: Int, y: Int, w: Int
     ) {
-        val barX = x + SLI_X; val barW = w - SLI_X - 24
+        g.fill(x, y, x + w, y + ENT_H, ENT_BG)
+        val barX = x + 2; val barW = w - 4
         if (bounded && barW > 0) {
             g.fill(barX, y + 2, barX + barW, y + ENT_H - 2, SLI_BG)
             val fraction = ((v - minV) / (maxV - minV)).coerceIn(0f, 1f)
             val filled = (fraction * barW).roundToInt()
             if (filled > 0) g.fill(barX, y + 2, barX + filled, y + ENT_H - 2, SLI_FG)
         }
-        val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
-        g.text(guiFont, styled(txt), x + w - 22, y + (ENT_H - 8) / 2, TEXT)
     }
 
     private fun drawRangeSliders(g: GuiGraphicsExtractor, entry: IntRangeEntry, x: Int, y: Int, w: Int) {
@@ -303,6 +347,22 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (bw > 0) {
             g.fill(bx, y + 2, bx + bw, y + ENT_H - 2, SLI_BG)
             val range = (entry.max - entry.min).toFloat()
+            val loFrac = ((entry.value.first - entry.min) / range).coerceIn(0f, 1f)
+            val hiFrac = ((entry.value.second - entry.min) / range).coerceIn(0f, 1f)
+            val loX = (loFrac * bw).roundToInt()
+            val hiX = (hiFrac * bw).roundToInt()
+            if (hiX > loX) g.fill(bx + loX, y + 2, bx + hiX, y + ENT_H - 2, SLI_FG)
+            g.fill(bx + loX, y + 1, bx + loX + 2, y + ENT_H - 1, TEXT)
+            g.fill(bx + hiX - 1, y + 1, bx + hiX + 1, y + ENT_H - 1, TEXT)
+        }
+    }
+
+    private fun drawFloatRangeSliders(g: GuiGraphicsExtractor, entry: FloatRangeEntry, x: Int, y: Int, w: Int) {
+        g.fill(x, y, x + w, y + ENT_H, ENT_BG)
+        val bx = x + 4; val bw = w - 8
+        if (bw > 0) {
+            g.fill(bx, y + 2, bx + bw, y + ENT_H - 2, SLI_BG)
+            val range = entry.max - entry.min
             val loFrac = ((entry.value.first - entry.min) / range).coerceIn(0f, 1f)
             val hiFrac = ((entry.value.second - entry.min) / range).coerceIn(0f, 1f)
             val loX = (loFrac * bw).roundToInt()
@@ -369,11 +429,12 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return true
         }
 
-        for (cat in Module.Category.entries) {
+        for (cat in renderOrder.asReversed()) {
             val (px, py) = positions[cat] ?: continue
             val expanded = cat !in collapsed
 
             if (my in py until py + HDR_H && mx in px until px + PNL_W) {
+                bringToFront(cat)
                 if (btn == 0) { draggingCat = cat; dragOffX = mx - px; dragOffY = my - py }
                 else if (btn == 1) { if (cat in collapsed) collapsed.remove(cat) else collapsed.add(cat) }
                 return true
@@ -383,6 +444,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
             val panelH = fullPanelHeight(cat)
             if (mx !in px until px + PNL_W || my !in py + HDR_H until py + panelH) continue
+
+            bringToFront(cat)
 
             var y = py + HDR_H
             for (mod in ModuleManager.getByCategory(cat)) {
@@ -401,13 +464,28 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 if (mod in expandedModules) {
                     for (entry in configEntries(mod)) {
                         if (my in y until y + ENT_H) {
-                            handleEntryClick(entry, px + 3, y, PNL_W - 3, mx, btn)
+                            if (entry is HudEditEntry && mod is HudModule) {
+                                minecraft.setScreen(HudEditorScreen(mod, this))
+                            } else {
+                                handleEntryClick(entry, px + 3, y, PNL_W - 3, mx, btn)
+                            }
                             return true
                         }
                         y += ENT_H
 
+                        if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) {
+                            if (my in y until y + ENT_H) {
+                                handleNumericBarClick(entry, px + 3, y, PNL_W - 3, mx, btn)
+                                return true
+                            }
+                            y += ENT_H
+                        }
                         if (entry is IntRangeEntry) {
                             if (handleRangeClick(entry, px + 6, y, PNL_W - 6, mx, my)) return true
+                            y += ENT_H
+                        }
+                        if (entry is FloatRangeEntry) {
+                            if (handleFloatRangeClick(entry, px + 6, y, PNL_W - 6, mx, my)) return true
                             y += ENT_H
                         }
                         if (entry == expandedColorEntry && entry is ColorEntry) {
@@ -425,34 +503,32 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private fun handleEntryClick(entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, btn: Int) {
         when (entry) {
             is BooleanEntry -> entry.value = !entry.value
-            is IntEntry -> if (btn == 0 && entry.min != Int.MIN_VALUE && entry.max != Int.MAX_VALUE) {
-                val barX = x + SLI_X; val barW = w - SLI_X - 24
-                if (mx in barX until barX + barW) {
-                    val t = ((mx - barX).toFloat() / barW).coerceIn(0f, 1f)
-                    entry.value = (entry.min + t * (entry.max - entry.min)).roundToInt()
-                    draggingSlider = SliderDrag.Numeric(entry, barX, barW)
-                }
-            }
-            is FloatEntry -> if (btn == 0 && entry.min != -Float.MAX_VALUE && entry.max != Float.MAX_VALUE) {
-                val barX = x + SLI_X; val barW = w - SLI_X - 24
-                if (mx in barX until barX + barW) {
-                    val t = ((mx - barX).toFloat() / barW).coerceIn(0f, 1f)
-                    entry.value = entry.min + t * (entry.max - entry.min)
-                    draggingSlider = SliderDrag.Numeric(entry, barX, barW)
-                }
-            }
-            is DoubleEntry -> if (btn == 0 && entry.min != -Double.MAX_VALUE && entry.max != Double.MAX_VALUE) {
-                val barX = x + SLI_X; val barW = w - SLI_X - 24
-                if (mx in barX until barX + barW) {
-                    val t = ((mx - barX).toFloat() / barW).coerceIn(0f, 1f)
-                    entry.value = entry.min + t * (entry.max - entry.min)
-                    draggingSlider = SliderDrag.Numeric(entry, barX, barW)
-                }
-            }
             is StringEntry  -> { editingString = entry; editText = entry.value }
             is ColorEntry   -> expandedColorEntry = if (expandedColorEntry == entry) null else entry
             is KeybindEntry -> listeningKeybind   = if (listeningKeybind  == entry) null else entry
             is EnumEntry<*> -> expandedEnum = if (expandedEnum == entry) null else entry
+        }
+    }
+
+    private fun handleNumericBarClick(entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, btn: Int) {
+        if (btn != 0) return
+        val barX = x + 2; val barW = w - 4
+        if (mx !in barX until barX + barW) return
+        val t = ((mx - barX).toFloat() / barW).coerceIn(0f, 1f)
+        when (entry) {
+            is IntEntry -> if (entry.min != Int.MIN_VALUE && entry.max != Int.MAX_VALUE) {
+                entry.value = (entry.min + t * (entry.max - entry.min)).roundToInt()
+                draggingSlider = SliderDrag.Numeric(entry, barX, barW)
+            }
+            is FloatEntry -> if (entry.min != -Float.MAX_VALUE && entry.max != Float.MAX_VALUE) {
+                entry.value = entry.min + t * (entry.max - entry.min)
+                draggingSlider = SliderDrag.Numeric(entry, barX, barW)
+            }
+            is DoubleEntry -> if (entry.min != -Double.MAX_VALUE && entry.max != Double.MAX_VALUE) {
+                entry.value = entry.min + t * (entry.max - entry.min)
+                draggingSlider = SliderDrag.Numeric(entry, barX, barW)
+            }
+            else -> {}
         }
     }
 
@@ -487,6 +563,20 @@ class ClickGui : Screen(Component.literal("Medved")) {
         return true
     }
 
+    private fun handleFloatRangeClick(entry: FloatRangeEntry, x: Int, y: Int, w: Int, mx: Int, my: Int): Boolean {
+        if (my !in y until y + ENT_H) return false
+        val bx = x + 4; val bw = w - 8
+        if (mx !in bx until bx + bw) return false
+        val t = ((mx - bx).toFloat() / bw).coerceIn(0f, 1f)
+        val clickVal = entry.min + t * (entry.max - entry.min)
+        val (lo, hi) = entry.value
+        val mid = (lo + hi) / 2f
+        val isHigh = clickVal >= mid
+        entry.value = if (isHigh) lo to clickVal.coerceAtLeast(lo) else clickVal.coerceAtMost(hi) to hi
+        draggingSlider = SliderDrag.FloatRange(entry, isHigh, bx, bw)
+        return true
+    }
+
     private fun handleEnumDropdownClick(entry: EnumEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int): Boolean {
         if (mx !in x until x + w) return false
         for ((i, _) in entry.constants.withIndex()) {
@@ -504,7 +594,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val key = event.key()
 
         if (listeningKeybind != null) {
-            if (key == GLFW.GLFW_KEY_ESCAPE) listeningKeybind = null
+            if (key == GLFW.GLFW_KEY_ESCAPE) { listeningKeybind!!.value = GLFW.GLFW_KEY_UNKNOWN; listeningKeybind = null }
             else { listeningKeybind!!.value = key; listeningKeybind!!.suppressNextPress(); listeningKeybind = null }
             return true
         }
@@ -521,7 +611,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return true
         }
 
-        if (key == GLFW.GLFW_KEY_ESCAPE || key == ClickGuiModule.keybind.value) { onClose(); return true }
+        if (key == GLFW.GLFW_KEY_ESCAPE || key == ClickGui.keybind.value) { onClose(); return true }
 
         // route unhandled keys to game input
         val inputKey = InputConstants.getKey(event)
@@ -565,6 +655,12 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     val (lo, hi) = e.value
                     e.value = if (slider.isHigh) lo to v.coerceAtLeast(lo) else v.coerceAtMost(hi) to hi
                 }
+                is SliderDrag.FloatRange -> {
+                    val e = slider.entry
+                    val v = e.min + t * (e.max - e.min)
+                    val (lo, hi) = e.value
+                    e.value = if (slider.isHigh) lo to v.coerceAtLeast(lo) else v.coerceAtMost(hi) to hi
+                }
             }
             return true
         }
@@ -581,7 +677,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
     override fun onClose() {
         super.onClose()
-        ClickGuiModule.disable()
+        ClickGui.disable()
     }
 
     private fun configEntries(mod: Module) = mod.entries.filter {
@@ -599,6 +695,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
             2 -> col.copy(b = v)
             else -> col.copy(a = v)
         }
+    }
+
+    private fun bringToFront(cat: Module.Category) {
+        renderOrder.remove(cat)
+        renderOrder.add(cat)
     }
 
     private fun toggleExpand(mod: Module) {
@@ -638,8 +739,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
         GLFW.GLFW_KEY_END           -> "End"
         GLFW.GLFW_KEY_PAGE_UP       -> "PgUp"
         GLFW.GLFW_KEY_PAGE_DOWN     -> "PgDn"
-        GLFW.GLFW_KEY_LEFT_SHIFT,
-        GLFW.GLFW_KEY_RIGHT_SHIFT   -> "Shift"
+        GLFW.GLFW_KEY_LEFT_SHIFT    -> "LShift"
+        GLFW.GLFW_KEY_RIGHT_SHIFT   -> "RShift"
         GLFW.GLFW_KEY_LEFT_CONTROL,
         GLFW.GLFW_KEY_RIGHT_CONTROL -> "Ctrl"
         GLFW.GLFW_KEY_LEFT_ALT,

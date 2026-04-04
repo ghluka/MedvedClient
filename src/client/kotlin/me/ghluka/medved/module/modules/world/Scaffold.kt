@@ -17,7 +17,7 @@ import kotlin.math.atan2
 import kotlin.math.floor
 import kotlin.math.sqrt
 
-object ScaffoldModule : Module("Scaffold", "Automatically places blocks under you while walking", Category.WORLD) {
+object Scaffold : Module("Scaffold", "Automatically places blocks under you while walking", Category.WORLD) {
 
     enum class BridgeMode {
         NINJA,
@@ -41,6 +41,8 @@ object ScaffoldModule : Module("Scaffold", "Automatically places blocks under yo
      */
     private val pauseOnRotate = boolean("pause on rotate", true)
     private val autoclickCps = intRange("autoclick cps", 8 to 12, 1, 20)
+    val disableOnDeath = boolean("disable on death", true)
+    val disableOnWorldChange = boolean("disable on world change", true)
 
     private var crouchTicksElapsed = 0
     private var crouchTicksNeeded = 0

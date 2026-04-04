@@ -1,5 +1,6 @@
 package me.ghluka.medved.mixin.client;
 
+import me.ghluka.medved.module.modules.combat.Velocity;
 import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -10,8 +11,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LocalPlayer.class)
 public class LocalPlayerMixin {
 
-    @Inject(method = "sendPosition", at = @At("HEAD"))
+    @Inject(method = "sendPosition", at = @At("HEAD"), cancellable = true)
     private void medved$preSendPosition(CallbackInfo ci) {
+        if (Velocity.INSTANCE.shouldHoldPackets()) {
+            ci.cancel();
+            return;
+        }
         RotationManager.applyOverride((LocalPlayer) (Object) this);
     }
 

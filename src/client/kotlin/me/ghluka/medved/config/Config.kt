@@ -55,6 +55,9 @@ abstract class Config(val name: String) {
     protected fun intRange(name: String, default: Pair<Int, Int>, min: Int, max: Int) =
         register(IntRangeEntry(name, default, min, max))
 
+    protected fun floatRange(name: String, default: Pair<Float, Float>, min: Float, max: Float) =
+        register(FloatRangeEntry(name, default, min, max))
+
     fun serialize(): JsonObject = JsonObject().also { obj ->
         _entries.forEach { obj.add(it.name, it.toJson()) }
     }

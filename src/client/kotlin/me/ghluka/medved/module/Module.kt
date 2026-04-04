@@ -42,6 +42,9 @@ abstract class Module(
     /** Protected modules are always enabled and cannot be toggled or key-bound. */
     open val isProtected: Boolean = false
 
+    /** When false this module is never listed in the ModulesListHUD overlay. */
+    open val showInModulesList: Boolean = true
+
     val enabled = boolean("enabled", false)
     val keybind = keybind("keybind", GLFW.GLFW_KEY_UNKNOWN)
         .onPress { if (!isProtected) toggle() }
@@ -106,6 +109,6 @@ abstract class Module(
     }
 
     enum class Category {
-        COMBAT, MOVEMENT, RENDER, PLAYER, WORLD, MISC, OTHER
+        COMBAT, MOVEMENT, RENDER, PLAYER, WORLD, MISC, OTHER, HUD
     }
 }

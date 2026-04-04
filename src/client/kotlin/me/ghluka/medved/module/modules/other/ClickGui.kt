@@ -5,7 +5,9 @@ import me.ghluka.medved.module.Module
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 
-object ClickGuiModule : Module("Click Gui", "The click GUI", Category.OTHER) {
+object ClickGui : Module("Click Gui", "The click GUI", Category.OTHER) {
+
+    override val showInModulesList = false
 
     val showDescriptions = boolean("show_descriptions", true)
 

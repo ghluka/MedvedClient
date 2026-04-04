@@ -3,7 +3,7 @@ package me.ghluka.medved.module.modules.movement
 import me.ghluka.medved.module.Module
 import net.minecraft.client.Minecraft
 
-object SprintModule : Module(
+object Sprint : Module(
     name = "Sprint",
     description = "Automatically sprints",
     category = Category.MOVEMENT,

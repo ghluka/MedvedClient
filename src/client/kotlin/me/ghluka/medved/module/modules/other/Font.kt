@@ -8,9 +8,10 @@ import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
 
-object FontModule : Module("Font", "Customize the font used in GUI and HUD elements", Category.OTHER) {
+object Font : Module("Font", "Customize the font used in GUI and HUD elements", Category.OTHER) {
 
     override val isProtected = true
+    override val showInModulesList = false
     init { enabled.value = true }
 
     enum class FontChoice(val namespace: String, val path: String) {
