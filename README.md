@@ -23,24 +23,32 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 <details>
   <summary>Combat</summary>
 
+- **Left Clicker**\*
+  - Automatically left-clicks while holding the attack key
+- **Right Clicker**\*
+  - Automatically right-clicks while holding the use key
 - **Backtrack**\*
   - Delays enemy position updates
-
 - **Knockback Delay**\*
   - Buffers all incoming packets when hit, freezing the world until the delay expires
-
 - **No Hit Delay**\*
   - Removes the 1.8 attack hit delay for 1.7-style PvP on 1.8 servers
-
 - **Reach**\*
   - Extends your entity attack reach distance
-
 - **Velocity**\*
   - Modifies knockback you receive from attacks
   - Modes:
     - Reduce - reduce your knockback by a customizable %
     - Reverse - makes your knockback pull you forwards
     - Jump Reset - jumps when you get hit to take less knockback, perfect for prediction anticheats
+- **Combo Tap**\*
+  - Taps movement keys on attack to adjust velocity for better combos
+  - Modes:
+    - W Tap - suppresses W to create a tiny speed gap
+    - S Tap - pulls you slightly back through the hit
+    - Shift Tap - slows you down for tight combos
+    - Sprint Reset - kills sprint but keeps W pressed
+    - Jump Reset - jumps after hit and grounded
 </details>
 
 <details>
