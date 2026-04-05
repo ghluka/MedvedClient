@@ -8,7 +8,8 @@ class FloatRangeEntry(
     name: String,
     default: Pair<Float, Float>,
     val min: Float,
-    val max: Float
+    val max: Float,
+    val decimals: Int = 1
 ) : ConfigEntry<Pair<Float, Float>>(name, default) {
 
     override fun toJson(): JsonElement = JsonArray().apply {

@@ -1,11 +1,16 @@
 package me.ghluka.medved.mixin.client;
 
 import io.netty.channel.ChannelHandlerContext;
-import me.ghluka.medved.module.modules.combat.Velocity;
+import me.ghluka.medved.module.modules.player.Blink;
+import me.ghluka.medved.module.modules.combat.KnockbackDelay;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
+import net.minecraft.network.protocol.common.ClientboundPingPacket;
+import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
+import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,26 +26,35 @@ public class ConnectionMixin {
     @SuppressWarnings("unchecked")
     @Inject(method = "channelRead0", at = @At("HEAD"), cancellable = true)
     private void medved$onChannelRead(ChannelHandlerContext ctx, Packet<?> packet, CallbackInfo ci) {
-        if (!Velocity.INSTANCE.isEnabled() || Velocity.INSTANCE.getMode().getValue() != Velocity.Mode.DELAY)
-            return;
+        if (!KnockbackDelay.INSTANCE.isEnabled()) return;
+        if (packet instanceof ClientboundKeepAlivePacket || packet instanceof ClientboundPingPacket) return;
         PacketListener listener = packetListener;
         if (!(listener instanceof ClientPacketListener)) return;
 
         boolean trigger = false;
-        if (!Velocity.INSTANCE.isHolding() && packet instanceof ClientboundSetEntityMotionPacket mp) {
-            if (Velocity.cachedPlayerId != -1 && mp.id() == Velocity.cachedPlayerId) {
-                int chance = Velocity.INSTANCE.getDelayChance().getValue();
+        if (!KnockbackDelay.INSTANCE.isHolding() && packet instanceof ClientboundSetEntityMotionPacket mp) {
+            if (KnockbackDelay.cachedPlayerId != -1 && mp.id() == KnockbackDelay.cachedPlayerId) {
+                int chance = KnockbackDelay.INSTANCE.getChance().getValue();
                 if (chance >= 100 || (int)(Math.random() * 100) < chance) {
-                    Velocity.INSTANCE.triggerDelayForPlayer(Velocity.cachedOnGround);
+                    KnockbackDelay.INSTANCE.triggerDelay(KnockbackDelay.cachedOnGround);
                     trigger = true;
                 }
             }
         }
 
-        if (!trigger && !Velocity.INSTANCE.isHolding()) return;
+        if (!trigger && !KnockbackDelay.INSTANCE.isHolding()) return;
 
         Packet<PacketListener> p = (Packet<PacketListener>) packet;
         ci.cancel();
-        Velocity.INSTANCE.bufferPacket(() -> p.handle(listener));
+        KnockbackDelay.INSTANCE.bufferPacket(() -> p.handle(listener));
+    }
+
+    @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"), cancellable = true)
+    private void medved$onSend(Packet<?> packet, CallbackInfo ci) {
+        if (!Blink.INSTANCE.shouldBuffer()) return;
+        if (packet instanceof ServerboundKeepAlivePacket || packet instanceof ServerboundPongPacket) return;
+        Connection conn = (Connection)(Object) this;
+        ci.cancel();
+        Blink.INSTANCE.bufferPacket(() -> conn.send(packet));
     }
 }

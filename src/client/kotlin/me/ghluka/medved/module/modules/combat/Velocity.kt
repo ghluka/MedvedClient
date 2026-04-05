@@ -8,8 +8,7 @@ object Velocity : Module("Velocity", "Modifies knockback you receive from attack
     enum class Mode {
         REDUCE,
         REVERSE,
-        JUMP_RESET,
-        DELAY
+        JUMP_RESET
     }
 
     val mode = enum("mode", Mode.REDUCE)
@@ -34,52 +33,14 @@ object Velocity : Module("Velocity", "Modifies knockback you receive from attack
         it.visibleWhen = { mode.value == Mode.JUMP_RESET }
     }
 
-    val airDelay = intRange("air delay", 1900 to 2100, 0, 5000).also {
-        it.visibleWhen = { mode.value == Mode.DELAY }
-    }
-
-    val groundDelay = intRange("ground delay", 1900 to 2100, 0, 5000).also {
-        it.visibleWhen = { mode.value == Mode.DELAY }
-    }
-
-    val delayChance = int("delay chance %", 100, 0, 100).also {
-        it.visibleWhen = { mode.value == Mode.DELAY }
-    }
-
-    private var scheduledJumpAt  = 0L
+    private var scheduledJumpAt = 0L
     private var releaseJumpAt    = 0L
-    @Volatile private var holdPacketsUntil = 0L
-    private val packetBuffer     = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
-
-    @JvmField @Volatile var cachedPlayerId = -1
-    @JvmField @Volatile var cachedOnGround = false
 
     fun scheduleJump(at: Long) { scheduledJumpAt = at }
-
-    fun triggerDelayForPlayer(onGround: Boolean) {
-        if (System.currentTimeMillis() < holdPacketsUntil) return
-        val (lo, hi) = if (onGround) groundDelay.value else airDelay.value
-        val delayMs = if (hi > lo) (lo + (Math.random() * (hi - lo + 1)).toInt()).toLong() else lo.toLong()
-        holdPacketsUntil = System.currentTimeMillis() + delayMs
-    }
-
-    fun isHolding(): Boolean =
-        isEnabled() && mode.value == Mode.DELAY && System.currentTimeMillis() < holdPacketsUntil
-
-    fun bufferPacket(action: Runnable) { packetBuffer.add(action) }
-
-    fun shouldHoldPackets(): Boolean = false
 
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
         val now = System.currentTimeMillis()
-
-        cachedPlayerId = player.id
-        cachedOnGround = player.onGround()
-
-        if (!isHolding()) {
-            while (true) { val action = packetBuffer.poll() ?: break; action.run() }
-        }
 
         if (scheduledJumpAt > 0L && now >= scheduledJumpAt) {
             scheduledJumpAt = 0L
@@ -95,10 +56,8 @@ object Velocity : Module("Velocity", "Modifies knockback you receive from attack
     }
 
     override fun onDisabled() {
-        scheduledJumpAt  = 0L
-        releaseJumpAt    = 0L
-        holdPacketsUntil = 0L
-        packetBuffer.clear()
+        scheduledJumpAt = 0L
+        releaseJumpAt   = 0L
         Minecraft.getInstance().options?.keyJump?.setDown(false)
     }
 }

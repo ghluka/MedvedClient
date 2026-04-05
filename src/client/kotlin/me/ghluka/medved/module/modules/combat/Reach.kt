@@ -5,7 +5,7 @@ import net.minecraft.client.Minecraft
 
 object Reach : Module("Reach", "Extends your entity attack reach distance", Category.COMBAT) {
 
-    val customRange = floatRange("range", 3.0f to 4.0f, 3.0f, 6.0f)
+    val customRange = floatRange("range", 3.0f to 4.0f, 3.0f, 6.0f, decimals = 2)
     val hitThroughWalls = boolean("hit through walls", false)
     val customChance = int("chance %", 100, 0, 100)
 

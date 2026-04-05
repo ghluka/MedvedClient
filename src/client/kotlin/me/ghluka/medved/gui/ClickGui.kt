@@ -318,7 +318,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 g.text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
             }
             is FloatRangeEntry -> {
-                val txt = "%.1f - %.1f".format(entry.value.first, entry.value.second)
+                val fmt = "%.${entry.decimals}f"
+                val txt = "$fmt - $fmt".format(entry.value.first, entry.value.second)
                 val styledTxt = styled(txt)
                 val tw = guiFont.width(styledTxt)
                 g.text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
@@ -568,7 +569,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val bx = x + 4; val bw = w - 8
         if (mx !in bx until bx + bw) return false
         val t = ((mx - bx).toFloat() / bw).coerceIn(0f, 1f)
-        val clickVal = entry.min + t * (entry.max - entry.min)
+        val scale = Math.pow(10.0, entry.decimals.toDouble()).toFloat()
+        val clickVal = (Math.round((entry.min + t * (entry.max - entry.min)) * scale).toFloat()) / scale
         val (lo, hi) = entry.value
         val mid = (lo + hi) / 2f
         val isHigh = clickVal >= mid
@@ -657,7 +659,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 }
                 is SliderDrag.FloatRange -> {
                     val e = slider.entry
-                    val v = e.min + t * (e.max - e.min)
+                    val scale = Math.pow(10.0, e.decimals.toDouble()).toFloat()
+                    val v = (Math.round((e.min + t * (e.max - e.min)) * scale).toFloat()) / scale
                     val (lo, hi) = e.value
                     e.value = if (slider.isHigh) lo to v.coerceAtLeast(lo) else v.coerceAtMost(hi) to hi
                 }

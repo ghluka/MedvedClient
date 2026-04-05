@@ -9,7 +9,7 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import java.util.concurrent.ConcurrentHashMap
 
-object Backtrack : Module("Backtrack", "Delays enemy position updates for easier hit registration", Category.COMBAT) {
+object Backtrack : Module("Backtrack", "Delays enemy position updates", Category.COMBAT) {
 
     val delay       = int("delay (ms)", 200, 50, 1000)
     val onlyPlayers = boolean("only players", true)

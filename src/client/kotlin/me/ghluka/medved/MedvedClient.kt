@@ -4,6 +4,8 @@ import me.ghluka.medved.alt.AltManager
 import me.ghluka.medved.config.ConfigManager
 import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.combat.Backtrack
+import me.ghluka.medved.module.modules.player.Blink
+import me.ghluka.medved.module.modules.combat.KnockbackDelay
 import me.ghluka.medved.module.modules.combat.NoHitDelay
 import me.ghluka.medved.module.modules.combat.Reach
 import me.ghluka.medved.module.modules.combat.Velocity
@@ -35,6 +37,8 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(NoHitDelay)
         ModuleManager.register(Backtrack)
         ModuleManager.register(Velocity)
+        ModuleManager.register(KnockbackDelay)
+        ModuleManager.register(Blink)
         ModuleManager.register(Reach)
         ModuleManager.register(Scaffold)
         ModuleManager.register(ModulesList)
