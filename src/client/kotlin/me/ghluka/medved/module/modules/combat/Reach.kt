@@ -22,6 +22,11 @@ object Reach : Module("Reach", "Extends your entity attack reach distance", Cate
         }
     }
 
+    override fun hudInfo(): String {
+        val (lo, hi) = customRange.value
+        return if (hi > lo) "%.2f-%.2f".format(lo, hi) else "%.2f".format(lo)
+    }
+
     override fun onDisabled() {
         tickReach = -1.0
     }

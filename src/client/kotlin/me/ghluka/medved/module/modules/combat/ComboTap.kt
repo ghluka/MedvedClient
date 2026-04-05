@@ -52,7 +52,14 @@ object ComboTap : Module(
         cooldownDeadlineMs = 0L
     }
 
-    /** Called from PlayerMixin on every Player.attack() — once per actual hit, not per animation frame. */
+    override fun hudInfo(): String = when (method.value) {
+        Method.W_TAP        -> "W Tap"
+        Method.S_TAP        -> "S Tap"
+        Method.SHIFT_TAP    -> "Shift Tap"
+        Method.SPRINT_RESET -> "Sprint Reset"
+        Method.JUMP_RESET   -> "Jump Reset"
+    }
+
     fun onAttack() {
         val now = System.currentTimeMillis()
         if (now < cooldownDeadlineMs) return

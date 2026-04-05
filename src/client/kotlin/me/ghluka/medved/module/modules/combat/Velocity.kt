@@ -17,7 +17,7 @@ object Velocity : Module("Velocity", "Modifies knockback you receive from attack
         it.visibleWhen = { mode.value == Mode.REDUCE }
     }
 
-    val reduceYPercent = float("reduce y %", 50f, 0f, 100f).also {
+    val reduceYPercent = float("reduce y %", 0f, 0f, 100f).also {
         it.visibleWhen = { mode.value == Mode.REDUCE }
     }
 
@@ -53,6 +53,12 @@ object Velocity : Module("Velocity", "Modifies knockback you receive from attack
             releaseJumpAt = 0L
             client.options.keyJump.setDown(false)
         }
+    }
+
+    override fun hudInfo(): String = when (mode.value) {
+        Mode.REDUCE     -> "Reduce ${reducePercent.value.toInt()}% ${reduceYPercent.value.toInt()}%"
+        Mode.REVERSE    -> "Reverse ${reversePercent.value.toInt()}%"
+        Mode.JUMP_RESET -> "Jump Reset"
     }
 
     override fun onDisabled() {

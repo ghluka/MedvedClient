@@ -74,6 +74,10 @@ abstract class Module(
 
     fun isEnabled(): Boolean = enabled.value
 
+    open fun hudInfo(): String = ""
+
+    open fun hudInfoColor(): Int = (255 shl 24) or (170 shl 16) or (170 shl 8) or 170
+
     fun toggle() { if (enabled.value) disable() else enable() }
 
     fun enable() {

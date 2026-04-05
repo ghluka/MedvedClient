@@ -84,6 +84,12 @@ object Blink : Module("Blink", "Buffers outgoing packets, making you appear froz
         }
     }
 
+    override fun hudInfo(): String {
+        if (!holding) return ""
+        val remaining = (holdUntil - System.currentTimeMillis()).coerceAtLeast(0L)
+        return "${remaining}ms"
+    }
+
     override fun onDisabled() {
         holding   = false
         holdUntil = 0L

@@ -41,6 +41,8 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates", Category
         flushExpired(false)
     }
 
+    override fun hudInfo(): String = "${delay.value}ms"
+
     override fun onDisabled() {
         if (Minecraft.getInstance().level != null) flushExpired(true) else clearBuffer()
     }

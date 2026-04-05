@@ -45,6 +45,11 @@ object RightClicker : Module(
         accumulator = 0.0f
     }
 
+    override fun hudInfo(): String {
+        val (lo, hi) = cps.value
+        return if (hi > lo) "%.1f-%.1f cps".format(lo, hi) else "%.1f cps".format(lo)
+    }
+
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
         if (client.screen != null) return

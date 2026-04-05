@@ -36,6 +36,16 @@ object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets 
         }
     }
 
+    override fun hudInfo(): String {
+        if (isHolding()) return "Holding"
+        val (lo, hi) = airDelay.value
+        return if (hi > lo) "${lo}-${hi}ms" else "${lo}ms"
+    }
+
+    override fun hudInfoColor(): Int =
+        if (isHolding()) (255 shl 24) or (255 shl 16) or (80 shl 8) or 80
+        else super.hudInfoColor()
+
     override fun onDisabled() {
         holdPacketsUntil = 0L
         packetBuffer.clear()

@@ -6,6 +6,7 @@ import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
@@ -22,6 +23,7 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
     val capitalize     = enum("capitalize", Capitalize.TITLE)
     val padX           = int("pad x", 2, 0, 6)
     val padY           = int("pad y", 3, 0, 6)
+    val showConfig     = boolean("show config", true)
 
     private const val FONT_H = 8
     private val ROW_H get() = FONT_H + padY.value * 2
@@ -63,9 +65,12 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
         val font = Font.getFont()
         val mods = activeModules()
         if (mods.isEmpty()) return 60
-        return mods.maxOf {
-            font.width(Font.styledText(applyCase(it.name))) + padX.value * 2 +
-                (if (leftBorder.value) BORDER_W else 0)
+        val borderW = if (leftBorder.value) BORDER_W else 0
+        return mods.maxOf { mod ->
+            val nameW = font.width(Font.styledText(applyCase(mod.name)))
+            val info = if (showConfig.value) applyCase(mod.hudInfo()) else ""
+            val infoW = if (info.isNotEmpty()) 4 + font.width(Font.styledText(info)) else 0
+            borderW + padX.value + nameW + infoW + padX.value
         }
     }
 
@@ -81,28 +86,45 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
         val font = Font.getFont()
         val borderW = if (leftBorder.value) BORDER_W else 0
         val accentColor = Colour.accent.value.argb
+        val screenW = Minecraft.getInstance().window.guiScaledWidth
+        val onRight = hudX.value > screenW / 2f
 
         var ry = 0
         for (mod in mods) {
             val displayName = applyCase(mod.name)
-            val comp = Font.styledText(displayName)
-            val textW = font.width(comp)
+            val nameComp = Font.styledText(displayName)
+            val nameW = font.width(nameComp)
 
-            val rowW = borderW + padX.value + textW + padX.value
+            val info = if (showConfig.value) applyCase(mod.hudInfo()) else ""
+            val infoComp = if (info.isNotEmpty()) Font.styledText(info) else null
+            val infoW = if (infoComp != null) 4 + font.width(infoComp) else 0
 
-            if (background.value) {
-                g.fill(0, ry, rowW, ry + ROW_H, bgColor.value.argb)
-            }
-            if (leftBorder.value) {
-                g.fill(0, ry, borderW, ry + ROW_H, accentColor)
-            }
-
-            val textX = borderW + padX.value
+            val rowW = borderW + padX.value + nameW + infoW + padX.value
             val textY = ry + (ROW_H - FONT_H) / 2
-            if (textShadow.value) {
-                g.text(font, comp, textX + 1, textY + 1, argb(160, 0, 0, 0))
+
+            if (background.value) g.fill(0, ry, rowW, ry + ROW_H, bgColor.value.argb)
+
+            if (onRight) {
+                if (leftBorder.value) g.fill(rowW - borderW, ry, rowW, ry + ROW_H, accentColor)
+                val nameX = rowW - borderW - padX.value - nameW
+                if (textShadow.value) g.text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
+                g.text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
+                if (infoComp != null) {
+                    val infoX = nameX - 4 - font.width(infoComp)
+                    if (textShadow.value) g.text(font, infoComp, infoX + 1, textY + 1, argb(160, 0, 0, 0))
+                    g.text(font, infoComp, infoX, textY, mod.hudInfoColor())
+                }
+            } else {
+                if (leftBorder.value) g.fill(0, ry, borderW, ry + ROW_H, accentColor)
+                val nameX = borderW + padX.value
+                if (textShadow.value) g.text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
+                g.text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
+                if (infoComp != null) {
+                    val infoX = nameX + nameW + 4
+                    if (textShadow.value) g.text(font, infoComp, infoX + 1, textY + 1, argb(160, 0, 0, 0))
+                    g.text(font, infoComp, infoX, textY, mod.hudInfoColor())
+                }
             }
-            g.text(font, comp, textX, textY, argb(255, 215, 215, 228))
 
             ry += ROW_H
         }
