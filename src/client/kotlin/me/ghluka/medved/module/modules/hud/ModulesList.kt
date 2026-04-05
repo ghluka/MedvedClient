@@ -6,6 +6,7 @@ import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
+import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -61,6 +62,27 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
         return mods
     }
 
+    override fun hudPixelX(screenW: Int): Int {
+        val px = (hudX.value * screenW).toInt()
+        return if (hudX.value > 0.5f) px - hudWidth() else px
+    }
+
+    override fun hudXFromLeftPixel(leftPx: Int, screenW: Int): Float =
+        if (hudX.value > 0.5f) (leftPx + hudWidth()).toFloat() / screenW
+        else leftPx.toFloat() / screenW
+
+    override fun onHudRender(extractor: GuiGraphicsExtractor, delta: DeltaTracker) {
+        val mc = Minecraft.getInstance()
+        val px = hudPixelX(mc.window.guiScaledWidth)
+        val py = (hudY.value * mc.window.guiScaledHeight).toInt()
+        val sc = hudScale.value
+        extractor.pose().pushMatrix()
+        extractor.pose().translate(px.toFloat(), py.toFloat())
+        if (sc != 1.0f) extractor.pose().scale(sc, sc)
+        renderHudElement(extractor)
+        extractor.pose().popMatrix()
+    }
+
     override fun hudWidth(): Int {
         val font = Font.getFont()
         val mods = activeModules()
@@ -86,8 +108,7 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
         val font = Font.getFont()
         val borderW = if (leftBorder.value) BORDER_W else 0
         val accentColor = Colour.accent.value.argb
-        val screenW = Minecraft.getInstance().window.guiScaledWidth
-        val onRight = hudX.value > screenW / 2f
+        val onRight = hudX.value > 0.5f
 
         var ry = 0
         for (mod in mods) {
@@ -102,11 +123,11 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
             val rowW = borderW + padX.value + nameW + infoW + padX.value
             val textY = ry + (ROW_H - FONT_H) / 2
 
-            if (background.value) g.fill(0, ry, rowW, ry + ROW_H, bgColor.value.argb)
-
             if (onRight) {
-                if (leftBorder.value) g.fill(rowW - borderW, ry, rowW, ry + ROW_H, accentColor)
-                val nameX = rowW - borderW - padX.value - nameW
+                val rightEdge = hudWidth()
+                if (background.value) g.fill(rightEdge - rowW, ry, rightEdge, ry + ROW_H, bgColor.value.argb)
+                if (leftBorder.value) g.fill(rightEdge - borderW, ry, rightEdge, ry + ROW_H, accentColor)
+                val nameX = rightEdge - borderW - padX.value - nameW
                 if (textShadow.value) g.text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
                 g.text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 if (infoComp != null) {
@@ -115,6 +136,7 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
                     g.text(font, infoComp, infoX, textY, mod.hudInfoColor())
                 }
             } else {
+                if (background.value) g.fill(0, ry, rowW, ry + ROW_H, bgColor.value.argb)
                 if (leftBorder.value) g.fill(0, ry, borderW, ry + ROW_H, accentColor)
                 val nameX = borderW + padX.value
                 if (textShadow.value) g.text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))

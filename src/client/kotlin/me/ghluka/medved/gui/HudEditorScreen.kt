@@ -47,7 +47,7 @@ class HudEditorScreen(
         drawGridLines(g)
 
         val sc = module.hudScale.value
-        val px = (module.hudX.value * width).toInt()
+        val px = module.hudPixelX(width)
         val py = (module.hudY.value * height).toInt()
         val ew = (module.hudWidth() * sc).toInt().coerceAtLeast(4)
         val eh = (module.hudHeight() * sc).toInt().coerceAtLeast(4)
@@ -124,7 +124,7 @@ class HudEditorScreen(
         }
 
         val sc = module.hudScale.value
-        val px = (module.hudX.value * width).toInt()
+        val px = module.hudPixelX(width)
         val py = (module.hudY.value * height).toInt()
         val ew = (module.hudWidth() * sc).toInt().coerceAtLeast(4)
         val eh = (module.hudHeight() * sc).toInt().coerceAtLeast(4)
@@ -158,7 +158,7 @@ class HudEditorScreen(
         if (dragging) {
             val rawX = mx - dragOffX
             val rawY = my - dragOffY
-            module.hudX.value = (snapToGrid(rawX, width).toFloat() / width).coerceIn(0f, 1f)
+            module.hudX.value = module.hudXFromLeftPixel(snapToGrid(rawX, width), width).coerceIn(0f, 1f)
             module.hudY.value = (snapToGrid(rawY, height).toFloat() / height).coerceIn(0f, 1f)
             return true
         }

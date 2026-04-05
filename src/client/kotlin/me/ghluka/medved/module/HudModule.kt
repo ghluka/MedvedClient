@@ -17,6 +17,10 @@ abstract class HudModule(name: String, description: String) :
     abstract fun hudWidth(): Int
     abstract fun hudHeight(): Int
 
+    open fun hudPixelX(screenW: Int): Int = (hudX.value * screenW).toInt()
+
+    open fun hudXFromLeftPixel(leftPx: Int, screenW: Int): Float = leftPx.toFloat() / screenW
+
     override fun onHudRender(extractor: GuiGraphicsExtractor, delta: DeltaTracker) {
         val mc = Minecraft.getInstance()
         val px = (hudX.value * mc.window.guiScaledWidth).toInt()
