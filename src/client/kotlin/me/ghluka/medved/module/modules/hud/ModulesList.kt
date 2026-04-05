@@ -21,6 +21,7 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
     val bgColor        = color("bg color", Color(0, 0, 0, 160), allowAlpha = true)
     val textShadow     = boolean("text shadow", false)
     val sort           = enum("sort", Sort.ORDER)
+    val reverseOrder   = boolean("reverse order", false)
     val capitalize     = enum("capitalize", Capitalize.TITLE)
     val padX           = int("pad x", 2, 0, 6)
     val padY           = int("pad y", 3, 0, 6)
@@ -55,10 +56,16 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
                 (it.category != Module.Category.HUD && it.category != Module.Category.RENDER)
             }
         mods = when (sort.value) {
-            Sort.SIZE  -> mods.sortedByDescending { font.width(Font.styledText(applyCase(it.name))) }
-            Sort.ALPHA -> mods.sortedBy { it.name }
-            Sort.ORDER -> mods
+            Sort.SIZE         -> mods.sortedByDescending {
+                val nameW = font.width(Font.styledText(applyCase(it.name)))
+                val info = if (showConfig.value) applyCase(it.hudInfo()) else ""
+                val infoW = if (info.isNotEmpty()) 4 + font.width(Font.styledText(info)) else 0
+                nameW + infoW
+            }
+            Sort.ALPHA        -> mods.sortedBy { it.name }
+            Sort.ORDER        -> mods
         }
+        if (reverseOrder.value) mods = mods.reversed()
         return mods
     }
 
