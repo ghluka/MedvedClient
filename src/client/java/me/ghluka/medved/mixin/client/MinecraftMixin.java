@@ -1,6 +1,7 @@
 package me.ghluka.medved.mixin.client;
 
 import me.ghluka.medved.module.modules.combat.Reach;
+import me.ghluka.medved.module.modules.world.BedBreaker;
 import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -28,6 +29,15 @@ public class MinecraftMixin {
     private void medved$overrideHitResult(float partialTick, CallbackInfo ci) {
         if (RotationManager.isActive()) {
             RotationManager.updateHitResult();
+        }
+
+        // BedBreaker: after pick() sets hitResult from the player's real look direction,
+        // override it to the exact target block so continueAttack() breaks the right block.
+        BlockPos bbPos = BedBreaker.INSTANCE.isEnabled() ? BedBreaker.pendingHitPos : null;
+        if (bbPos != null) {
+            Direction bbFace = BedBreaker.pendingHitFace;
+            Vec3 center = new Vec3(bbPos.getX() + 0.5, bbPos.getY() + 0.5, bbPos.getZ() + 0.5);
+            this.hitResult = new BlockHitResult(center, bbFace, bbPos, false);
         }
 
         if (!Reach.INSTANCE.isEnabled()) return;

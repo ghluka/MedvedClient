@@ -3,23 +3,12 @@ package me.ghluka.medved
 import me.ghluka.medved.alt.AltManager
 import me.ghluka.medved.config.ConfigManager
 import me.ghluka.medved.module.ModuleManager
-import me.ghluka.medved.module.modules.combat.Backtrack
-import me.ghluka.medved.module.modules.combat.ComboTap
-import me.ghluka.medved.module.modules.player.Blink
-import me.ghluka.medved.module.modules.combat.KnockbackDelay
-import me.ghluka.medved.module.modules.combat.KnockbackDisplacement
-import me.ghluka.medved.module.modules.combat.LeftClicker
-import me.ghluka.medved.module.modules.combat.NoHitDelay
-import me.ghluka.medved.module.modules.combat.Reach
-import me.ghluka.medved.module.modules.combat.RightClicker
-import me.ghluka.medved.module.modules.combat.Velocity
-import me.ghluka.medved.module.modules.hud.ModulesList
-import me.ghluka.medved.module.modules.movement.Sprint
-import me.ghluka.medved.module.modules.other.ClickGui
-import me.ghluka.medved.module.modules.other.Colour
-import me.ghluka.medved.module.modules.other.Font
-import me.ghluka.medved.module.modules.other.Rotations
-import me.ghluka.medved.module.modules.world.Scaffold
+import me.ghluka.medved.module.modules.combat.*
+import me.ghluka.medved.module.modules.player.*
+import me.ghluka.medved.module.modules.hud.*
+import me.ghluka.medved.module.modules.movement.*
+import me.ghluka.medved.module.modules.other.*
+import me.ghluka.medved.module.modules.world.*
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.loader.api.FabricLoader
@@ -47,11 +36,15 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Backtrack)
         // movement
         ModuleManager.register(Sprint)
+        ModuleManager.register(Timer)
         // render
         // player
         ModuleManager.register(Blink)
         // world
         ModuleManager.register(Scaffold)
+        ModuleManager.register(FastPlace)
+        ModuleManager.register(AutoPlace)
+        ModuleManager.register(BedBreaker)
         // other
         ModuleManager.register(ClickGui)
         ModuleManager.register(Font)

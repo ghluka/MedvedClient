@@ -27,16 +27,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Automatically left-clicks while holding the attack key
 - **Right Clicker**\*
   - Automatically right-clicks while holding the use key
-- **Backtrack**\*
-  - Delays enemy position updates
-- **Knockback Displacement**\*
-  - Silently flicks rotation on each attack to displace knockback sideways
-- **Knockback Delay**\*
-  - Buffers all incoming packets when hit, freezing the world until the delay expires
 - **No Hit Delay**\*
   - Removes the 1.8 attack hit delay for 1.7-style PvP on 1.8 servers
-- **Reach**\*
-  - Extends your entity attack reach distance
 - **Velocity**\*
   - Modifies knockback you receive from attacks
   - Modes:
@@ -51,6 +43,14 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
     - Shift Tap - slows you down for tight combos
     - Sprint Reset - kills sprint but keeps W pressed
     - Jump Reset - jumps after hit and grounded
+- **Knockback Delay**\*
+  - Buffers all incoming packets when hit, freezing the world until the delay expires
+- **Reach**\*
+  - Extends your entity attack reach distance
+- **Knockback Displacement**\*
+  - Silently flicks rotation on each attack to displace knockback sideways
+- **Backtrack**\*
+  - Delays enemy position updates
 </details>
 
 <details>
@@ -58,6 +58,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 
 - **Sprint**\*
   - Automatically sprints
+- **Timer**\*
+  - Speeds up or slows down the game tick rate
 </details>
 
 <details>
@@ -74,6 +76,12 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Automatically places blocks under you while walking
   - Modes:
     - Ninja - crouches at the end of blocks
+- **Fast Place**\*
+  - Removes the right-click delay when placing blocks
+- **Auto Place**\*
+  - Automatically places blocks when looking at a block surface
+- **Bed Breaker**\*
+  - Automatically breaks enemy beds
 </details>
 
 <details>
