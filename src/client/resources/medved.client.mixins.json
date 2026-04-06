@@ -13,6 +13,7 @@
 		"LocalPlayerMixin",
 		"MinecraftMixin",
 		"MinecraftUserAccessor",
+		"MultiPlayerGameModeMixin",
 		"PlayerMixin",
 		"TitleScreenMixin"
 	],

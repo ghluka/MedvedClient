@@ -7,6 +7,7 @@ import me.ghluka.medved.module.modules.combat.Backtrack
 import me.ghluka.medved.module.modules.combat.ComboTap
 import me.ghluka.medved.module.modules.player.Blink
 import me.ghluka.medved.module.modules.combat.KnockbackDelay
+import me.ghluka.medved.module.modules.combat.KnockbackDisplacement
 import me.ghluka.medved.module.modules.combat.LeftClicker
 import me.ghluka.medved.module.modules.combat.NoHitDelay
 import me.ghluka.medved.module.modules.combat.Reach
@@ -17,6 +18,7 @@ import me.ghluka.medved.module.modules.movement.Sprint
 import me.ghluka.medved.module.modules.other.ClickGui
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
+import me.ghluka.medved.module.modules.other.Rotations
 import me.ghluka.medved.module.modules.world.Scaffold
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -33,20 +35,29 @@ object MedvedClient : ClientModInitializer {
         ConfigManager.init(gameDir.resolve("config/medved"))
         AltManager.init(gameDir.resolve("config/medved"))
 
+        // combat
+        ModuleManager.register(LeftClicker)
+        ModuleManager.register(RightClicker)
+        ModuleManager.register(NoHitDelay)
+        ModuleManager.register(Velocity)
+        ModuleManager.register(ComboTap)
+        ModuleManager.register(KnockbackDelay)
+        ModuleManager.register(Reach)
+        ModuleManager.register(KnockbackDisplacement)
+        ModuleManager.register(Backtrack)
+        // movement
         ModuleManager.register(Sprint)
+        // render
+        // player
+        ModuleManager.register(Blink)
+        // world
+        ModuleManager.register(Scaffold)
+        // other
         ModuleManager.register(ClickGui)
         ModuleManager.register(Font)
         ModuleManager.register(Colour)
-        ModuleManager.register(NoHitDelay)
-        ModuleManager.register(Backtrack)
-        ModuleManager.register(ComboTap)
-        ModuleManager.register(Velocity)
-        ModuleManager.register(KnockbackDelay)
-        ModuleManager.register(Blink)
-        ModuleManager.register(LeftClicker)
-        ModuleManager.register(RightClicker)
-        ModuleManager.register(Reach)
-        ModuleManager.register(Scaffold)
+        ModuleManager.register(Rotations)
+        // hud
         ModuleManager.register(ModulesList)
 
         ModuleManager.init()

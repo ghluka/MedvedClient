@@ -29,6 +29,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Automatically right-clicks while holding the use key
 - **Backtrack**\*
   - Delays enemy position updates
+- **Knockback Displacement**\*
+  - Silently flicks rotation on each attack to displace knockback sideways
 - **Knockback Delay**\*
   - Buffers all incoming packets when hit, freezing the world until the delay expires
 - **No Hit Delay**\*

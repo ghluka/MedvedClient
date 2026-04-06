@@ -18,12 +18,12 @@ object RightClicker : Module(
     category = Category.COMBAT
 ) {
 
-    private val cps        = floatRange("cps", 16.0f to 18.0f, 1.0f, 20.0f)
+    private val cps        = floatRange("cps", 12.0f to 14.0f, 1.0f, 20.0f)
     private val jitter     = float("jitter", 0.0f, 0.0f, 2.0f)
 
-    private val blocksOnly = boolean("blocks only", false)
+    private val blocksOnly = boolean("blocks only", true)
 
-    private val woolOnly = boolean("wool only", false).also {
+    private val woolOnly = boolean("wool only", true).also {
         it.visibleWhen = { blocksOnly.value }
     }
 

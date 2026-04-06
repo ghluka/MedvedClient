@@ -1,5 +1,6 @@
 package me.ghluka.medved.util
 
+import me.ghluka.medved.module.modules.other.Rotations
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.util.Mth
@@ -34,6 +35,10 @@ object RotationManager {
     private var clientYaw = 0f
     private var clientPitch = 0f
     private var overriding = false
+
+    enum class MovementMode { CLIENT, SERVER }
+
+    @JvmField var movementMode: MovementMode = MovementMode.CLIENT
 
     /** Action to fire inside sendPosition, right after rotation override. */
     @JvmField
@@ -81,6 +86,7 @@ object RotationManager {
     fun clearRotation() {
         targetYaw = null
         targetPitch = null
+        movementMode = MovementMode.CLIENT
     }
 
     /** Whether an override is currently active. */
@@ -149,9 +155,9 @@ object RotationManager {
     }
 
     /**
-     * Advances the current rotation toward the target.
+     * Advances toward the target at maximum believable mouse-flick speed.
      */
-    fun tick() {
+    fun flickTick() {
         val tYaw = targetYaw ?: return
         val tPitch = targetPitch ?: return
 
@@ -169,11 +175,8 @@ object RotationManager {
         val f = sensitivity * 0.6 + 0.2
         val degreesPerCount = (f * f * f * 8.0).toFloat()
 
-        // Move 50-80% of remaining distance
-        val fraction = 0.5f + Random.nextFloat() * 0.3f
-        val rawStep = dist * fraction
-        // Quantize to sensitivity mouse counts + jitter
-        val counts = (rawStep / degreesPerCount).coerceIn(1f, 80f) + Random.nextFloat() * 0.6f - 0.3f
+        // Full-speed step: use 100% of distance, capped at 120 mouse counts.
+        val counts = (dist / degreesPerCount).coerceIn(1f, 120f) + Random.nextFloat() * 0.4f - 0.2f
         val step = degreesPerCount * counts
 
         if (dist <= step || dist < degreesPerCount * 1.5f) {
@@ -184,9 +187,76 @@ object RotationManager {
             currentYaw += yawDiff * ratio
             currentPitch = (currentPitch + pitchDiff * ratio).coerceIn(-90f, 90f)
         }
+    }
+
+    /**
+     * Advances the current rotation toward the target.
+     * All interpolation parameters (easing, speed, jitter, overshoot) are read from
+     * the [Rotations] settings module so users can tune them without recompiling.
+     */
+    fun tick() {
+        val tYaw = targetYaw ?: return
+        val tPitch = targetPitch ?: return
+
+        val yawDiff   = Mth.wrapDegrees(tYaw   - currentYaw)
+        val pitchDiff = Mth.wrapDegrees(tPitch - currentPitch)
+        val dist = sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff)
+
+        if (dist < 0.01f) {
+            currentYaw   = tYaw
+            currentPitch = tPitch
+            applyMicroJitter()
+            return
+        }
+
+        val sensitivity = Minecraft.getInstance().options.sensitivity().get()
+        val f = sensitivity * 0.6 + 0.2
+        val degreesPerCount = (f * f * f * 8.0).toFloat()
+
+        // --- per-tick speed fraction (randomised within slider range, then eased) ---
+        val (speedLo, speedHi) = Rotations.speed.value
+        val rawFraction = if (speedHi > speedLo)
+            speedLo + Random.nextFloat() * (speedHi - speedLo)
+        else speedLo
+        val fraction = Rotations.ease(rawFraction)
+
+        val rawStep = dist * fraction
+        val jitter  = Rotations.countJitter.value
+        val counts  = (rawStep / degreesPerCount)
+            .coerceIn(1f, Rotations.maxCounts.value.toFloat()) +
+            Random.nextFloat() * jitter * 2f - jitter
+        val step = degreesPerCount * counts
+
+        if (dist <= step || dist < degreesPerCount * 1.5f) {
+            currentYaw   = tYaw
+            currentPitch = tPitch
+        } else {
+            // --- optional overshoot ---
+            val overshootRoll = Rotations.overshootChance.value
+            val doOvershoot   = overshootRoll > 0 && Random.nextInt(100) < overshootRoll
+            val effectiveDist = if (doOvershoot) {
+                val (osLo, osHi) = Rotations.overshootAmount.value
+                val os = if (osHi > osLo) osLo + Random.nextFloat() * (osHi - osLo) else osLo
+                dist + os           // move past target; next tick will snap back
+            } else dist
+
+            val ratio = step / effectiveDist
+            currentYaw    = currentYaw  + yawDiff   * ratio
+            currentPitch  = (currentPitch + pitchDiff * ratio).coerceIn(-90f, 90f)
+        }
+
+        applyMicroJitter()
 
         // Update the block crosshair/outline to reflect the server rotation.
         updateHitResult()
+    }
+
+    /** Adds tiny random noise to the current rotation (hand-tremor simulation). */
+    private fun applyMicroJitter() {
+        val mj = Rotations.microJitter.value
+        if (mj <= 0f) return
+        currentYaw   += (Random.nextFloat() * 2f - 1f) * mj
+        currentPitch  = (currentPitch + (Random.nextFloat() * 2f - 1f) * mj).coerceIn(-90f, 90f)
     }
 
     /**
@@ -224,12 +294,14 @@ object RotationManager {
             val nf = (forwardInput / inputLen).toDouble()
             val ns = (strafeInput / inputLen).toDouble()
 
-            // World direction the player intended (input at client camera yaw)
-            val clientRad = Math.toRadians(clientYaw.toDouble())
-            val cSin = kotlin.math.sin(clientRad)
-            val cCos = kotlin.math.cos(clientRad)
-            val worldDx = ns * cCos - nf * cSin
-            val worldDz = nf * cCos + ns * cSin
+            // World direction: CLIENT mode follows the real camera yaw; SERVER mode follows the
+            // spoofed yaw so the packet movement aligns with where the server thinks we're looking.
+            val dirYaw = if (movementMode == MovementMode.SERVER) currentYaw else clientYaw
+            val dirRad = Math.toRadians(dirYaw.toDouble())
+            val dSin = kotlin.math.sin(dirRad)
+            val dCos = kotlin.math.cos(dirRad)
+            val worldDx = ns * dCos - nf * dSin
+            val worldDz = nf * dCos + ns * dSin
 
             // Find the closest of 8 possible input directions at the server yaw
             val serverRad = Math.toRadians(currentYaw.toDouble())
