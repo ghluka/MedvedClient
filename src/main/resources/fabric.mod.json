@@ -3,7 +3,7 @@
 	"id": "medved",
 	"version": "${version}",
 	"name": "Medved",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "A Fabric utility mod for PvP, minigames, and more.",
 	"authors": [
 		"ghluka"
 	],

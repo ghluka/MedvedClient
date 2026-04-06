@@ -9,6 +9,7 @@ import me.ghluka.medved.module.modules.hud.*
 import me.ghluka.medved.module.modules.movement.*
 import me.ghluka.medved.module.modules.other.*
 import me.ghluka.medved.module.modules.world.*
+import me.ghluka.medved.update.UpdateChecker
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.loader.api.FabricLoader
@@ -54,6 +55,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(ModulesList)
 
         ModuleManager.init()
+        UpdateChecker.init()
 
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             val handle = mc.window.handle()
