@@ -23,12 +23,18 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 <details>
   <summary>Combat</summary>
 
+- **Aim Assist**\*
+  - Smoothly rotates toward the nearest player within FOV
+- **Auto Block**\*
+  - Holds block with your sword to reduce incoming damage
 - **Left Clicker**\*
   - Automatically left-clicks while holding the attack key
 - **Right Clicker**\*
   - Automatically right-clicks while holding the use key
 - **No Hit Delay**\*
   - Removes the 1.8 attack hit delay for 1.7-style PvP on 1.8 servers
+- **Hit Select**\*
+  - Restricts auto-clicks and attacks to the most effective moments
 - **Velocity**\*
   - Modifies knockback you receive from attacks
   - Modes:

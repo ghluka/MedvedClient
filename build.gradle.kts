@@ -44,10 +44,11 @@ dependencies {
 }
 
 tasks.processResources {
-	inputs.property("version", version)
+	val props = project.properties.filterValues { it is String }.mapValues { it.value as String }
+	inputs.properties(props)
 
 	filesMatching("fabric.mod.json") {
-		expand("version" to version)
+		expand(props)
 	}
 }
 

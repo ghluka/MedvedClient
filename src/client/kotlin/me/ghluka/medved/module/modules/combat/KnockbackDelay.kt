@@ -52,6 +52,9 @@ object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets 
 
     override fun onDisabled() {
         holdPacketsUntil = 0L
-        packetBuffer.clear()
+        while (true) {
+            val action = packetBuffer.poll() ?: break
+            try { action.run() } catch (_: Exception) { packetBuffer.clear(); break }
+        }
     }
 }

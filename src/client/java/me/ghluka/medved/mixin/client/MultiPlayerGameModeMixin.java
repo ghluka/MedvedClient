@@ -1,5 +1,6 @@
 package me.ghluka.medved.mixin.client;
 
+import me.ghluka.medved.module.modules.combat.HitSelect;
 import me.ghluka.medved.module.modules.combat.KnockbackDisplacement;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
@@ -16,19 +17,38 @@ public class MultiPlayerGameModeMixin {
 
     /**
      * Intercepts attack() BEFORE the ServerboundInteractPacket is sent.
-     * If KnockbackDisplacement is active, cancels the attack here and reschedules it
-     * via RotationManager.pendingPostSendAction so it fires AFTER sendPosition enqueues
-     * the spoofed-yaw position packet, ensuring the server updates its yaw before
-     * processing the hit.
+     *
+     * Priority order:
+     * 1. KnockbackDisplacement deferred re-fires (skipIntercept=true) bypass all gating
+     *    but still notify HitSelect so it tracks the attack timing correctly.
+     * 2. HitSelect ACTIVE mode cancels attacks when conditions aren't met.
+     * 3. KnockbackDisplacement reschedules attacks with a spoofed yaw rotation.
+     * 4. Any attack that reaches here fires normally; HitSelect's delay timer is updated.
      */
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
     private void medved$onAttack(Player player, Entity target, CallbackInfo ci) {
-        if (KnockbackDisplacement.skipIntercept) return;
         if (!(player instanceof LocalPlayer localPlayer)) return;
         if (!(target instanceof LivingEntity living)) return;
-        if (!KnockbackDisplacement.INSTANCE.isEnabled()) return;
-        if (KnockbackDisplacement.scheduleAttack(localPlayer, living, (MultiPlayerGameMode) (Object) this)) {
-            ci.cancel();
+
+        if (KnockbackDisplacement.skipIntercept) {
+            HitSelect.notifyAttackFiring();
+            return;
         }
+
+        // HitSelect ACTIVE mode: cancel if conditions not met
+        if (HitSelect.shouldCancelAttack()) {
+            ci.cancel();
+            return;
+        }
+
+        // KnockbackDisplacement: reschedule attack with spoofed rotation (deferred to next tick)
+        if (KnockbackDisplacement.INSTANCE.isEnabled()) {
+            if (KnockbackDisplacement.scheduleAttack(localPlayer, living, (MultiPlayerGameMode) (Object) this)) {
+                ci.cancel();
+                return;
+            }
+        }
+
+        HitSelect.notifyAttackFiring();
     }
 }

@@ -17,6 +17,7 @@ object LeftClicker : Module(
     category = Category.COMBAT
 ) {
 
+    @JvmField var clickedThisTick = false
     private val cps            = floatRange("cps", 11.0f to 13.0f, 1.0f, 20.0f)
     private val jitter         = float("jitter", 0.0f, 0.0f, 2.0f)
 
@@ -32,10 +33,12 @@ object LeftClicker : Module(
     override fun onEnabled() {
         accumulator = 0.0f
         targetCps   = pickCps()
+        clickedThisTick = false
     }
 
     override fun onDisabled() {
         accumulator = 0.0f
+        clickedThisTick = false
     }
 
     override fun hudInfo(): String {
@@ -69,11 +72,13 @@ object LeftClicker : Module(
         accumulator += targetCps / 20.0f
         var clicked = false
         while (accumulator >= 1.0f) {
-            KeyMapping.click(InputConstants.getKey(client.options.keyAttack.saveString()))
             accumulator -= 1.0f
+            if (!HitSelect.canAutoAttack()) { targetCps = pickCps(); continue }
+            KeyMapping.click(InputConstants.getKey(client.options.keyAttack.saveString()))
             targetCps = pickCps()
             clicked = true
         }
+        clickedThisTick = clicked
 
         if (clicked && jitter.value > 0f) {
             val jx = (Random.nextFloat() - 0.5f) * 2f * jitter.value

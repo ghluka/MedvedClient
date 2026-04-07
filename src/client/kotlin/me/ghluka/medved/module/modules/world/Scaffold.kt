@@ -96,7 +96,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         ClientTickEvents.START_CLIENT_TICK.register { client ->
             if (!isEnabled()) return@register
             val player = client.player ?: return@register
-            if (!hasBlocks(player)) return@register
+            if (!hasBlocks(player)) { RotationManager.clearRotation(); return@register }
 
             // Kill sprint so aiStep() never sees the key held.
             player.isSprinting = false
@@ -117,6 +117,8 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
             RotationManager.allowStrafe  = strafing
             RotationManager.allowForward = movingForwardBack
+            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+            RotationManager.rotationMode = RotationManager.RotationMode.SERVER
 
             // jump timing for WASD+space bridging: suppress the jump
             // key until the player reaches the block edge
@@ -328,6 +330,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             pendingFace = null
             clickCooldownTicks = 0
             RotationManager.pendingFireAction = null
+            RotationManager.clearRotation()
             return
         }
 

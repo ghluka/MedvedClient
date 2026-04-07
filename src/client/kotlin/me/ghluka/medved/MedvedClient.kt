@@ -26,9 +26,12 @@ object MedvedClient : ClientModInitializer {
         AltManager.init(gameDir.resolve("config/medved"))
 
         // combat
+        ModuleManager.register(AimAssist)
+        ModuleManager.register(AutoBlock)
         ModuleManager.register(LeftClicker)
         ModuleManager.register(RightClicker)
         ModuleManager.register(NoHitDelay)
+        ModuleManager.register(HitSelect)
         ModuleManager.register(Velocity)
         ModuleManager.register(ComboTap)
         ModuleManager.register(KnockbackDelay)

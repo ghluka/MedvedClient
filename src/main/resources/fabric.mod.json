@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"id": "medved",
-	"version": "${version}",
+	"version": "${mod_version}",
 	"name": "Medved",
 	"description": "A Fabric utility mod for PvP, minigames, and more.",
 	"authors": [
@@ -14,7 +14,7 @@
 		"homepage": "https://luka.onl/medved/",
 		"sources": "https://github.com/ghluka/MedvedClient"
 	},
-	"license": "CC0-1.0",
+	"license": "GPL-3.0-with-linking-exception",
 	"icon": "assets/medved/icon.png",
 	"environment": "*",
 	"entrypoints": {
@@ -33,8 +33,8 @@
 		}
 	],
 	"depends": {
-		"fabricloader": ">=0.18.5",
-		"minecraft": "~26.1",
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
 		"java": ">=25",
 		"fabric-api": "*",
 		"fabric-language-kotlin": "*"

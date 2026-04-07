@@ -80,6 +80,7 @@ object KnockbackDisplacement : Module(
         val flickYaw = player.yRot + side * angle
 
         RotationManager.movementMode = RotationManager.MovementMode.SERVER
+        RotationManager.rotationMode  = RotationManager.RotationMode.SERVER
         RotationManager.setTargetRotation(flickYaw, player.xRot)
         RotationManager.flickTick()
         rotationHeld = true

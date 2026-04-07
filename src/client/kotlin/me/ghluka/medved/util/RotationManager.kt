@@ -38,7 +38,14 @@ object RotationManager {
 
     enum class MovementMode { CLIENT, SERVER }
 
+    /**
+     * SERVER = silent aim: server sees rotation, client camera is unchanged.
+     * CLIENT = camera aim: rotation is applied to the client camera as well.
+     */
+    enum class RotationMode { SERVER, CLIENT }
+
     @JvmField var movementMode: MovementMode = MovementMode.CLIENT
+    @JvmField var rotationMode: RotationMode = RotationMode.SERVER
 
     /** Action to fire inside sendPosition, right after rotation override. */
     @JvmField
@@ -87,6 +94,7 @@ object RotationManager {
         targetYaw = null
         targetPitch = null
         movementMode = MovementMode.CLIENT
+        rotationMode = RotationMode.SERVER
     }
 
     /** Whether an override is currently active. */
@@ -246,6 +254,18 @@ object RotationManager {
         }
 
         applyMicroJitter()
+
+        // For CLIENT rotation mode, actually move the player's camera to follow.
+        if (rotationMode == RotationMode.CLIENT) {
+            val player = Minecraft.getInstance().player
+            if (player != null) {
+                player.setYRot(currentYaw)
+                player.setXRot(currentPitch)
+                // Keep clientYaw/clientPitch in sync so restoreRotation doesn't fight us.
+                clientYaw   = currentYaw
+                clientPitch = currentPitch
+            }
+        }
 
         // Update the block crosshair/outline to reflect the server rotation.
         updateHitResult()

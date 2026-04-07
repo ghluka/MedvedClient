@@ -13,7 +13,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.item.enchantment.EnchantmentHelper
 
 object TargetHud : HudModule("Target HUD", "Displays target info and fight prediction when in combat") {
 
@@ -341,28 +340,44 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
     private fun calcWinChance(self: Player, enemy: LivingEntity): Float {
         if (self.maxHealth <= 0f || enemy.maxHealth <= 0f) return -1f
 
-        val selfDmg   = estimateDps(self)
-        val enemyDmg  = estimateDps(enemy)
-        if (selfDmg <= 0f || enemyDmg <= 0f) return -1f
+        val selfDmg  = weaponDamage(self)
+        val enemyDmg = weaponDamage(enemy)
+        val selfEhp  = effectiveHp(self)
+        val enemyEhp = effectiveHp(enemy)
 
-        val selfEhp   = effectiveHp(self)
-        val enemyEhp  = effectiveHp(enemy)
+        if (selfDmg <= 0f) return 0f
 
-        val selfTtk   = enemyEhp / selfDmg
-        val enemyTtk  = selfEhp  / enemyDmg
+        val hitsToKillEnemy = kotlin.math.ceil((enemyEhp / selfDmg).toDouble()).toLong().coerceAtLeast(1L)
+        val hitsToKillSelf  = if (enemyDmg > 0f)
+            kotlin.math.ceil((selfEhp / enemyDmg).toDouble()).toLong().coerceAtLeast(1L)
+        else Long.MAX_VALUE / 2
 
-        val ratio = enemyTtk / (selfTtk + enemyTtk)
-        return (ratio * 100f).coerceIn(0f, 100f)
+        val total = (hitsToKillEnemy + hitsToKillSelf).toFloat()
+        return (hitsToKillSelf.toFloat() / total * 100f).coerceIn(0f, 100f)
+    }
+
+    private fun weaponDamage(entity: LivingEntity): Float {
+        val stack = entity.mainHandItem
+        if (!stack.isEmpty) {
+            val mods = stack.get(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS)
+            if (mods != null) {
+                var bonus = 0.0
+                mods.forEach(net.minecraft.world.entity.EquipmentSlot.MAINHAND) { attr, modifier ->
+                    if (attr == net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE &&
+                        modifier.operation() == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE) {
+                        bonus += modifier.amount()
+                    }
+                }
+                if (bonus > 0.0) return (1f + bonus.toFloat())
+            }
+        }
+        return entity.attributes.getValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)
+            .toFloat().coerceAtLeast(1f)
     }
 
     private fun effectiveHp(entity: LivingEntity): Float {
         val armorReduction = 1f - (entity.armorValue * 0.04f).coerceIn(0f, 0.8f)
         return (entity.health + entity.absorptionAmount) / armorReduction
-    }
-
-    private fun estimateDps(entity: LivingEntity): Float {
-        val atk = entity.attributes.getValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE).toFloat()
-        return atk * 2f
     }
 
     private fun darken(argb: Int, factor: Float): Int {
