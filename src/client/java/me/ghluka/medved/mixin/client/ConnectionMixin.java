@@ -2,6 +2,7 @@ package me.ghluka.medved.mixin.client;
 
 import io.netty.channel.ChannelHandlerContext;
 import me.ghluka.medved.module.modules.player.Blink;
+import me.ghluka.medved.module.modules.player.FakeLag;
 import me.ghluka.medved.module.modules.combat.KnockbackDelay;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.Connection;
@@ -51,10 +52,18 @@ public class ConnectionMixin {
 
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"), cancellable = true)
     private void medved$onSend(Packet<?> packet, CallbackInfo ci) {
-        if (!Blink.INSTANCE.shouldBuffer()) return;
-        if (packet instanceof ServerboundKeepAlivePacket || packet instanceof ServerboundPongPacket) return;
         Connection conn = (Connection)(Object) this;
-        ci.cancel();
-        Blink.INSTANCE.bufferPacket(() -> conn.send(packet));
+        boolean isKeepalive = packet instanceof ServerboundKeepAlivePacket || packet instanceof ServerboundPongPacket;
+
+        if (Blink.INSTANCE.shouldBuffer() && !isKeepalive) {
+            ci.cancel();
+            Blink.INSTANCE.bufferPacket(() -> conn.send(packet));
+            return;
+        }
+
+        if (FakeLag.INSTANCE.shouldDelay()) {
+            ci.cancel();
+            FakeLag.INSTANCE.queuePacket(() -> conn.send(packet));
+        }
     }
 }

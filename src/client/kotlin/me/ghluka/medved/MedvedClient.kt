@@ -43,6 +43,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Timer)
         // render
         // player
+        ModuleManager.register(FakeLag)
         ModuleManager.register(Blink)
         // world
         ModuleManager.register(Scaffold)

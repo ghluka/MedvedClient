@@ -36,8 +36,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 - **Hit Select**\*
   - Restricts auto-clicks and attacks to the most effective moments
   - Modes:
-    - Pause - Pauses the autoclicker but allows for manual clicks to go through
-    - Active - Cancel attack packets directly, good for auto-clicker or manual clicks
+    - Pause - pauses the autoclicker but allows for manual clicks to go through
+    - Active - cancel attack packets directly, good for auto-clicker or manual clicks
 - **Velocity**\*
   - Modifies knockback you receive from attacks
   - Modes:
@@ -74,6 +74,12 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 <details>
     <summary>Player</summary>
 
+- **Fake Lag**\*
+  - Delays outgoing packets to simulate real network latency
+  - Modes:
+    - Dynamic - lags you when another player is nearby, making you harder to hit while you can still reach them
+    - Repel - after each attack lands, you lag until the hit window closes so you can get double hits
+    - Latency - constant lag
 - **Blink**\*
   - Buffers outgoing packets, making you appear frozen to the server
 </details>

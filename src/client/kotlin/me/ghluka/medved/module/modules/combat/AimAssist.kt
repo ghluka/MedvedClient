@@ -8,6 +8,7 @@ import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import kotlin.math.atan2
+import kotlin.math.round
 import kotlin.math.sqrt
 
 object AimAssist : Module(
@@ -102,5 +103,9 @@ object AimAssist : Module(
         val yaw   = Math.toDegrees(atan2(-dx, dz)).toFloat()
         val pitch = (-Math.toDegrees(atan2(dy, horizDist))).toFloat()
         return yaw to pitch
+    }
+
+    override fun hudInfo(): String {
+        return "${round(strength.value * 100).toInt()}"
     }
 }

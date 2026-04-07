@@ -2,6 +2,7 @@ package me.ghluka.medved.mixin.client;
 
 import me.ghluka.medved.module.modules.combat.HitSelect;
 import me.ghluka.medved.module.modules.combat.KnockbackDisplacement;
+import me.ghluka.medved.module.modules.player.FakeLag;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
@@ -32,6 +33,7 @@ public class MultiPlayerGameModeMixin {
 
         if (KnockbackDisplacement.skipIntercept) {
             HitSelect.notifyAttackFiring();
+            FakeLag.notifyAttack();
             return;
         }
 
@@ -50,5 +52,6 @@ public class MultiPlayerGameModeMixin {
         }
 
         HitSelect.notifyAttackFiring();
+        FakeLag.notifyAttack();
     }
 }
