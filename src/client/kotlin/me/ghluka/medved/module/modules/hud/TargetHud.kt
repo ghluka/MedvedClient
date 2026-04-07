@@ -26,6 +26,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
     private val textShadow   = boolean("text shadow", false)
 
     private const val LINGER_MS = 3000L
+    private const val PAD = 3   // outer padding (px)
 
     private var target: LivingEntity? = null
     private var lastHitTime = 0L
@@ -175,10 +176,18 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         Design.DETAILED -> 150
     }
 
-    override fun hudHeight(): Int = when (design.value) {
-        Design.MINIMAL  -> 20
-        Design.COMPACT  -> 36
-        Design.DETAILED -> 52
+    override fun hudHeight(): Int {
+        val lh = Font.getFont().lineHeight
+        return when (design.value) {
+            Design.MINIMAL  -> lh + 11
+            Design.COMPACT  -> 2 * lh + 18
+            Design.DETAILED -> {
+                var rows = 2  // HP + dist always
+                if (target?.absorptionAmount ?: 0f > 0f) rows++
+                if (showWinChance.value) rows++
+                (2 * lh + 11) + (rows - 1) * (lh + 1)
+            }
+        }
     }
 
     override fun renderHudElement(g: GuiGraphicsExtractor) {
@@ -210,8 +219,9 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         g.roundedFill(0, 0, w, h, 3, bgC)
         g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
 
-        textWithShadow(g, font, nameComp, 5, 3, 0xFFD7D7E4.toInt())
-        renderBar(g, 5, 13, w - 10, 4, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
+        val lh = font.lineHeight
+        textWithShadow(g, font, nameComp, 5, PAD, 0xFFD7D7E4.toInt())
+        renderBar(g, 5, PAD + lh + 1, w - 10, 4, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
     }
 
     private fun renderCompact(
@@ -222,15 +232,19 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         g.roundedFill(0, 0, w, h, 3, bgC)
         g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
 
+        val lh     = font.lineHeight
+        val barY   = PAD + lh + 2          // typically 14 when lh=9
+        val wcY    = barY + 4 + 5          // barH(4) + gap(5) below bar; typically 23
+
         val hpStr  = "%.1f / %.1f".format(tgt.health, tgt.maxHealth)
         val hpComp = Font.styledText(hpStr)
         val nameAvailW = w - 5 - font.width(hpComp) - 10
         val name = fitName(tgt.name.string, nameAvailW, font)
 
-        textWithShadow(g, font, Font.styledText(name), 5, 3, 0xFFD7D7E4.toInt())
-        textWithShadow(g, font, hpComp, w - 4 - font.width(hpComp), 3, hpColor(tgt))
+        textWithShadow(g, font, Font.styledText(name), 5, PAD, 0xFFD7D7E4.toInt())
+        textWithShadow(g, font, hpComp, w - 4 - font.width(hpComp), PAD, hpColor(tgt))
 
-        renderBar(g, 5, 14, w - 10, 4, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
+        renderBar(g, 5, barY, w - 10, 4, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
 
         if (showWinChance.value) {
             val chance  = calcWinChance(self, tgt)
@@ -241,7 +255,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
                 chance >= 40 -> 0xFFFFAA00.toInt()
                 else         -> 0xFFFF5555.toInt()
             }
-            textWithShadow(g, font, Font.styledText(chStr), 5, 23, chColor)
+            textWithShadow(g, font, Font.styledText(chStr), 5, wcY, chColor)
         }
     }
 
@@ -249,32 +263,36 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         g: GuiGraphicsExtractor, tgt: LivingEntity, self: Player,
         font: net.minecraft.client.gui.Font, w: Int, h: Int, accent: Int
     ) {
+        val lh      = font.lineHeight
+        val headerH = lh + 6          // typically 15  (PAD + lh + PAD)
+        val hpRow   = headerH + 2     // typically 17
+        val rowStep = lh + 1          // typically 10  (consistent row-to-row spacing)
+
         val bgC = bgColor.value.argb
         g.roundedFill(0, 0, w, h, 3, bgC)
-        g.roundedFill(0, 0, w, 14, 3, darken(bgC, 0.6f), CORNERS_TOP)
+        g.roundedFill(0, 0, w, headerH, 3, darken(bgC, 0.6f), CORNERS_TOP)
         g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
 
-        textWithShadow(g, font, Font.styledText(tgt.name.string), 5, 3, 0xFFD7D7E4.toInt())
+        textWithShadow(g, font, Font.styledText(tgt.name.string), 5, PAD, 0xFFD7D7E4.toInt())
 
-        val hpRow = 17
         val hpValStr  = "%.1f".format(tgt.health)
         val hpValComp = Font.styledText(hpValStr)
         val hpValW    = font.width(hpValComp) + 4
         val hpLabelComp = Font.styledText("HP")
         val hpBarX = 5 + font.width(hpLabelComp) + 3
         textWithShadow(g, font, hpLabelComp, 5, hpRow, 0xFFAAAAAA.toInt())
-        renderBar(g, hpBarX, hpRow + 1, w - hpBarX - hpValW - 5, 5, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
+        renderBar(g, hpBarX, hpRow + 1, w - hpBarX - hpValW - 5, lh - 2, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
         textWithShadow(g, font, hpValComp, w - hpValW, hpRow, hpColor(tgt))
 
-        var row = hpRow + 10
+        var row = hpRow + rowStep
 
         val abs = tgt.absorptionAmount
         if (abs > 0f) {
             val absLabelComp = Font.styledText("Abs")
             val absBarX = 5 + font.width(absLabelComp) + 3
             textWithShadow(g, font, absLabelComp, 5, row, 0xFFFFDD44.toInt())
-            renderBar(g, absBarX, row + 1, w - absBarX - 5, 4, (abs / 20f).coerceIn(0f, 1f), 0xFFFFDD44.toInt(), 0xFF202020.toInt())
-            row += 9
+            renderBar(g, absBarX, row + 1, w - absBarX - 5, lh - 2, (abs / 20f).coerceIn(0f, 1f), 0xFFFFDD44.toInt(), 0xFF202020.toInt())
+            row += rowStep
         }
 
         val mc = Minecraft.getInstance()
@@ -282,7 +300,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         if (player != null) {
             val dist = "%.1fm".format(player.distanceTo(tgt))
             textWithShadow(g, font, Font.styledText("Dist: $dist"), 5, row, 0xFFAAAAAA.toInt())
-            row += 9
+            row += rowStep
         }
 
         if (showWinChance.value && player != null) {
@@ -305,9 +323,10 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         filledColor: Int,
         emptyColor: Int
     ) {
+        val r = h / 2
+        g.roundedFill(x, y, w, h, r, emptyColor)
         val filled = (w * fraction.coerceIn(0f, 1f)).toInt()
-        g.fill(x, y, x + w, y + h, emptyColor)
-        if (filled > 0) g.fill(x, y, x + filled, y + h, filledColor)
+        if (filled > 0) g.roundedFill(x, y, filled, h, r, filledColor)
     }
 
     private fun textWithShadow(

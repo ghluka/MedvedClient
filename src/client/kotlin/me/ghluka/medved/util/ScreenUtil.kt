@@ -51,21 +51,44 @@ fun GuiGraphicsExtractor.roundedFill(
 
     if (!doTL && !doTR && !doBL && !doBR) return
 
-    val r4sq = 4 * rr * rr
+    val baseA = (color ushr 24) and 0xFF
+    val rgb   = color and 0x00FFFFFF
+    val rrF   = rr.toFloat()
+
     for (i in 0 until rr) {
-        val ai = 2 * (rr - i) - 1  // left-side horizontal factor
-        val bi = 2 * i + 1         // right-side horizontal factor
+        val xi = i + 0.5f   // pixel-centre distance from outer edge   (used by TR / BR)
+        val xo = rrF - xi   // pixel-centre distance from inner centre  (used by TL / BL)
         for (j in 0 until rr) {
-            val aj = 2 * (rr - j) - 1  // top vertical factor
-            val bj = 2 * j + 1         // bottom vertical factor
-            if (doTL && ai * ai + aj * aj < r4sq)
-                fill(x + i,          y + j,           x + i + 1,          y + j + 1,          color)
-            if (doTR && bi * bi + aj * aj < r4sq)
-                fill(x + w - rr + i, y + j,           x + w - rr + i + 1, y + j + 1,          color)
-            if (doBL && ai * ai + bj * bj < r4sq)
-                fill(x + i,          y + h - rr + j,  x + i + 1,          y + h - rr + j + 1, color)
-            if (doBR && bi * bi + bj * bj < r4sq)
-                fill(x + w - rr + i, y + h - rr + j,  x + w - rr + i + 1, y + h - rr + j + 1, color)
+            val yi = j + 0.5f
+            val yo = rrF - yi
+            if (doTL) {
+                val cov = (rrF - kotlin.math.sqrt((xo * xo + yo * yo).toDouble()).toFloat() + 0.5f).coerceIn(0f, 1f)
+                if (cov > 0f) {
+                    val a = if (cov >= 1f) baseA else (baseA * cov + 0.5f).toInt()
+                    fill(x + i, y + j, x + i + 1, y + j + 1, (a shl 24) or rgb)
+                }
+            }
+            if (doTR) {
+                val cov = (rrF - kotlin.math.sqrt((xi * xi + yo * yo).toDouble()).toFloat() + 0.5f).coerceIn(0f, 1f)
+                if (cov > 0f) {
+                    val a = if (cov >= 1f) baseA else (baseA * cov + 0.5f).toInt()
+                    fill(x + w - rr + i, y + j, x + w - rr + i + 1, y + j + 1, (a shl 24) or rgb)
+                }
+            }
+            if (doBL) {
+                val cov = (rrF - kotlin.math.sqrt((xo * xo + yi * yi).toDouble()).toFloat() + 0.5f).coerceIn(0f, 1f)
+                if (cov > 0f) {
+                    val a = if (cov >= 1f) baseA else (baseA * cov + 0.5f).toInt()
+                    fill(x + i, y + h - rr + j, x + i + 1, y + h - rr + j + 1, (a shl 24) or rgb)
+                }
+            }
+            if (doBR) {
+                val cov = (rrF - kotlin.math.sqrt((xi * xi + yi * yi).toDouble()).toFloat() + 0.5f).coerceIn(0f, 1f)
+                if (cov > 0f) {
+                    val a = if (cov >= 1f) baseA else (baseA * cov + 0.5f).toInt()
+                    fill(x + w - rr + i, y + h - rr + j, x + w - rr + i + 1, y + h - rr + j + 1, (a shl 24) or rgb)
+                }
+            }
         }
     }
 }
