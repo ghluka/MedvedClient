@@ -53,6 +53,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Rotations)
         // hud
         ModuleManager.register(ModulesList)
+        ModuleManager.register(TargetHud)
 
         ModuleManager.init()
         UpdateChecker.init()

@@ -30,8 +30,13 @@ object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets 
         cachedPlayerId = player.id
         cachedOnGround = player.onGround()
         if (!isHolding()) {
-            if (client.level == null) { packetBuffer.clear() }
-            else { while (true) { val action = packetBuffer.poll() ?: break; action.run() } }
+            if (client.level == null || client.connection == null) { packetBuffer.clear() }
+            else {
+                while (true) {
+                    val action = packetBuffer.poll() ?: break
+                    try { action.run() } catch (_: Exception) { packetBuffer.clear(); break }
+                }
+            }
         }
     }
 
