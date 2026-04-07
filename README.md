@@ -35,6 +35,9 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Removes the 1.8 attack hit delay for 1.7-style PvP on 1.8 servers
 - **Hit Select**\*
   - Restricts auto-clicks and attacks to the most effective moments
+  - Modes:
+    - Pause - Pauses the autoclicker but allows for manual clicks to go through
+    - Active - Cancel attack packets directly, good for auto-clicker or manual clicks
 - **Velocity**\*
   - Modifies knockback you receive from attacks
   - Modes:

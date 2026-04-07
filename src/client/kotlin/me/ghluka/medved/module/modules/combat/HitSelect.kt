@@ -13,7 +13,7 @@ object HitSelect : Module(
     enum class HitMode { PAUSE, ACTIVE }
     enum class Preference { CRIT, COMBO, TIMER }
 
-    private val mode       = enum("mode", HitMode.PAUSE)
+    private val mode       = enum("mode", HitMode.ACTIVE)
     private val preference = enum("preference", Preference.CRIT)
     private val delay      = intRange("delay (ms)", 350 to 450, 100, 1500)
     private val filterPct  = int("filter %", 70, 0, 100)
