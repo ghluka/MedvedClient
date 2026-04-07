@@ -67,7 +67,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         private const val BTN_H     = 16
         private const val BTN_W     = 60
         private const val BTN_WIDE  = 92
-        private const val BTN_SMALL = 44
+        private const val BTN_SMALL = 50
         private const val ARROW_W   = 14
         private const val SEARCH_H  = 14
         private const val LIST_OFFSET = SEARCH_H + 6

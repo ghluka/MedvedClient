@@ -7,6 +7,7 @@ import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.other.ClickGui
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
+import me.ghluka.medved.util.*
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -31,6 +32,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         var expandedColorEntry: ColorEntry? = null
         var expandedEnum: EnumEntry<*>? = null
         val renderOrder = mutableListOf<Module.Category>()
+        val scrollTimes = mutableMapOf<Module, Long>()
     }
 
     private var editingString: StringEntry? = null
@@ -133,6 +135,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (renderOrder.isEmpty()) {
             renderOrder.addAll(Module.Category.entries)
         }
+        scrollTimes.clear()
     }
 
     override fun isPauseScreen() = false
@@ -158,11 +161,16 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val expanded = cat !in collapsed
         val panelH   = if (expanded) fullPanelHeight(cat) else HDR_H
 
-        if (expanded) g.fill(px, py + HDR_H, px + PNL_W, py + panelH, PNL_BG)
-
-        // Header bar
-        g.fill(px, py, px + PNL_W, py + HDR_H, HDR_BG)
-        g.fill(px, py, px + 3, py + HDR_H, HDR_ACC)
+        if (expanded) {
+            g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG, CORNERS_TOP)
+            g.roundedFill(px, py + HDR_H, PNL_W, panelH - HDR_H, 3, PNL_BG, CORNERS_BOT)
+            // Accent strip: only top-left corner rounded (bottom connects to panel body)
+            g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNER_TL)
+        } else {
+            g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG)
+            // Accent strip: both left corners rounded (panel is header-only)
+            g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNERS_LEFT)
+        }
         g.centeredText(guiFont, styled(cat.name), px + PNL_W / 2, py + (HDR_H - 8) / 2, -1)
         g.text(guiFont, jbMono(if (expanded) "\u25bc" else "\u25b2"), px + PNL_W - 12, py + (HDR_H - 8) / 2, TEXT_DIM)
 
@@ -176,8 +184,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
             if (hovMod) hoveredMod = mod
             g.fill(px, y, px + PNL_W, y + MOD_H, if (hovMod) MOD_HOV else MOD_NORM)
             if (mod.isEnabled()) g.fill(px, y, px + 3, y + MOD_H, ACCENT)
-            g.text(guiFont, styled(mod.name), px + 7, y + (MOD_H - 8) / 2, if (mod.isEnabled()) TEXT else TEXT_DIM)
             val entries = configEntries(mod)
+            val nameAvailW = PNL_W - 7 - (if (entries.isNotEmpty()) 14 else 4)
+            drawModuleName(g, mod, px + 7, y, nameAvailW, if (mod.isEnabled()) TEXT else TEXT_DIM)
             if (entries.isNotEmpty())
                 g.text(guiFont, jbMono(if (mod in expandedModules) "\u25bc" else "\u25b2"), px + PNL_W - 11, y + (MOD_H - 8) / 2, TEXT_DIM)
             y += MOD_H
@@ -251,6 +260,36 @@ class ClickGui : Screen(Component.literal("Medved")) {
             }
         }
         return h
+    }
+
+    private fun drawModuleName(
+        g: GuiGraphicsExtractor, mod: Module,
+        x: Int, rowY: Int, availW: Int, textColor: Int
+    ) {
+        val textY = rowY + (MOD_H - 8) / 2
+        val comp  = styled(mod.name)
+        val textW = guiFont.width(comp)
+        if (textW <= availW) {
+            g.text(guiFont, comp, x, textY, textColor)
+            scrollTimes.remove(mod)
+            return
+        }
+        val now     = System.currentTimeMillis()
+        val startMs = scrollTimes.getOrPut(mod) { now }
+        val elapsed = (now - startMs) / 1000f
+        val gap         = 20            // px between the two looping copies
+        val slotW       = textW + gap   // one full scroll cycle in pixels
+        val scrollSpeed = 25f
+        val pauseStart  = 1.5f
+        val offsetX = if (elapsed < pauseStart) {
+            0f
+        } else {
+            ((elapsed - pauseStart) * scrollSpeed) % slotW
+        }.toInt()
+        g.enableScissor(x, rowY, x + availW, rowY + MOD_H)
+        g.text(guiFont, comp, x - offsetX,        textY, textColor)  // primary copy
+        g.text(guiFont, comp, x - offsetX + slotW, textY, textColor) // trailing copy
+        g.disableScissor()
     }
 
     private fun drawEntry(g: GuiGraphicsExtractor, entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int) {

@@ -4,6 +4,9 @@ import me.ghluka.medved.config.entry.Color
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
+import me.ghluka.medved.util.CORNERS_LEFT
+import me.ghluka.medved.util.CORNERS_TOP
+import me.ghluka.medved.util.roundedFill
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -17,8 +20,8 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
     enum class PositionMode { STATIC, FLOATING }
     enum class Design { COMPACT, DETAILED, MINIMAL }
 
-    private val positionMode = enum("position", PositionMode.STATIC)
-    private val design       = enum("design", Design.COMPACT)
+    private val positionMode = enum("position", PositionMode.FLOATING)
+    private val design       = enum("design", Design.DETAILED)
     private val showWinChance = boolean("win chance", true)
     private val bgColor      = color("bg color", Color(0, 0, 0, 160), allowAlpha = true)
     private val textShadow   = boolean("text shadow", false)
@@ -30,6 +33,8 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
 
     private var smoothX = -1f
     private var smoothY = -1f
+    /** Cached pixel width for the MINIMAL design (updated each render frame). */
+    private var minimalWidth = 80
 
     override fun onEnabled() {
         target = null
@@ -166,13 +171,13 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
     }
 
     override fun hudWidth(): Int = when (design.value) {
-        Design.MINIMAL  -> 80
+        Design.MINIMAL  -> minimalWidth
         Design.COMPACT  -> 120
         Design.DETAILED -> 150
     }
 
     override fun hudHeight(): Int = when (design.value) {
-        Design.MINIMAL  -> 22
+        Design.MINIMAL  -> 20
         Design.COMPACT  -> 36
         Design.DETAILED -> 52
     }
@@ -198,18 +203,16 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         g: GuiGraphicsExtractor, tgt: LivingEntity, self: Player,
         font: net.minecraft.client.gui.Font, w: Int, h: Int, accent: Int
     ) {
-        val bgC  = bgColor.value.argb
-        g.fill(0, 0, w, h, bgC)
-        g.fill(0, 0, 2, h, accent)
+        val nameComp = Font.styledText(tgt.name.string)
+        // Update cached width so next frame's layout is correct
+        minimalWidth = (font.width(nameComp) + 14).coerceAtLeast(60).coerceAtMost(150)
 
-        val name  = getEntityName(tgt)
-        val hpStr = "%.1f".format(tgt.health)
-        val nameComp = Font.styledText(name)
-        val hpComp   = Font.styledText(hpStr)
-        val ty = (h - 8) / 2
+        val bgC = bgColor.value.argb
+        g.roundedFill(0, 0, w, h, 3, bgC)
+        g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
 
-        textWithShadow(g, font, nameComp, 5, ty, 0xFFD7D7E4.toInt())
-        textWithShadow(g, font, hpComp, w - 4 - font.width(hpComp), ty, hpColor(tgt))
+        textWithShadow(g, font, nameComp, 5, 3, 0xFFD7D7E4.toInt())
+        renderBar(g, 5, 13, w - 10, 4, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
     }
 
     private fun renderCompact(
@@ -217,14 +220,16 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         font: net.minecraft.client.gui.Font, w: Int, h: Int, accent: Int
     ) {
         val bgC = bgColor.value.argb
-        g.fill(0, 0, w, h, bgC)
-        g.fill(0, 0, 2, h, accent)
+        g.roundedFill(0, 0, w, h, 3, bgC)
+        g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
 
-        val name  = getEntityName(tgt)
-        val hpStr = "%.1f / %.1f".format(tgt.health, tgt.maxHealth)
+        val hpStr  = "%.1f / %.1f".format(tgt.health, tgt.maxHealth)
+        val hpComp = Font.styledText(hpStr)
+        val nameAvailW = w - 5 - font.width(hpComp) - 10
+        val name = fitName(tgt.name.string, nameAvailW, font)
 
         textWithShadow(g, font, Font.styledText(name), 5, 3, 0xFFD7D7E4.toInt())
-        textWithShadow(g, font, Font.styledText(hpStr), w - 4 - font.width(Font.styledText(hpStr)), 3, hpColor(tgt))
+        textWithShadow(g, font, hpComp, w - 4 - font.width(hpComp), 3, hpColor(tgt))
 
         renderBar(g, 5, 14, w - 10, 4, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
 
@@ -246,27 +251,30 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         font: net.minecraft.client.gui.Font, w: Int, h: Int, accent: Int
     ) {
         val bgC = bgColor.value.argb
-        g.fill(0, 0, w, h, bgC)
-        g.fill(0, 0, w, 14, darken(bgC, 0.6f))
-        g.fill(0, 0, 2, h, accent)
+        g.roundedFill(0, 0, w, h, 3, bgC)
+        g.roundedFill(0, 0, w, 14, 3, darken(bgC, 0.6f), CORNERS_TOP)
+        g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
 
-        val name = getEntityName(tgt)
-        textWithShadow(g, font, Font.styledText(name), 5, 3, 0xFFD7D7E4.toInt())
+        textWithShadow(g, font, Font.styledText(tgt.name.string), 5, 3, 0xFFD7D7E4.toInt())
 
         val hpRow = 17
         val hpValStr  = "%.1f".format(tgt.health)
         val hpValComp = Font.styledText(hpValStr)
         val hpValW    = font.width(hpValComp) + 4
-        textWithShadow(g, font, Font.styledText("HP"), 5, hpRow, 0xFFAAAAAA.toInt())
-        renderBar(g, 22, hpRow + 1, w - 22 - hpValW - 5, 5, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
+        val hpLabelComp = Font.styledText("HP")
+        val hpBarX = 5 + font.width(hpLabelComp) + 3
+        textWithShadow(g, font, hpLabelComp, 5, hpRow, 0xFFAAAAAA.toInt())
+        renderBar(g, hpBarX, hpRow + 1, w - hpBarX - hpValW - 5, 5, tgt.health / tgt.maxHealth, hpColor(tgt), 0xFF202020.toInt())
         textWithShadow(g, font, hpValComp, w - hpValW, hpRow, hpColor(tgt))
 
         var row = hpRow + 10
 
         val abs = tgt.absorptionAmount
         if (abs > 0f) {
-            textWithShadow(g, font, Font.styledText("Abs"), 5, row, 0xFFFFDD44.toInt())
-            renderBar(g, 22, row + 1, w - 27, 4, (abs / 20f).coerceIn(0f, 1f), 0xFFFFDD44.toInt(), 0xFF202020.toInt())
+            val absLabelComp = Font.styledText("Abs")
+            val absBarX = 5 + font.width(absLabelComp) + 3
+            textWithShadow(g, font, absLabelComp, 5, row, 0xFFFFDD44.toInt())
+            renderBar(g, absBarX, row + 1, w - absBarX - 5, 4, (abs / 20f).coerceIn(0f, 1f), 0xFFFFDD44.toInt(), 0xFF202020.toInt())
             row += 9
         }
 
@@ -322,8 +330,13 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         }
     }
 
-    private fun getEntityName(entity: LivingEntity): String =
-        entity.name.string.let { if (it.length > 14) it.take(13) + "…" else it }
+    /** Truncates [name] by pixel width so it fits within [availW] using the given [font]. */
+    private fun fitName(name: String, availW: Int, font: net.minecraft.client.gui.Font): String {
+        if (availW <= 0 || font.width(Font.styledText(name)) <= availW) return name
+        var s = name
+        while (s.isNotEmpty() && font.width(Font.styledText("$s\u2026")) > availW) s = s.dropLast(1)
+        return if (s.length < name.length) "$s\u2026" else name
+    }
 
     private fun calcWinChance(self: Player, enemy: LivingEntity): Float {
         if (self.maxHealth <= 0f || enemy.maxHealth <= 0f) return -1f

@@ -21,7 +21,7 @@ object Font : Module("Font", "Customize the font used in GUI and HUD elements", 
         JETBRAINS_MONO("medved", "jetbrains_mono")
     }
 
-    val fontChoice = enum("font", FontChoice.MINECRAFT)
+    val fontChoice = enum("font", FontChoice.MONTSERRAT)
 
     fun getFont(): Font = Minecraft.getInstance().font
 
