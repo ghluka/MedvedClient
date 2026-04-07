@@ -1,6 +1,7 @@
 package me.ghluka.medved.module
 
 import me.ghluka.medved.config.ConfigManager
+import me.ghluka.medved.util.NotificationManager
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
@@ -25,6 +26,11 @@ object ModuleManager {
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("medved", "modules"),
             HudElement { extractor, delta -> modules.forEach { it.dispatchHudRender(extractor, delta) } }
+        )
+
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("medved", "notifications"),
+            HudElement { extractor, _ -> NotificationManager.render(extractor) }
         )
     }
 

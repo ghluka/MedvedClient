@@ -20,6 +20,7 @@ object ConfigManager {
     private var tickCounter = 0
 
     private lateinit var configDir: Path
+    private lateinit var presetDir: Path
 
     /**
      * Must be called once during [net.fabricmc.api.ClientModInitializer.onInitializeClient].
@@ -28,6 +29,7 @@ object ConfigManager {
     fun init(configDir: Path) {
         this.configDir = configDir
         Files.createDirectories(configDir)
+        presetDir = configDir.resolve("presets")
 
         ClientTickEvents.END_CLIENT_TICK.register { _ ->
             configs.forEach { it.tickKeybinds() }
@@ -80,5 +82,56 @@ object ConfigManager {
         } catch (e: Exception) {
             logger.error("Failed to save config '${config.name}'", e)
         }
+    }
+
+    fun savePreset(name: String) {
+        val sanitized = name.trim().replace(Regex("[^a-zA-Z0-9_\\-]"), "_").take(64).ifBlank { "default" }
+        Files.createDirectories(presetDir)
+        val root = JsonObject()
+        configs.forEach { root.add(it.name, it.serialize()) }
+        try {
+            Files.newBufferedWriter(presetDir.resolve("$sanitized.json")).use { gson.toJson(root, it) }
+        } catch (e: Exception) {
+            logger.error("Failed to save preset '$sanitized'", e)
+        }
+    }
+
+    fun loadPreset(name: String) {
+        val file = presetDir.resolve("$name.json")
+        if (!Files.exists(file)) return
+        try {
+            Files.newBufferedReader(file).use { reader ->
+                val root = gson.fromJson(reader, JsonObject::class.java)
+                configs.forEach { config ->
+                    if (root.has(config.name)) config.deserialize(root.getAsJsonObject(config.name))
+                }
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to load preset '$name'", e)
+        }
+    }
+
+    fun listPresets(): List<String> {
+        if (!Files.exists(presetDir)) return emptyList()
+        return try {
+            Files.list(presetDir)
+                .filter { it.fileName.toString().endsWith(".json") }
+                .map { it.fileName.toString().removeSuffix(".json") }
+                .sorted()
+                .toList()
+        } catch (_: Exception) { emptyList() }
+    }
+
+    fun openPresetFolder() {
+        Files.createDirectories(presetDir)
+        val dir = presetDir.toAbsolutePath().toString()
+        try {
+            val os = System.getProperty("os.name").lowercase()
+            when {
+                "win" in os -> ProcessBuilder("explorer.exe", dir).start()
+                "mac" in os -> ProcessBuilder("open", dir).start()
+                else        -> ProcessBuilder("xdg-open", dir).start()
+            }
+        } catch (_: Exception) {}
     }
 }

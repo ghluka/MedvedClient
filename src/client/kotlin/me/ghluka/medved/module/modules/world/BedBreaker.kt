@@ -1,6 +1,7 @@
 package me.ghluka.medved.module.modules.world
 
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.util.RotationManager
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
@@ -59,6 +60,7 @@ object BedBreaker : Module(
     init {
         ClientTickEvents.START_CLIENT_TICK.register { client ->
             if (!isEnabled()) return@register
+            if (Scaffold.isEnabled()) return@register
             val player = client.player ?: return@register
             val level  = client.level  ?: return@register
 

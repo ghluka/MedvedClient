@@ -1,5 +1,6 @@
 package me.ghluka.medved.gui
 
+import me.ghluka.medved.config.ConfigManager
 import me.ghluka.medved.config.entry.*
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.Module
@@ -33,6 +34,27 @@ class ClickGui : Screen(Component.literal("Medved")) {
         var expandedEnum: EnumEntry<*>? = null
         val renderOrder = mutableListOf<Module.Category>()
         val scrollTimes = mutableMapOf<Module, Long>()
+        var presetNameBuffer = "default"
+        var cfgPanelX = -1
+        var cfgPanelY = -1
+        var cfgPanelCollapsed = true
+        fun resetPositions() {
+            val w = net.minecraft.client.Minecraft.getInstance().window.guiScaledWidth
+            positions.clear()
+            renderOrder.clear()
+            renderOrder.addAll(Module.Category.entries)
+            collapsed.addAll(Module.Category.entries)
+            val gap = 6; val margin = 10; val pnlW = 160; val hdrH = 18
+            var x = margin; var y = 30
+            for (cat in Module.Category.entries) {
+                if (x + pnlW > w - margin) { x = margin; y += hdrH + gap }
+                positions[cat] = Pair(x, y)
+                x += pnlW + gap
+            }
+            if (x + pnlW > w - margin) { x = margin; y += hdrH + gap }
+            cfgPanelX = x; cfgPanelY = y; cfgPanelCollapsed = true
+            NotificationManager.show("Layout Reset")
+        }
     }
 
     private var editingString: StringEntry? = null
@@ -43,6 +65,13 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private var dragOffY = 0
     private var hoveredMod: Module? = null
     private var draggingSlider: SliderDrag? = null
+    private var presetFieldActive = false
+    private val presetField = TextField()
+    private var draggingCfgPanel = false
+    private var cfgDragOffX = 0
+    private var cfgDragOffY = 0
+    private var draggingPresetField = false
+    private val cursorVisible get() = (System.currentTimeMillis() / 530) % 2 == 0L
 
     private var enumDropdownX = 0
     private var enumDropdownY = 0
@@ -131,19 +160,27 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 positions[cat] = Pair(x, y)
                 x += PNL_W + gap
             }
+            if (x + PNL_W > width - margin) { x = margin; y += HDR_H + gap }
+            cfgPanelX = x; cfgPanelY = y; cfgPanelCollapsed = true
         }
+        if (cfgPanelX < 0) { cfgPanelX = 10; cfgPanelY = 30; cfgPanelCollapsed = true }
         if (renderOrder.isEmpty()) {
             renderOrder.addAll(Module.Category.entries)
         }
         scrollTimes.clear()
+        presetField.text = presetNameBuffer
+        presetField.end(false)
     }
 
     override fun isPauseScreen() = false
     override fun isInGameUi() = true
 
+    override fun extractBackground(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
+    }
+
     override fun extractRenderState(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
         hoveredMod = null
-        g.fill(0, 0, width, height, BG)
+        if (ClickGui.showBackground.value) g.fill(0, 0, width, height, BG)
         for (cat in renderOrder) drawCategoryPanel(g, cat, mx, my)
         // draw dropdown overlay
         val enumExp = expandedEnum
@@ -153,6 +190,154 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val hov = hoveredMod
         if (hov != null && ClickGui.showDescriptions.value && hov.description.isNotBlank()) {
             drawTooltip(g, hov.description, mx, my)
+        }
+        drawConfigBar(g, mx, my)
+    }
+
+    private fun cfgPanelBodyH(): Int {
+        val presets = ConfigManager.listPresets()
+        return ENT_H + MOD_H + presets.size.coerceAtLeast(1) * ENT_H
+    }
+
+    private fun drawConfigBar(g: GuiGraphicsExtractor, mx: Int, my: Int) {
+        val px = cfgPanelX; val py = cfgPanelY
+        val expanded = !cfgPanelCollapsed
+        if (expanded) {
+            g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG, CORNERS_TOP)
+            g.roundedFill(px, py + HDR_H, PNL_W, cfgPanelBodyH(), 3, PNL_BG, CORNERS_BOT)
+            g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNER_TL)
+        } else {
+            g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG)
+            g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNERS_LEFT)
+        }
+        g.centeredText(guiFont, styled("CONFIGS"), px + PNL_W / 2, py + (HDR_H - 8) / 2, -1)
+        g.text(guiFont, jbMono(if (expanded) "-" else "+"), px + PNL_W - 12, py + (HDR_H - 8) / 2, TEXT_DIM)
+        if (!expanded) return
+
+        var y = py + HDR_H
+
+        val visW = PNL_W - 10
+        val textX = px + 5
+        g.fill(px, y, px + PNL_W, y + ENT_H, if (presetFieldActive) shade(40, 0.25f) else ENT_BG)
+        g.fill(px, y, px + PNL_W, y + 1, if (presetFieldActive) ACCENT else shade(10, 0.05f))
+        g.enableScissor(textX, y, textX + visW, y + ENT_H)
+        if (presetFieldActive && presetField.hasSelection) {
+            val sx = textX - presetField.scrollPx + guiFont.width(styled(presetField.text.substring(0, presetField.selMin)))
+            val ex = textX - presetField.scrollPx + guiFont.width(styled(presetField.text.substring(0, presetField.selMax)))
+            g.fill(sx, y + 1, ex, y + ENT_H - 1, argb(170, 60, 110, 210))
+        }
+        if (presetField.text.isEmpty() && !presetFieldActive) {
+            g.text(guiFont, styled("preset name..."), textX, y + (ENT_H - 8) / 2, TEXT_DIM)
+        } else {
+            g.text(guiFont, styled(presetField.text), textX - presetField.scrollPx, y + (ENT_H - 8) / 2, TEXT)
+        }
+        if (presetFieldActive && cursorVisible) {
+            val cx = textX - presetField.scrollPx + guiFont.width(styled(presetField.text.substring(0, presetField.cursor)))
+            g.fill(cx, y + 1, cx + 1, y + ENT_H - 1, argb(230, 220, 220, 255))
+        }
+        g.disableScissor()
+        y += ENT_H
+
+        val btnW = PNL_W / 3
+        val saveHov = mx in px until px + btnW && my in y until y + MOD_H
+        val loadHov = mx in px + btnW until px + btnW * 2 && my in y until y + MOD_H
+        val foldHov = mx in px + btnW * 2 until px + PNL_W && my in y until y + MOD_H
+        g.fill(px,            y, px + btnW,     y + MOD_H, if (saveHov) shade(50, 0.20f) else BTN_BG)
+        g.fill(px + btnW,     y, px + btnW * 2, y + MOD_H, if (loadHov) shade(50, 0.20f) else BTN_BG)
+        g.fill(px + btnW * 2, y, px + PNL_W,   y + MOD_H, if (foldHov) shade(50, 0.20f) else BTN_BG)
+        g.fill(px + btnW - 1,     y, px + btnW,     y + MOD_H, shade(10, 0.05f))
+        g.fill(px + btnW * 2 - 1, y, px + btnW * 2, y + MOD_H, shade(10, 0.05f))
+        g.centeredText(guiFont, styled("Save"),   px + btnW / 2,            y + (MOD_H - 8) / 2, TEXT)
+        g.centeredText(guiFont, styled("Load"),   px + btnW + btnW / 2,     y + (MOD_H - 8) / 2, TEXT)
+        g.centeredText(guiFont, styled("Folder"), px + btnW * 2 + btnW / 2, y + (MOD_H - 8) / 2, TEXT)
+        y += MOD_H
+
+        val presets = ConfigManager.listPresets()
+        if (presets.isEmpty()) {
+            g.fill(px, y, px + PNL_W, y + ENT_H, ENT_BG)
+            g.text(guiFont, styled("(no presets saved)"), px + 5, y + (ENT_H - 8) / 2, TEXT_DIM)
+            y += ENT_H
+        } else {
+            for (preset in presets) {
+                val hov = mx in px until px + PNL_W && my in y until y + ENT_H
+                val selected = preset == presetField.text
+                g.fill(px, y, px + PNL_W, y + ENT_H, if (hov) MOD_HOV else ENT_BG)
+                if (selected) g.fill(px, y, px + 3, y + ENT_H, ACCENT)
+                g.text(guiFont, styled(preset), px + 7, y + (ENT_H - 8) / 2, if (selected) TEXT else TEXT_DIM)
+                y += ENT_H
+            }
+        }
+
+    }
+
+    private inner class TextField {
+        var text      = ""
+        var cursor    = 0
+        var selAnchor = -1
+        var scrollPx  = 0
+
+        val selMin get() = if (selAnchor < 0) cursor else minOf(cursor, selAnchor)
+        val selMax get() = if (selAnchor < 0) cursor else maxOf(cursor, selAnchor)
+        val hasSelection get() = selAnchor >= 0 && selAnchor != cursor
+
+        fun set(s: String) { text = s; cursor = s.length; selAnchor = -1; scrollPx = 0 }
+        fun insert(s: String) {
+            if (hasSelection) { text = text.removeRange(selMin, selMax); cursor = selMin; selAnchor = -1 }
+            text = text.substring(0, cursor) + s + text.substring(cursor)
+            cursor += s.length
+        }
+        fun backspace() {
+            if (hasSelection) { text = text.removeRange(selMin, selMax); cursor = selMin; selAnchor = -1 }
+            else if (cursor > 0) { text = text.removeRange(cursor - 1, cursor); cursor-- }
+        }
+        fun deleteForward() {
+            if (hasSelection) { text = text.removeRange(selMin, selMax); cursor = selMin; selAnchor = -1 }
+            else if (cursor < text.length) { text = text.removeRange(cursor, cursor + 1) }
+        }
+        fun backspaceWord() {
+            if (hasSelection) { backspace(); return }
+            var start = cursor
+            while (start > 0 && text[start - 1] == ' ') start--
+            while (start > 0 && text[start - 1] != ' ') start--
+            text = text.removeRange(start, cursor); cursor = start; selAnchor = -1
+        }
+        fun move(delta: Int, selecting: Boolean) {
+            if (!selecting && hasSelection) { cursor = if (delta < 0) selMin else selMax; selAnchor = -1; return }
+            if (selecting && selAnchor < 0) selAnchor = cursor else if (!selecting) selAnchor = -1
+            cursor = (cursor + delta).coerceIn(0, text.length)
+        }
+        fun wordMove(forward: Boolean, selecting: Boolean) {
+            var i = cursor
+            if (forward) { while (i < text.length && text[i] == ' ') i++; while (i < text.length && text[i] != ' ') i++ }
+            else         { while (i > 0 && text[i - 1] == ' ') i--;  while (i > 0 && text[i - 1] != ' ') i-- }
+            if (selecting && selAnchor < 0) selAnchor = cursor else if (!selecting) selAnchor = -1
+            cursor = i
+        }
+        fun home(selecting: Boolean) {
+            if (selecting && selAnchor < 0) selAnchor = cursor else if (!selecting) selAnchor = -1
+            cursor = 0
+        }
+        fun end(selecting: Boolean) {
+            if (selecting && selAnchor < 0) selAnchor = cursor else if (!selecting) selAnchor = -1
+            cursor = text.length
+        }
+        fun selectAll() { selAnchor = 0; cursor = text.length }
+        fun copy() = if (hasSelection) text.substring(selMin, selMax) else ""
+        fun cut()  = copy().also { if (hasSelection) { text = text.removeRange(selMin, selMax); cursor = selMin; selAnchor = -1 } }
+        fun posFromPixel(relPx: Int): Int {
+            val adjusted = relPx + scrollPx
+            if (adjusted <= 0 || text.isEmpty()) return 0
+            for (i in 1..text.length) {
+                val half = (guiFont.width(styled(text.substring(0, i - 1))) + guiFont.width(styled(text.substring(0, i)))) / 2
+                if (adjusted <= half) return i - 1
+            }
+            return text.length
+        }
+        fun clampScroll(visWidth: Int) {
+            val curPx = guiFont.width(styled(text.substring(0, cursor)))
+            if (curPx - scrollPx < 0)        scrollPx = curPx
+            if (curPx - scrollPx > visWidth) scrollPx = curPx - visWidth
+            scrollPx = scrollPx.coerceAtLeast(0)
         }
     }
 
@@ -172,7 +357,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNERS_LEFT)
         }
         g.centeredText(guiFont, styled(cat.name), px + PNL_W / 2, py + (HDR_H - 8) / 2, -1)
-        g.text(guiFont, jbMono(if (expanded) "\u25bc" else "\u25b2"), px + PNL_W - 12, py + (HDR_H - 8) / 2, TEXT_DIM)
+        g.text(guiFont, jbMono(if (expanded) "-" else "+"), px + PNL_W - 12, py + (HDR_H - 8) / 2, TEXT_DIM)
 
         if (!expanded) return
 
@@ -188,7 +373,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             val nameAvailW = PNL_W - 7 - (if (entries.isNotEmpty()) 14 else 4)
             drawModuleName(g, mod, px + 7, y, nameAvailW, if (mod.isEnabled()) TEXT else TEXT_DIM)
             if (entries.isNotEmpty())
-                g.text(guiFont, jbMono(if (mod in expandedModules) "\u25bc" else "\u25b2"), px + PNL_W - 11, y + (MOD_H - 8) / 2, TEXT_DIM)
+                g.text(guiFont, jbMono(if (mod in expandedModules) "-" else "+"), px + PNL_W - 11, y + (MOD_H - 8) / 2, TEXT_DIM)
             y += MOD_H
 
             if (mod in expandedModules) {
@@ -297,6 +482,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
             g.fill(x, y, x + w, y + ENT_H, BTN_BG)
             g.fill(x, y, x + 2, y + ENT_H, ACCENT)
             g.centeredText(guiFont, styled("Edit Position"), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
+            return
+        }
+        if (entry is ButtonEntry) {
+            g.fill(x, y, x + w, y + ENT_H, BTN_BG)
+            g.centeredText(guiFont, styled(entry.label), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
             return
         }
         g.fill(x, y, x + w, y + ENT_H, ENT_BG)
@@ -469,6 +659,66 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return true
         }
 
+        // Config panel
+        if (presetFieldActive) presetFieldActive = false
+        val px = cfgPanelX; val py = cfgPanelY
+        val expanded = !cfgPanelCollapsed
+
+        // Header click
+        if (my in py until py + HDR_H && mx in px until px + PNL_W) {
+            if (btn == 0) { draggingCfgPanel = true; cfgDragOffX = mx - px; cfgDragOffY = my - py }
+            else if (btn == 1) cfgPanelCollapsed = !cfgPanelCollapsed
+            return true
+        }
+
+        // Body clicks
+        if (expanded) {
+            val panelH = HDR_H + cfgPanelBodyH()
+            if (mx in px until px + PNL_W && my in py + HDR_H until py + panelH) {
+                var y = py + HDR_H
+                // Name input row
+                if (my in y until y + ENT_H) {
+                    presetFieldActive = true
+                    draggingPresetField = true
+                    val relX = mx - px - 5
+                    presetField.apply { cursor = posFromPixel(relX); selAnchor = cursor; clampScroll(PNL_W - 10) }
+                    return true
+                }
+                y += ENT_H
+                // Buttons row
+                if (my in y until y + MOD_H) {
+                    val btnW = PNL_W / 3
+                    val name = presetField.text.ifBlank { "default" }
+                    when {
+                        mx in px until px + btnW -> {
+                            ConfigManager.savePreset(name)
+                            NotificationManager.show("Config Saved", name)
+                        }
+                        mx in px + btnW until px + btnW * 2 -> {
+                            val exists = name in ConfigManager.listPresets()
+                            ConfigManager.loadPreset(name)
+                            if (exists) NotificationManager.show("Config Loaded", name)
+                            else NotificationManager.show("Not Found", name)
+                        }
+                        else -> ConfigManager.openPresetFolder()
+                    }
+                    return true
+                }
+                y += MOD_H
+                // Preset list rows
+                for (preset in ConfigManager.listPresets()) {
+                    if (my in y until y + ENT_H) {
+                        presetField.set(preset)
+                        presetField.clampScroll(PNL_W - 10)
+                        presetNameBuffer = preset
+                        return true
+                    }
+                    y += ENT_H
+                }
+                return true
+            }
+        }
+
         for (cat in renderOrder.asReversed()) {
             val (px, py) = positions[cat] ?: continue
             val expanded = cat !in collapsed
@@ -547,6 +797,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             is ColorEntry   -> expandedColorEntry = if (expandedColorEntry == entry) null else entry
             is KeybindEntry -> listeningKeybind   = if (listeningKeybind  == entry) null else entry
             is EnumEntry<*> -> expandedEnum = if (expandedEnum == entry) null else entry
+            is ButtonEntry  -> entry.action()
         }
     }
 
@@ -640,6 +891,32 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return true
         }
 
+        if (presetFieldActive) {
+            val f = presetField
+            val ctrl  = (event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0
+            val shift = (event.modifiers() and GLFW.GLFW_MOD_SHIFT)   != 0
+            when {
+                key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER -> presetFieldActive = false
+                key == GLFW.GLFW_KEY_ESCAPE    -> presetFieldActive = false
+                ctrl && key == GLFW.GLFW_KEY_A -> f.selectAll()
+                ctrl && key == GLFW.GLFW_KEY_C -> { val s = f.copy(); if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
+                ctrl && key == GLFW.GLFW_KEY_X -> { val s = f.cut();  if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
+                ctrl && key == GLFW.GLFW_KEY_V -> {
+                    val clip = (minecraft.keyboardHandler.clipboard ?: "").replace(Regex("[^a-zA-Z0-9_\\-]"), "_")
+                    f.insert(clip)
+                }
+                key == GLFW.GLFW_KEY_BACKSPACE -> if (ctrl) f.backspaceWord() else f.backspace()
+                key == GLFW.GLFW_KEY_DELETE    -> f.deleteForward()
+                key == GLFW.GLFW_KEY_LEFT      -> if (ctrl) f.wordMove(false, shift) else f.move(-1, shift)
+                key == GLFW.GLFW_KEY_RIGHT     -> if (ctrl) f.wordMove(true,  shift) else f.move( 1, shift)
+                key == GLFW.GLFW_KEY_HOME      -> f.home(shift)
+                key == GLFW.GLFW_KEY_END       -> f.end(shift)
+            }
+            f.clampScroll(PNL_W - 10)
+            presetNameBuffer = f.text
+            return true
+        }
+
         if (editingString != null) {
             when (key) {
                 GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER ->
@@ -662,7 +939,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     override fun keyReleased(event: KeyEvent): Boolean {
-        if (listeningKeybind != null || editingString != null) return true
+        if (listeningKeybind != null || editingString != null || presetFieldActive) return true
         val inputKey = InputConstants.getKey(event)
         // release keys only if not physically held
         val physHeld = GLFW.glfwGetKey(minecraft.window.handle(), event.key()) == GLFW.GLFW_PRESS
@@ -671,6 +948,15 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     override fun charTyped(event: CharacterEvent): Boolean {
+        if (presetFieldActive) {
+            val ch = event.codepointAsString()
+            if (ch.matches(Regex("[a-zA-Z0-9_\\-]"))) {
+                presetField.insert(ch)
+                presetField.clampScroll(PNL_W - 10)
+                presetNameBuffer = presetField.text
+            }
+            return true
+        }
         if (editingString != null) { editText += event.codepointAsString(); return true }
         return false
     }
@@ -706,6 +992,16 @@ class ClickGui : Screen(Component.literal("Medved")) {
             }
             return true
         }
+        if (draggingPresetField) {
+            val relX = event.x().toInt() - cfgPanelX - 5
+            presetField.apply { cursor = posFromPixel(relX); clampScroll(PNL_W - 10) }
+            return true
+        }
+        if (draggingCfgPanel) {
+            cfgPanelX = event.x().toInt() - cfgDragOffX
+            cfgPanelY = event.y().toInt() - cfgDragOffY
+            return true
+        }
         val cat = draggingCat ?: return super.mouseDragged(event, dragX, dragY)
         positions[cat] = Pair(event.x().toInt() - dragOffX, event.y().toInt() - dragOffY)
         return true
@@ -714,11 +1010,14 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun mouseReleased(event: MouseButtonEvent): Boolean {
         draggingCat = null
         draggingSlider = null
+        draggingCfgPanel = false
+        draggingPresetField = false
         return super.mouseReleased(event)
     }
 
     override fun onClose() {
         super.onClose()
+        presetNameBuffer = presetField.text
         ClickGui.disable()
     }
 

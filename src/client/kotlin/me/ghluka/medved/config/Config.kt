@@ -58,6 +58,9 @@ abstract class Config(val name: String) {
     protected fun floatRange(name: String, default: Pair<Float, Float>, min: Float, max: Float, decimals: Int = 1) =
         register(FloatRangeEntry(name, default, min, max, decimals))
 
+    protected fun button(name: String, label: String, action: () -> Unit) =
+        register(ButtonEntry(name, label, action))
+
     fun serialize(): JsonObject = JsonObject().also { obj ->
         _entries.forEach { obj.add(it.name, it.toJson()) }
     }
