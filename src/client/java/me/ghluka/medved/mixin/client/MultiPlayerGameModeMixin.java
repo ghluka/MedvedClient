@@ -34,6 +34,8 @@ public class MultiPlayerGameModeMixin {
         if (KnockbackDisplacement.skipIntercept) {
             HitSelect.notifyAttackFiring();
             FakeLag.notifyAttack();
+            KnockbackDisplacement.skipInterceptNextVanillaAttack = false;
+            KnockbackDisplacement.skipIntercept = false;
             return;
         }
 

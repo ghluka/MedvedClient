@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Player
 import kotlin.math.atan2
 import kotlin.math.round
 import kotlin.math.sqrt
+import kotlin.random.Random
 
 object AimAssist : Module(
     name = "Aim Assist",
@@ -76,14 +77,16 @@ object AimAssist : Module(
         val nudgeYaw   = yawDiff   * strength.value
         val nudgePitch = pitchDiff * strength.value
 
+        val jFactor = 0.75f + Random.nextFloat() * 0.5f
+
         if (silent.value) {
-            RotationManager.movementMode = RotationManager.MovementMode.SERVER
+            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
             RotationManager.rotationMode  = RotationManager.RotationMode.SERVER
-            RotationManager.setTargetRotation(player.yRot + nudgeYaw, player.xRot + nudgePitch)
-            RotationManager.snapToTarget()
+            RotationManager.setTargetRotation(player.yRot + nudgeYaw * jFactor, player.xRot + nudgePitch * jFactor)
+            RotationManager.tick()  // humanised interpolation instead of instant snap
         } else {
-            player.yRot  = player.yRot  + nudgeYaw
-            player.xRot  = (player.xRot + nudgePitch).coerceIn(-90f, 90f)
+            player.yRot  = player.yRot  + nudgeYaw * jFactor
+            player.xRot  = (player.xRot + nudgePitch * jFactor).coerceIn(-90f, 90f)
         }
     }
 

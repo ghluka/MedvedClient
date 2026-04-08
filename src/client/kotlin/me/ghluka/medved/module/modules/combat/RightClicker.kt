@@ -10,6 +10,7 @@ import net.minecraft.world.item.BowItem
 import net.minecraft.world.item.CrossbowItem
 import net.minecraft.world.item.ShieldItem
 import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.HitResult
 import kotlin.random.Random
 
 object RightClicker : Module(
@@ -74,7 +75,7 @@ object RightClicker : Module(
 
         if (blocksOnly.value) {
             val hr = client.hitResult
-            if (hr !is BlockHitResult) return
+            if (hr !is BlockHitResult || hr.type != HitResult.Type.BLOCK) return
             if (woolOnly.value) {
                 val blockState = client.level?.getBlockState(hr.blockPos) ?: return
                 if (!blockState.`is`(BlockTags.WOOL)) return

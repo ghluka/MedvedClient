@@ -32,7 +32,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val expandedModules = mutableSetOf<Module>()
         var expandedColorEntry: ColorEntry? = null
         var expandedEnum: EnumEntry<*>? = null
-        val renderOrder = mutableListOf<Module.Category>()
+        val renderOrder = mutableListOf<Module.Category?>()
         val scrollTimes = mutableMapOf<Module, Long>()
         var presetNameBuffer = "default"
         var cfgPanelX = -1
@@ -43,6 +43,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             positions.clear()
             renderOrder.clear()
             renderOrder.addAll(Module.Category.entries)
+            renderOrder.add(null) // null = CONFIGS panel; last = on top initially
             collapsed.addAll(Module.Category.entries)
             val gap = 6; val margin = 10; val pnlW = 160; val hdrH = 18
             var x = margin; var y = 30
@@ -166,7 +167,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (cfgPanelX < 0) { cfgPanelX = 10; cfgPanelY = 30; cfgPanelCollapsed = true }
         if (renderOrder.isEmpty()) {
             renderOrder.addAll(Module.Category.entries)
+            renderOrder.add(null) // null = CONFIGS panel
         }
+        if (null !in renderOrder) renderOrder.add(null)
         scrollTimes.clear()
         presetField.text = presetNameBuffer
         presetField.end(false)
@@ -181,8 +184,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun extractRenderState(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
         hoveredMod = null
         if (ClickGui.showBackground.value) g.fill(0, 0, width, height, BG)
-        for (cat in renderOrder) drawCategoryPanel(g, cat, mx, my)
-        // draw dropdown overlay
+        for (cat in renderOrder) {
+            if (cat == null) drawConfigBar(g, mx, my)
+            else drawCategoryPanel(g, cat, mx, my)
+        }
+        // draw dropdown overlay (always above panels)
         val enumExp = expandedEnum
         if (enumExp != null) {
             drawEnumDropdown(g, enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)
@@ -191,7 +197,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (hov != null && ClickGui.showDescriptions.value && hov.description.isNotBlank()) {
             drawTooltip(g, hov.description, mx, my)
         }
-        drawConfigBar(g, mx, my)
     }
 
     private fun cfgPanelBodyH(): Int {
@@ -666,6 +671,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
         // Header click
         if (my in py until py + HDR_H && mx in px until px + PNL_W) {
+            bringConfigToFront()
             if (btn == 0) { draggingCfgPanel = true; cfgDragOffX = mx - px; cfgDragOffY = my - py }
             else if (btn == 1) cfgPanelCollapsed = !cfgPanelCollapsed
             return true
@@ -721,7 +727,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
         for (cat in renderOrder.asReversed()) {
             val (px, py) = positions[cat] ?: continue
-            val expanded = cat !in collapsed
+            val expanded = cat!! !in collapsed
 
             if (my in py until py + HDR_H && mx in px until px + PNL_W) {
                 bringToFront(cat)
@@ -1041,6 +1047,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private fun bringToFront(cat: Module.Category) {
         renderOrder.remove(cat)
         renderOrder.add(cat)
+    }
+
+    private fun bringConfigToFront() {
+        renderOrder.remove(null)
+        renderOrder.add(null)
     }
 
     private fun toggleExpand(mod: Module) {

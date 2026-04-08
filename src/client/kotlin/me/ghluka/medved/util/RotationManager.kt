@@ -36,6 +36,10 @@ object RotationManager {
     private var clientPitch = 0f
     private var overriding = false
 
+    /**
+     * SERVER = our movement is based on the server sided rotation
+     * CLIENT = our movement is based on the client sided rotation, flags to anticheat
+     */
     enum class MovementMode { CLIENT, SERVER }
 
     /**
@@ -46,6 +50,22 @@ object RotationManager {
 
     @JvmField var movementMode: MovementMode = MovementMode.CLIENT
     @JvmField var rotationMode: RotationMode = RotationMode.SERVER
+
+    /**
+     * When set to a non-NaN value, LocalPlayerMixin applies this yaw before aiStep
+     * so that the physics movement direction matches the spoofed rotation. This means
+     * the position delta sent in the packet is already in the correct direction and
+     * the re-snap in applyOverride is a no-op, no velocity mismatch for Grim.
+     * Consumed and reset to NaN immediately after aiStep.
+     */
+    @JvmField var physicsYawOverride: Float = Float.NaN
+
+    /**
+     * When true, the position re-snap inside applyOverride is skipped entirely.
+     * Set this when the caller has already ensured physics ran at the correct yaw
+     * (via physicsYawOverride) so the position delta is already in the right direction.
+     */
+    @JvmField var skipPositionSnap: Boolean = false
 
     /** Action to fire inside sendPosition, right after rotation override. */
     @JvmField
@@ -89,12 +109,14 @@ object RotationManager {
         targetPitch = pitch
     }
 
-    /** Stop overriding — sendPosition will use the real camera rotation. */
+    /** Stop overriding, sendPosition will use the real camera rotation. */
     fun clearRotation() {
         targetYaw = null
         targetPitch = null
         movementMode = MovementMode.CLIENT
         rotationMode = RotationMode.SERVER
+        physicsYawOverride = Float.NaN
+        skipPositionSnap = false
     }
 
     /** Whether an override is currently active. */
@@ -148,7 +170,7 @@ object RotationManager {
         targetPitch = pitch
     }
 
-    /** Whether the yaw alone has converged — pitch changes don't need movement frozen. */
+    /** Whether the yaw alone has converged, pitch changes don't need movement frozen. */
     fun hasYawReachedTarget(toleranceDeg: Float = 1f): Boolean {
         val tYaw = targetYaw ?: return true
         return kotlin.math.abs(Mth.wrapDegrees(tYaw - currentYaw)) <= toleranceDeg
@@ -228,12 +250,17 @@ object RotationManager {
         else speedLo
         val fraction = Rotations.ease(rawFraction)
 
-        val rawStep = dist * fraction
+        // Fixed per-tick step (does NOT scale with remaining distance).
+        // Old proportional formula (dist * fraction) caused large jumps when far from
+        // target and silky smoothness when close, inconsistent and easy to flag.
+        // Now every tick moves the same absolute degrees regardless of how far we are.
+        val rawStep = Rotations.maxSpeedDeg.value * fraction
         val jitter  = Rotations.countJitter.value
         val counts  = (rawStep / degreesPerCount)
             .coerceIn(1f, Rotations.maxCounts.value.toFloat()) +
             Random.nextFloat() * jitter * 2f - jitter
-        val step = degreesPerCount * counts
+        // Absolute per-tick cap, prevents flagging at high sensitivity where degreesPerCount is large
+        val step = (degreesPerCount * counts).coerceAtMost(Rotations.maxSpeedDeg.value)
 
         if (dist <= step || dist < degreesPerCount * 1.5f) {
             currentYaw   = tYaw
@@ -310,6 +337,9 @@ object RotationManager {
         if (opts.keyRight.isDown) strafeInput -= 1f
 
         if (forwardInput != 0f || strafeInput != 0f) {
+            // Skip position snap when the caller already ran physics at the flick yaw.
+            // Any re-snap on top of a correct delta introduces floating-point drift that
+            if (!skipPositionSnap) {
             val inputLen = sqrt(forwardInput * forwardInput + strafeInput * strafeInput)
             val nf = (forwardInput / inputLen).toDouble()
             val ns = (strafeInput / inputLen).toDouble()
@@ -359,6 +389,7 @@ object RotationManager {
                     player.setPos(newX, player.y, newZ)
                 }
             }
+            } // end !skipPositionSnap
         }
 
         // If movement is frozen (pauseOnRotate) the keys are zeroed so aiStep()
@@ -385,6 +416,8 @@ object RotationManager {
         player.setYRot(clientYaw)
         player.setXRot(clientPitch)
         overriding = false
+        // Consume the one-shot flag, it only applies to the tick it was set on.
+        skipPositionSnap = false
     }
 
     /**

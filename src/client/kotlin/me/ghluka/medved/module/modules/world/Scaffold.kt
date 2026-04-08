@@ -456,7 +456,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         }
 
         if (!player.onGround()) {
-            RotationManager.tick()
             return
         }
 

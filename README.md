@@ -58,6 +58,9 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Extends your entity attack reach distance
 - **Knockback Displacement**\*
   - Silently flicks rotation on each attack to displace knockback sideways
+  - Modes:
+    - Blatant - detected by anticheats but guarantees hits (not recommended)
+    - Legit - works 90% of the time and fully undetected by any server
 - **Backtrack**\*
   - Delays enemy position updates
 </details>

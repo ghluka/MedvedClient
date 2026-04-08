@@ -109,6 +109,7 @@ public class ClientPacketListenerMixin {
             player.lerpMotion(new Vec3(-mx * factor, my, -mz * factor));
             ci.cancel();
         } else if (mode == Velocity.Mode.JUMP_RESET) {
+            if (Math.abs(mx) < 0.1 && Math.abs(mz) < 0.1) return;
             int chance = Velocity.INSTANCE.getJumpChance().getValue();
             if (player.onGround() && (chance >= 100 || (int)(Math.random() * 100) < chance)) {
                 player.lerpMotion(new Vec3(mx, my, mz));

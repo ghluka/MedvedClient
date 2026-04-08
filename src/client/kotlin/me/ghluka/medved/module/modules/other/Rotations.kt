@@ -20,6 +20,7 @@ object Rotations : Module("Rotations", "Global aim interpolation settings for al
 
     val speed = floatRange("speed", 0.50f to 0.80f, 0.05f, 1.0f)
     val maxCounts = int("max counts", 80, 10, 300)
+    val maxSpeedDeg = float("max speed deg", 8f, 1f, 120f)
     val countJitter = float("count jitter", 0.30f, 0.0f, 2.0f)
     val overshootChance = int("overshoot chance %", 0, 0, 100)
     val overshootAmount = floatRange("overshoot amount", 3f to 8f, 0.5f, 30f)

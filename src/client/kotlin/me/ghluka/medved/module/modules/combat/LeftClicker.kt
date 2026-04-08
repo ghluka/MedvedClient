@@ -9,6 +9,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.TridentItem
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.EntityHitResult
+import net.minecraft.world.phys.HitResult
 import kotlin.random.Random
 
 object LeftClicker : Module(
@@ -60,13 +61,14 @@ object LeftClicker : Module(
             if (!isWeapon) return
         }
 
-        val targeting = onlyWhenAiming.value
-        val blocks    = breakBlocks.value
-        if (targeting || blocks) {
-            val hr       = client.hitResult
-            val isEntity = hr is EntityHitResult && hr.entity is LivingEntity
-            val isBlock  = hr is BlockHitResult
-            if (!(targeting && isEntity) && !(blocks && isBlock)) return
+        if (breakBlocks.value) {
+            val hr = client.hitResult
+            if (hr is BlockHitResult && hr.type == HitResult.Type.BLOCK) return
+        }
+
+        if (onlyWhenAiming.value) {
+            val hr = client.hitResult
+            if (hr !is EntityHitResult || hr.entity !is LivingEntity) return
         }
 
         accumulator += targetCps / 20.0f
