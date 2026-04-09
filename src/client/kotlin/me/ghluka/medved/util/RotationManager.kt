@@ -48,7 +48,7 @@ object RotationManager {
      */
     enum class RotationMode { SERVER, CLIENT }
 
-    @JvmField var movementMode: MovementMode = MovementMode.CLIENT
+    @JvmField var movementMode: MovementMode = MovementMode.SERVER
     @JvmField var rotationMode: RotationMode = RotationMode.SERVER
 
     /**
@@ -113,7 +113,7 @@ object RotationManager {
     fun clearRotation() {
         targetYaw = null
         targetPitch = null
-        movementMode = MovementMode.CLIENT
+        movementMode = MovementMode.SERVER
         rotationMode = RotationMode.SERVER
         physicsYawOverride = Float.NaN
         skipPositionSnap = false
@@ -140,6 +140,7 @@ object RotationManager {
     @JvmStatic
     fun updateHitResult() {
         if (targetYaw == null) return
+        if (rotationMode == RotationMode.CLIENT) return
         val mc = Minecraft.getInstance()
         val player = mc.player ?: return
         
@@ -220,6 +221,42 @@ object RotationManager {
     }
 
     /**
+     * Advances the rotation toward the target at a fixed absolute linear speed.
+     * Always calls [updateHitResult] at the end (SERVER mode only).
+     */
+    fun quickTick(maxDeg: Float = 50f) {
+        val tYaw   = targetYaw   ?: return
+        val tPitch = targetPitch ?: return
+
+        val yawDiff   = Mth.wrapDegrees(tYaw   - currentYaw)
+        val pitchDiff = Mth.wrapDegrees(tPitch - currentPitch)
+        val dist = sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff)
+
+        if (dist <= maxDeg) {
+            currentYaw   = tYaw
+            currentPitch = tPitch
+        } else {
+            val ratio = maxDeg / dist
+            currentYaw    = currentYaw   + yawDiff   * ratio
+            currentPitch  = (currentPitch + pitchDiff * ratio).coerceIn(-90f, 90f)
+        }
+
+        applyMicroJitter()
+
+        if (rotationMode == RotationMode.CLIENT) {
+            val p = Minecraft.getInstance().player
+            if (p != null) {
+                p.setYRot(currentYaw)
+                p.setXRot(currentPitch)
+                clientYaw   = currentYaw
+                clientPitch = currentPitch
+            }
+        }
+
+        updateHitResult()   // no-op in CLIENT mode (returns early); acts in SERVER mode
+    }
+
+    /**
      * Advances the current rotation toward the target.
      * All interpolation parameters (easing, speed, jitter, overshoot) are read from
      * the [Rotations] settings module so users can tune them without recompiling.
@@ -236,6 +273,16 @@ object RotationManager {
             currentYaw   = tYaw
             currentPitch = tPitch
             applyMicroJitter()
+            if (rotationMode == RotationMode.CLIENT) {
+                val p = Minecraft.getInstance().player
+                if (p != null) {
+                    p.setYRot(currentYaw)
+                    p.setXRot(currentPitch)
+                    clientYaw   = currentYaw
+                    clientPitch = currentPitch
+                }
+            }
+            updateHitResult()
             return
         }
 

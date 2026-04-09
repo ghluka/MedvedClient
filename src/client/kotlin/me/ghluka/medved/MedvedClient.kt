@@ -45,8 +45,10 @@ object MedvedClient : ClientModInitializer {
         // player
         ModuleManager.register(FakeLag)
         ModuleManager.register(Blink)
+        ModuleManager.register(ClientBrand)
         // world
         ModuleManager.register(Scaffold)
+        ModuleManager.register(Clutch)
         ModuleManager.register(FastPlace)
         ModuleManager.register(AutoPlace)
         ModuleManager.register(BedBreaker)

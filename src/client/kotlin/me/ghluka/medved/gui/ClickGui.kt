@@ -59,7 +59,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     private var editingString: StringEntry? = null
-    private var editText = ""
+    private val entryField = TextField()
+    private var draggingStringEntry = false
+    private var entryFieldTextX = 0
     private var listeningKeybind: KeybindEntry? = null
     private var draggingCat: Module.Category? = null
     private var dragOffX = 0
@@ -519,9 +521,22 @@ class ClickGui : Screen(Component.literal("Medved")) {
             }
             is StringEntry -> {
                 val fx = x + w - 66
-                g.fill(fx, y + 1, fx + 64, y + ENT_H - 1, BTN_BG)
-                val display = if (entry == editingString) "$editText|" else entry.value
-                g.text(guiFont, styled(display.take(9)), fx + 2, y + (ENT_H - 8) / 2, TEXT)
+                val textX = fx + 2
+                val active = entry == editingString
+                g.fill(fx, y + 1, fx + 64, y + ENT_H - 1, if (active) shade(40, 0.25f) else BTN_BG)
+                g.enableScissor(textX, y + 1, fx + 64, y + ENT_H - 1)
+                if (active && entryField.hasSelection) {
+                    val sx = textX - entryField.scrollPx + guiFont.width(styled(entryField.text.substring(0, entryField.selMin)))
+                    val ex = textX - entryField.scrollPx + guiFont.width(styled(entryField.text.substring(0, entryField.selMax)))
+                    g.fill(sx, y + 2, ex, y + ENT_H - 2, argb(170, 60, 110, 210))
+                }
+                val displayText = if (active) entryField.text else entry.value
+                g.text(guiFont, styled(displayText), textX - (if (active) entryField.scrollPx else 0), y + (ENT_H - 8) / 2, TEXT)
+                if (active && cursorVisible) {
+                    val cx = textX - entryField.scrollPx + guiFont.width(styled(entryField.text.substring(0, entryField.cursor)))
+                    g.fill(cx, y + 2, cx + 1, y + ENT_H - 2, TEXT)
+                }
+                g.disableScissor()
             }
             is ColorEntry -> {
                 val sx = x + w - 16
@@ -654,7 +669,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun mouseClicked(event: MouseButtonEvent, inBounds: Boolean): Boolean {
         val mx = event.x().toInt(); val my = event.y().toInt(); val btn = event.button()
 
-        if (editingString != null) { editingString!!.value = editText; editingString = null }
+        if (editingString != null) { editingString!!.value = entryField.text; editingString = null }
 
         val enumExp = expandedEnum
         if (enumExp != null) {
@@ -799,7 +814,16 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private fun handleEntryClick(entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, btn: Int) {
         when (entry) {
             is BooleanEntry -> entry.value = !entry.value
-            is StringEntry  -> { editingString = entry; editText = entry.value }
+            is StringEntry  -> {
+                editingString = entry
+                entryField.set(entry.value)
+                val fx = x + w - 66
+                entryFieldTextX = fx + 2
+                entryField.cursor = entryField.posFromPixel(mx - (fx + 2))
+                entryField.selAnchor = entryField.cursor
+                draggingStringEntry = true
+                entryField.clampScroll(60)
+            }
             is ColorEntry   -> expandedColorEntry = if (expandedColorEntry == entry) null else entry
             is KeybindEntry -> listeningKeybind   = if (listeningKeybind  == entry) null else entry
             is EnumEntry<*> -> expandedEnum = if (expandedEnum == entry) null else entry
@@ -924,14 +948,24 @@ class ClickGui : Screen(Component.literal("Medved")) {
         }
 
         if (editingString != null) {
-            when (key) {
-                GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER ->
-                    { editingString!!.value = editText; editingString = null }
-                GLFW.GLFW_KEY_BACKSPACE ->
-                    if (editText.isNotEmpty()) editText = editText.dropLast(1)
-                GLFW.GLFW_KEY_ESCAPE ->
-                    { editingString!!.value = editText; editingString = null }
+            val f = entryField
+            val ctrl  = (event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0
+            val shift = (event.modifiers() and GLFW.GLFW_MOD_SHIFT)   != 0
+            when {
+                key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER -> { editingString!!.value = f.text; editingString = null }
+                key == GLFW.GLFW_KEY_ESCAPE    -> { editingString!!.value = f.text; editingString = null }
+                key == GLFW.GLFW_KEY_BACKSPACE -> if (ctrl) f.backspaceWord() else f.backspace()
+                key == GLFW.GLFW_KEY_DELETE    -> f.deleteForward()
+                key == GLFW.GLFW_KEY_LEFT      -> if (ctrl) f.wordMove(false, shift) else f.move(-1, shift)
+                key == GLFW.GLFW_KEY_RIGHT     -> if (ctrl) f.wordMove(true,  shift) else f.move( 1, shift)
+                key == GLFW.GLFW_KEY_HOME      -> f.home(shift)
+                key == GLFW.GLFW_KEY_END       -> f.end(shift)
+                ctrl && key == GLFW.GLFW_KEY_A -> f.selectAll()
+                ctrl && key == GLFW.GLFW_KEY_C -> { val s = f.copy(); if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
+                ctrl && key == GLFW.GLFW_KEY_X -> { val s = f.cut();  if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
+                ctrl && key == GLFW.GLFW_KEY_V -> f.insert(minecraft.keyboardHandler.clipboard ?: "")
             }
+            f.clampScroll(60)
             return true
         }
 
@@ -963,7 +997,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             }
             return true
         }
-        if (editingString != null) { editText += event.codepointAsString(); return true }
+        if (editingString != null) { entryField.insert(event.codepointAsString()); entryField.clampScroll(60); return true }
         return false
     }
 
@@ -1003,6 +1037,10 @@ class ClickGui : Screen(Component.literal("Medved")) {
             presetField.apply { cursor = posFromPixel(relX); clampScroll(PNL_W - 10) }
             return true
         }
+        if (draggingStringEntry && editingString != null) {
+            entryField.apply { cursor = posFromPixel(event.x().toInt() - entryFieldTextX); clampScroll(60) }
+            return true
+        }
         if (draggingCfgPanel) {
             cfgPanelX = event.x().toInt() - cfgDragOffX
             cfgPanelY = event.y().toInt() - cfgDragOffY
@@ -1018,6 +1056,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         draggingSlider = null
         draggingCfgPanel = false
         draggingPresetField = false
+        draggingStringEntry = false
         return super.mouseReleased(event)
     }
 

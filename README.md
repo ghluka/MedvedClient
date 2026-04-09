@@ -85,6 +85,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
     - Latency - constant lag
 - **Blink**\*
   - Buffers outgoing packets, making you appear frozen to the server
+- **Client Brand**\*
+  - Spoofs the client brand sent to the server on join
 </details>
 
 <details>
@@ -94,6 +96,13 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Automatically places blocks under you while walking
   - Modes:
     - Ninja - crouches at the end of blocks
+- **Clutch**\*
+  - Bridges blocks back to safety when knocked off an edge (also can be used as telly bridge)
+  - Triggers:
+    - Always
+    - On void
+    - On lethal fall
+    - Custom fall distance
 - **Fast Place**\*
   - Removes the right-click delay when placing blocks
 - **Auto Place**\*

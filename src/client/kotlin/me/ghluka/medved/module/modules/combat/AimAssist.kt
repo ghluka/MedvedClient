@@ -1,6 +1,7 @@
 package me.ghluka.medved.module.modules.combat
 
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.module.modules.combat.KnockbackDisplacement
 import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.util.RotationManager
 import net.minecraft.client.Minecraft
@@ -34,6 +35,7 @@ object AimAssist : Module(
         if (client.screen != null) return
 
         if (Scaffold.isEnabled()) return
+        if (KnockbackDisplacement.rotationHeld) return
 
         if (onlyAttacking.value && !client.options.keyAttack.isDown) {
             RotationManager.clearRotation()
@@ -80,14 +82,15 @@ object AimAssist : Module(
         val jFactor = 0.75f + Random.nextFloat() * 0.5f
 
         if (silent.value) {
-            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+            RotationManager.movementMode = RotationManager.MovementMode.SERVER
             RotationManager.rotationMode  = RotationManager.RotationMode.SERVER
-            RotationManager.setTargetRotation(player.yRot + nudgeYaw * jFactor, player.xRot + nudgePitch * jFactor)
-            RotationManager.tick()  // humanised interpolation instead of instant snap
-        } else {
-            player.yRot  = player.yRot  + nudgeYaw * jFactor
-            player.xRot  = (player.xRot + nudgePitch * jFactor).coerceIn(-90f, 90f)
         }
+        else {
+            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+            RotationManager.rotationMode  = RotationManager.RotationMode.CLIENT
+        } 
+        RotationManager.setTargetRotation(player.yRot + nudgeYaw * jFactor, player.xRot + nudgePitch * jFactor)
+        RotationManager.tick()  // humanised interpolation instead of instant snap
     }
 
     override fun onDisabled() {

@@ -27,7 +27,7 @@ object KnockbackDisplacement : Module(
     private val flickAngle    = floatRange("flick angle", 60f to 85f, 10f, 180f)
     private val flickMode     = enum("flick mode", FlickMode.RIGHT)
     private val requireSprint = boolean("require sprint", true)
-    private val clearBefore   = boolean("clear before hit", true)
+    private val clearBefore   = boolean("clear before hit", false)
 
     @JvmField
     var skipIntercept = false
@@ -35,7 +35,7 @@ object KnockbackDisplacement : Module(
     @JvmField
     var skipInterceptNextVanillaAttack = false
 
-    private var rotationHeld = false
+    var rotationHeld = false
     private var hitHeld = false
     private var pendingAttack: (() -> Unit)? = null
 
@@ -124,13 +124,13 @@ object KnockbackDisplacement : Module(
 
         val isLegit = mode.value == Mode.LEGIT
 
+        rotationHeld = true
         RotationManager.movementMode = RotationManager.MovementMode.SERVER
         RotationManager.rotationMode  = RotationManager.RotationMode.SERVER
         RotationManager.setTargetRotation(flickYaw, player.xRot)
         RotationManager.physicsYawOverride = flickYaw
         RotationManager.skipPositionSnap = true
         RotationManager.flickTick()
-        rotationHeld = true
 
         // Defer attack to the start of next tick so it fires BEFORE sendPosition.
         pendingAttack = if (isLegit) {

@@ -6,6 +6,7 @@ import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
+import me.ghluka.medved.module.modules.player.ClientBrand
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -53,7 +54,7 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
             .filter { it.showInModulesList }
             .filter {
                 showVisuals.value ||
-                (it.category != Module.Category.HUD && it.category != Module.Category.RENDER)
+                (it.category != Module.Category.HUD && it.category != Module.Category.RENDER && it::class != ClientBrand::class)
             }
         mods = when (sort.value) {
             Sort.SIZE         -> mods.sortedByDescending {

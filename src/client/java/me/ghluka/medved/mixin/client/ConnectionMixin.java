@@ -2,6 +2,7 @@ package me.ghluka.medved.mixin.client;
 
 import io.netty.channel.ChannelHandlerContext;
 import me.ghluka.medved.module.modules.player.Blink;
+import me.ghluka.medved.module.modules.player.ClientBrand;
 import me.ghluka.medved.module.modules.player.FakeLag;
 import me.ghluka.medved.module.modules.combat.KnockbackDelay;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -10,8 +11,10 @@ import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
 import net.minecraft.network.protocol.common.ClientboundPingPacket;
+import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
 import net.minecraft.network.protocol.common.ServerboundPongPacket;
+import net.minecraft.network.protocol.common.custom.BrandPayload;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -54,6 +57,19 @@ public class ConnectionMixin {
     private void medved$onSend(Packet<?> packet, CallbackInfo ci) {
         Connection conn = (Connection)(Object) this;
         boolean isKeepalive = packet instanceof ServerboundKeepAlivePacket || packet instanceof ServerboundPongPacket;
+
+        // Brand spoofer: intercept the outgoing brand custom payload and replace it.
+        // The re-entry guard prevents infinite recursion when we call conn.send() with the replacement.
+        if (!ClientBrand.INSTANCE.isResending
+                && ClientBrand.INSTANCE.isEnabled()
+                && packet instanceof ServerboundCustomPayloadPacket cp
+                && cp.payload() instanceof BrandPayload) {
+            ci.cancel();
+            ClientBrand.INSTANCE.isResending = true;
+            conn.send(new ServerboundCustomPayloadPacket(new BrandPayload(ClientBrand.INSTANCE.getCurrentBrand())));
+            ClientBrand.INSTANCE.isResending = false;
+            return;
+        }
 
         if (Blink.INSTANCE.shouldBuffer() && !isKeepalive) {
             ci.cancel();
