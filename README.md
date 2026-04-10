@@ -118,6 +118,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Shows all enabled modules
 - **Target HUD**\*
   - Displays target info and fight prediction when in combat
+- **Block Counter**\*
+  - Displays hotbar block count for the item in hand
 </details>
 
 *module isn't available in release, but available in workflow artifact 

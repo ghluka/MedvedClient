@@ -60,6 +60,7 @@ object MedvedClient : ClientModInitializer {
         // hud
         ModuleManager.register(ModulesList)
         ModuleManager.register(TargetHud)
+        ModuleManager.register(ScaffoldInfo)
 
         ModuleManager.init()
         UpdateChecker.init()

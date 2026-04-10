@@ -409,6 +409,8 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
 
     init {
         hudX.value = 0.5f
+        hudX.defaultValue = .5f
         hudY.value = 0.7f
+        hudY.defaultValue = .7f
     }
 }

@@ -4,7 +4,7 @@ import com.google.gson.JsonElement
 
 abstract class ConfigEntry<T>(
     val name: String,
-    val defaultValue: T
+    var defaultValue: T
 ) {
     private val changeListeners = mutableListOf<(T) -> Unit>()
 

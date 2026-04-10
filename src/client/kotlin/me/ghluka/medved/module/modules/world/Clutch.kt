@@ -11,6 +11,7 @@ import net.minecraft.core.Direction
 import net.minecraft.world.item.BlockItem
 import net.minecraft.world.phys.BlockHitResult
 import com.mojang.blaze3d.platform.InputConstants
+import net.minecraft.world.level.BlockGetter
 import kotlin.math.atan2
 import kotlin.math.floor
 import kotlin.math.sqrt
@@ -51,9 +52,12 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
     private var savedCamPitch = 0f
 
     private fun findBlockSlot(player: LocalPlayer): Int {
+        val world  = Minecraft.getInstance().level ?: return -1
         for (i in 0..8) {
             val stack = player.inventory.getItem(i)
             if (stack.isEmpty || stack.item !is BlockItem) continue
+            val block = (stack.item as BlockItem).block
+            if (!block.defaultBlockState().isCollisionShapeFullBlock(world, BlockPos.ZERO)) continue
             // filterMode
             return i
         }

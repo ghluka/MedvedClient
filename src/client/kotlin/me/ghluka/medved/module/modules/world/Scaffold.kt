@@ -35,10 +35,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     private val crouchDelay = intRange("crouch delay", 40 to 90, 0, 500).also {
         it.visibleWhen = { bridgeMode.value == BridgeMode.NINJA }
     }
-    /**
-     * When we move while rotating it flags on predictive anticheats,
-     * this just pauses all movement while we rotate the yaw.
-     */
+
     private val pauseOnRotate = boolean("pause on rotate", true)
     private val autoclickCps = intRange("autoclick cps", 8 to 12, 1, 20)
     val disableOnDeath = boolean("disable on death", true)
@@ -47,68 +44,43 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     private var crouchTicksElapsed = 0
     private var crouchTicksNeeded = 0
     private var pendingPlace: (() -> Unit)? = null
-    // Ticks remaining before the next click attempt. Set to a CPS-derived value after each click.
     private var clickCooldownTicks = 0
 
-    // Pending placement target stored as block data so hit vector is recomputed at fire time
     private var pendingNeighbor: BlockPos? = null
     private var pendingFace: Direction? = null
-    // Movement-aware yaw computed when the pending placement was created.
-    // Kept separate from the face yaw so A/D uses camYaw, not the block face direction.
     private var pendingAimYaw: Float? = null
 
-    // Yaw locked when the player first goes airborne while holding a movement key.
-    // Cleared on landing or on disable.
     private var lockedScaffoldYaw: Float? = null
 
-    // True when the player is holding WASD+space on the ground (read from raw key
-    // state BEFORE any suppression). Used in onTick for shift logic since the
-    // actual jump key may have been suppressed by that point.
     private var jumpBridgeQueued = false
 
-    // Accumulator for the background auto-clicker. Each tick adds CPS/20;
-    // when it reaches >= 1.0 a right-click fires and 1.0 is subtracted.
     private var autoclickAccum = 0.0f
-    // Per-interval target CPS, re-rolled each time a click fires for randomness.
     private var autoclickTargetCps = 0
-
-    // true on the tick we fired godbridge edge-jump, released next tick.
-    //private var godbridgeJumpTick = false
-    // true after we fire a godbridge jump, cleared once the player goes airborne.
-    // Prevents re-jumping while still on the ground from the same edge.
-    //private var godbridgeJumped = false
-
-    /** Find a hotbar slot (0-8) containing a BlockItem, or -1 if none. */
+    
     private fun findBlockSlot(player: LocalPlayer): Int {
+        val world  = Minecraft.getInstance().level ?: return -1
         for (i in 0..8) {
-            val s = player.inventory.getItem(i)
-            if (!s.isEmpty && s.item is BlockItem) return i
+            val stack = player.inventory.getItem(i)
+            if (stack.isEmpty || stack.item !is BlockItem) continue
+            val block = (stack.item as BlockItem).block
+            if (!block.defaultBlockState().isCollisionShapeFullBlock(world, BlockPos.ZERO)) continue
+            return i
         }
         return -1
     }
 
-    /** True if the player has blocks available in their hotbar. */
     private fun hasBlocks(player: LocalPlayer): Boolean = findBlockSlot(player) != -1
 
     init {
-        // START_CLIENT_TICK runs BEFORE LocalPlayer.tick() (which calls sendPosition).
-        // This means anything we set here fires in the SAME tick's sendPosition = 0ms Post delay.
         ClientTickEvents.START_CLIENT_TICK.register { client ->
             if (!isEnabled()) return@register
             val player = client.player ?: return@register
             if (!hasBlocks(player)) { RotationManager.clearRotation(); return@register }
 
-            // Kill sprint so aiStep() never sees the key held.
             player.isSprinting = false
             player.setSprinting(false)
             (player as LocalPlayerAccessor).setSprintTriggerTime(0)
             client.options.keySprint.setDown(false)
-
-            // Release godbridge auto-jump after one tick.
-            //if (godbridgeJumpTick) {
-            //    client.options.keyJump.setDown(false)
-            //    godbridgeJumpTick = false
-            //}
 
             val strafing = client.options.keyLeft.isDown || client.options.keyRight.isDown
             val movingForwardBack = client.options.keyUp.isDown || client.options.keyDown.isDown
@@ -120,8 +92,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             RotationManager.movementMode = RotationManager.MovementMode.CLIENT
             RotationManager.rotationMode = RotationManager.RotationMode.SERVER
 
-            // jump timing for WASD+space bridging: suppress the jump
-            // key until the player reaches the block edge
             if (bridgeMode.value == BridgeMode.NINJA) {
                 val wantsJumpBridge = movingHorizontally && client.options.keyJump.isDown && player.onGround()
                 jumpBridgeQueued = wantsJumpBridge
@@ -139,22 +109,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             } else {
                 jumpBridgeQueued = false
                 RotationManager.suppressJump = false
-                //if (bridgeMode.value == BridgeMode.GODBRIDGE && player.onGround() && movingHorizontally) {
-                //    if (!godbridgeJumped) {
-                //        val world = client.level
-                //        if (world != null) {
-                //            val moveDir = getMovementDirection(client)
-                //            if (moveDir != null && isNearForwardEdge(player, world, moveDir)) {
-                //                client.options.keyJump.setDown(true)
-                //                godbridgeJumpTick = true
-                //                godbridgeJumped = true
-                //            }
-                //        }
-                //    }
-                //}
-                //if (bridgeMode.value == BridgeMode.GODBRIDGE && !player.onGround()) {
-                //    godbridgeJumped = false
-                //}
             }
 
             val shouldFreeze = pauseOnRotate.value && player.onGround() && RotationManager.isActive() && !RotationManager.hasYawReachedTarget(0.1f)
@@ -166,10 +120,8 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 client.options.keyRight.setDown(false)
             }
 
-            // Decrement click cooldown each tick regardless of ground state.
             if (clickCooldownTicks > 0) clickCooldownTicks--
 
-            // Autoclicker
             if (RotationManager.isActive()) {
                 if (autoclickTargetCps == 0) {
                     val (lo, hi) = autoclickCps.value
@@ -188,54 +140,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 autoclickTargetCps = 0
             }
 
-            // Unlock yaw
             if (player.onGround()) lockedScaffoldYaw = null
-
-            //if (bridgeMode.value == BridgeMode.GODBRIDGE && player.onGround() && movingHorizontally && clickCooldownTicks == 0) {
-            //    val world = client.level
-            //    if (world != null) {
-            //        val feetY = floor(player.y).toInt()
-            //        val targetPos = BlockPos(floor(player.x).toInt(), feetY - 1, floor(player.z).toInt())
-            //        val targetState = world.getBlockState(targetPos)
-            //        // Compute movement direction from raw keys
-            //        val camYawGod = RotationManager.getClientYaw()
-            //        val camRadGod = Math.toRadians(camYawGod.toDouble())
-            //        var gdx = 0.0; var gdz = 0.0
-            //        if (client.options.keyUp.isDown)    { gdx -= kotlin.math.sin(camRadGod); gdz += kotlin.math.cos(camRadGod) }
-            //        if (client.options.keyDown.isDown)  { gdx += kotlin.math.sin(camRadGod); gdz -= kotlin.math.cos(camRadGod) }
-            //        if (client.options.keyRight.isDown) { gdx -= kotlin.math.cos(camRadGod); gdz -= kotlin.math.sin(camRadGod) }
-            //        if (client.options.keyLeft.isDown)  { gdx += kotlin.math.cos(camRadGod); gdz += kotlin.math.sin(camRadGod) }
-            //        val rawBehindGod = Mth.wrapDegrees(Math.toDegrees(atan2(-gdx, gdz)).toFloat() + 180f)
-            //        val godYaw = Math.round(rawBehindGod / 90.0f) * 90.0f
-            //        if (targetState.isAir) {
-            //            val support = findSupport(world, targetPos)
-            //            if (support != null) {
-            //                RotationManager.setTargetRotation(godYaw, SCAFFOLD_PITCH_GOD)
-            //                RotationManager.snapToTarget()
-            //                RotationManager.updateHitResult()
-            //                KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
-            //                KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
-            //                clickCooldownTicks = 0
-            //            }
-            //        } else if (!targetState.fluidState.isEmpty) {
-            //            // fluid
-            //        } else {
-            //            val dir = if (kotlin.math.abs(gdx) > kotlin.math.abs(gdz)) {
-            //                if (gdx > 0) Direction.EAST else Direction.WEST
-            //            } else {
-            //                if (gdz > 0) Direction.SOUTH else Direction.NORTH
-            //            }
-            //            val nextPos = targetPos.relative(dir)
-            //            val nextState = world.getBlockState(nextPos)
-            //            if (nextState.isAir || !nextState.fluidState.isEmpty) {
-            //                val support = findSupport(world, nextPos)
-            //                if (support != null) {
-            //                    RotationManager.setTargetRotation(godYaw, SCAFFOLD_PITCH_GOD)
-            //                }
-            //            }
-            //        }
-            //    }
-            //}
 
             if (!player.onGround() && clickCooldownTicks == 0) {
                 val world = client.level ?: return@register
@@ -243,30 +148,15 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 val targetPos = BlockPos(floor(player.x).toInt(), feetY - 1, floor(player.z).toInt())
                 val targetState = world.getBlockState(targetPos)
                 if (targetState.isAir) {
-                    // skip up so we dont face down
                     val support = findSupport(world, targetPos, preferSide = movingHorizontally)
                     if (support != null) {
                         val (neighbor, face) = support
                         val (tYaw, tPitch) = stableAimFor(player, neighbor, face)
 
-                        // clientYaw is the real camera yaw (independent of server override)
                         val camYaw = RotationManager.getClientYaw()
                         val camRad  = Math.toRadians(camYaw.toDouble())
 
                         val aimYaw = when {
-                            diagonal -> {
-                                var fwdX = -kotlin.math.sin(camRad); var fwdZ = kotlin.math.cos(camRad)
-                                var sideX = -kotlin.math.cos(camRad); var sideZ = -kotlin.math.sin(camRad)
-                                var mdx = 0.0; var mdz = 0.0
-                                if (client.options.keyUp.isDown)    { mdx += fwdX;  mdz += fwdZ  }
-                                if (client.options.keyDown.isDown)  { mdx -= fwdX;  mdz -= fwdZ  }
-                                if (client.options.keyRight.isDown) { mdx += sideX; mdz += sideZ }
-                                if (client.options.keyLeft.isDown)  { mdx -= sideX; mdz -= sideZ  }
-                                val behindYaw = Mth.wrapDegrees(
-                                    Math.toDegrees(atan2(-mdx, mdz)).toFloat() + 180f)
-                                if (lockedScaffoldYaw == null) lockedScaffoldYaw = behindYaw
-                                lockedScaffoldYaw!!
-                            }
                             strafing && !movingForwardBack -> {
                                 // A/D
                                 var sideX = -kotlin.math.cos(camRad); var sideZ = -kotlin.math.sin(camRad)
@@ -293,7 +183,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                             else -> tYaw  // towering
                         }
 
-                        val airPitch = SCAFFOLD_PITCH_JUMP//if (bridgeMode.value == BridgeMode.GODBRIDGE) SCAFFOLD_PITCH_GOD else SCAFFOLD_PITCH_JUMP
+                        val airPitch = SCAFFOLD_PITCH_JUMP
                         val usePitch = if (movingHorizontally) airPitch else {
                             if (face == Direction.UP) {
                                 val eyeY = player.y + player.eyeHeight
@@ -310,7 +200,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                         RotationManager.setTargetRotation(aimYaw, usePitch)
                         KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
                         RotationManager.tick()
-                        // hitResult is always correct (uses targetYaw/Pitch), so click immediately.
                         KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
                         clickCooldownTicks = 0
                     }
@@ -323,7 +212,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         val player = client.player ?: return
         val world = client.level ?: return
 
-        // If no blocks in hotbar, do nothing
         if (!hasBlocks(player)) {
             pendingPlace = null
             pendingNeighbor = null
@@ -334,7 +222,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             return
         }
 
-        // Swap to a block slot if not already holding one.
         val stack = player.mainHandItem
         if (stack.isEmpty || stack.item !is BlockItem) {
             val slot = findBlockSlot(player)
@@ -342,13 +229,11 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             player.inventory.setSelectedSlot(slot)
         }
 
-        // Prevent sprinting
         player.isSprinting = false
         player.setSprinting(false)
         (player as LocalPlayerAccessor).setSprintTriggerTime(0)
         client.options.keySprint.setDown(false)
 
-        // Don't force shift while airborne
         val opts = client.options
         val movingHorizontally = opts.keyUp.isDown || opts.keyDown.isDown ||
                                   opts.keyLeft.isDown || opts.keyRight.isDown
@@ -360,19 +245,16 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             client.options.keyShift.setDown(nearEdge && ((!jumping && stillRotating) || jumpPending || jumpBridgeQueued))
         }
 
-        // Post-click cooldown
         if (clickCooldownTicks > 0) {
             RotationManager.tick()
             return
         }
 
-        // Pause on rotate
         if (pauseOnRotate.value && player.onGround() && RotationManager.isActive() && !RotationManager.hasYawReachedTarget(0.1f)) {
             RotationManager.tick()
             return
         }
 
-        // Waiting for shift delay.
         if (pendingPlace != null) {
             val curF = opts.keyUp.isDown || opts.keyDown.isDown
             val curS = opts.keyLeft.isDown || opts.keyRight.isDown
@@ -387,7 +269,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 val rawBehind = Mth.wrapDegrees(Math.toDegrees(atan2(-mx, mz)).toFloat() + 180f)
                 val curCardinal = Math.round(rawBehind / 90.0f) * 90.0f
                 if (kotlin.math.abs(Mth.wrapDegrees(curCardinal - pendingAimYaw!!)) > 45f) {
-                    // Direction changed, abort.
                     pendingPlace = null; pendingNeighbor = null; pendingFace = null; pendingAimYaw = null
                 }
             }
@@ -397,7 +278,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             val nb = pendingNeighbor
             val fc = pendingFace
 
-            // Jump pressed while pending, don't wait for shift.
             if (opts.keyJump.isDown && nb != null && fc != null) {
                 KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
                 pendingPlace = null; pendingNeighbor = null; pendingFace = null; pendingAimYaw = null
@@ -406,17 +286,10 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 return
             }
 
-            // Grounded pending: hold shift during shift delay
             client.options.keyShift.setDown(true)
             crouchTicksElapsed++
             val minDelayMet = crouchTicksElapsed >= crouchTicksNeeded
 
-            // Do NOT call setTargetRotation here, it would overwrite whatever cardinal
-            // target was set (either by this pending's creation tick or a subsequent
-            // direction change), releasing the pauseOnRotate freeze prematurely.
-
-            // hitResult is always correct (uses targetYaw/Pitch), so fire as soon as
-            // the minimum shift delay has elapsed.
             if (minDelayMet && nb != null && fc != null) {
                 KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
                 pendingPlace = null
@@ -430,7 +303,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             return
         }
 
-        // Block position directly below the player's feet
         val feetY = floor(player.y).toInt()
         val targetPos = BlockPos(
             floor(player.x).toInt(),
@@ -449,7 +321,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             return
         }
 
-        // Don't place on liquid
         if (hasFluid) {
             RotationManager.tick()
             return
@@ -464,7 +335,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             return
         }
 
-        // movement-aware aim yaw
         val opts2 = client.options
         val s2 = opts2.keyLeft.isDown || opts2.keyRight.isDown
         val f2 = opts2.keyUp.isDown   || opts2.keyDown.isDown
@@ -472,17 +342,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         val camYaw2 = RotationManager.getClientYaw()
         val camRad2 = Math.toRadians(camYaw2.toDouble())
         val groundAimYaw = when {
-            s2 && f2 -> {
-                // diagonals
-                var fX = -kotlin.math.sin(camRad2); var fZ = kotlin.math.cos(camRad2)
-                var rX = -kotlin.math.cos(camRad2); var rZ = -kotlin.math.sin(camRad2)
-                var mx = 0.0; var mz = 0.0
-                if (opts2.keyUp.isDown)    { mx += fX; mz += fZ }
-                if (opts2.keyDown.isDown)  { mx -= fX; mz -= fZ }
-                if (opts2.keyRight.isDown) { mx += rX; mz += rZ }
-                if (opts2.keyLeft.isDown)  { mx -= rX; mz -= rZ }
-                Mth.wrapDegrees(Math.toDegrees(atan2(-mx, mz)).toFloat() + 180f)
-            }
             s2 && !f2 -> {
                 // A/D strafes
                 var rX = -kotlin.math.cos(camRad2); var rZ = -kotlin.math.sin(camRad2)
@@ -502,18 +361,9 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             }
             else -> tYaw2 // tower
         }
-        val groundPitch = SCAFFOLD_PITCH_NINJA//if (bridgeMode.value == BridgeMode.GODBRIDGE) SCAFFOLD_PITCH_GOD else SCAFFOLD_PITCH_NINJA
+        val groundPitch = SCAFFOLD_PITCH_NINJA
         RotationManager.setTargetRotation(groundAimYaw, groundPitch)
 
-        //if (bridgeMode.value == BridgeMode.GODBRIDGE) {
-        //    // godbridge
-        //    KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
-        //    clickCooldownTicks = 0
-        //    RotationManager.tick()
-        //    return
-        //}
-
-        // WASD+jump
         if (opts2.keyJump.isDown) {
             KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
             clickCooldownTicks = 0
@@ -521,7 +371,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             return
         }
 
-        // edge safety
         client.options.keyShift.setDown(true)
         val (lo, hi) = crouchDelay.value
         val delayMs = if (hi > lo) (lo..hi).random() else lo
@@ -536,18 +385,13 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         RotationManager.tick()
     }
 
-    /**
-     * While standing on solid ground, predict where the next air gap will be
-     * and pre-aim the server-side rotation there. This way rotation is already
-     * converged when we step/jump off the edge.
-     */
     private fun preAimNextGap(
         player: LocalPlayer,
         world: net.minecraft.client.multiplayer.ClientLevel,
         solidBelow: BlockPos
     ) {
         val opts = Minecraft.getInstance().options
-        
+
         val movingForward = opts.keyUp.isDown || (RotationManager.freezeMovement && RotationManager.allowForward)
         val movingBack = opts.keyDown.isDown || (RotationManager.freezeMovement && RotationManager.allowForward)
         val movingLeft = opts.keyLeft.isDown || (RotationManager.freezeMovement && RotationManager.allowStrafe)
@@ -556,14 +400,12 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
         if (!movingForward && !movingBack && !movingLeft && !movingRight && !jumping) return
 
-        // Tower
         if (jumping && !movingForward && !movingBack && !movingLeft && !movingRight) {
             val (yaw, pitch) = stableAimFor(player, solidBelow, Direction.UP)
             RotationManager.setTargetRotation(yaw, pitch)
             return
         }
 
-        // compute movement direction based on client rot
         val camYaw = RotationManager.getClientYaw()
         val yawRad = Math.toRadians(camYaw.toDouble())
         var dx = 0.0
@@ -573,12 +415,10 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         if (movingLeft) { dx += kotlin.math.cos(yawRad); dz += kotlin.math.sin(yawRad) }
         if (movingRight) { dx -= kotlin.math.cos(yawRad); dz -= kotlin.math.sin(yawRad) }
 
-        // compute server yaw
         val rawBehind = Mth.wrapDegrees(
             Math.toDegrees(atan2(-dx, dz)).toFloat() + 180f)
         val behindYaw = Math.round(rawBehind / 90.0f) * 90.0f
 
-        // get axis for gap
         val dir = if (kotlin.math.abs(dx) > kotlin.math.abs(dz)) {
             if (dx > 0) Direction.EAST else Direction.WEST
         } else {
@@ -592,7 +432,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         if (nextState.isAir || !nextState.fluidState.isEmpty) {
             val support = findSupport(world, nextPos)
             if (support != null) {
-                val preAimPitch = //if (bridgeMode.value == BridgeMode.GODBRIDGE) SCAFFOLD_PITCH_GOD else
+                val preAimPitch =
                     if (movingHoriz) SCAFFOLD_PITCH_JUMP
                     else stableAimFor(player, support.first, support.second).second
                 if (!player.onGround() && RotationManager.isActive()) {
@@ -604,7 +444,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             }
         }
 
-        val fallbackPitch = //if (bridgeMode.value == BridgeMode.GODBRIDGE) SCAFFOLD_PITCH_GOD else 
+        val fallbackPitch =
             if (movingHoriz) SCAFFOLD_PITCH_JUMP
             else stableAimFor(player, solidBelow, Direction.UP).second
         if (!player.onGround() && RotationManager.isActive()) {
@@ -625,8 +465,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         RotationManager.suppressJump = false
         autoclickAccum = 0.0f
         autoclickTargetCps = 0
-        //godbridgeJumpTick = false
-        //godbridgeJumped = false
         pendingPlace = null
         pendingNeighbor = null
         pendingFace = null
@@ -635,15 +473,10 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         lockedScaffoldYaw = null
     }
 
-    /**
-     * Stable placement aim
-     */
     private fun stableAimFor(player: LocalPlayer, neighbor: BlockPos, face: Direction): Pair<Float, Float> {
         val eyeY = player.y + player.eyeHeight
         return when (face) {
             Direction.UP -> {
-                // aim at the XZ center of the top face so the ray hits regardless of
-                // how far the player is offset from the center of the block.
                 val faceX = neighbor.x + 0.5
                 val faceZ = neighbor.z + 0.5
                 val dx = faceX - player.x
@@ -676,10 +509,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         }
     }
 
-    /**
-     * Hit vector on [face] of [neighbor], offset toward the player so it
-     * resembles crouching at the edge and looking at the near corner of the block.
-     */
     private fun edgeHitVec(player: LocalPlayer, neighbor: BlockPos, face: Direction): Vec3 {
         val cx = neighbor.x + 0.5
         val cy = neighbor.y + 0.5
@@ -703,7 +532,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         }
     }
 
-    /** Compute the yaw and pitch from the player's eye position to a target point. */
     private fun rotationToVec(player: LocalPlayer, target: Vec3): Pair<Float, Float> {
         val dx = target.x - player.x
         val dy = target.y - (player.y + player.eyeHeight.toDouble())
@@ -740,11 +568,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         return null
     }
 
-    /**
-     * True if the player is within 0.3 blocks of the edge of the block they're standing on,
-     * AND the adjacent block at that edge (at feet-1 level) is air. This triggers crouching
-     * to prevent falling off during direction changes.
-     */
     private fun isNearEdge(player: LocalPlayer, world: net.minecraft.client.multiplayer.ClientLevel): Boolean {
         val px = player.x
         val pz = player.z
@@ -752,27 +575,22 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         val bz = floor(pz).toInt()
         val belowY = floor(player.y).toInt() - 1
 
-        // check distance to each block edge
         val margin = 0.3
-        val fracX = px - bx  // 0.0 to 1.0 within the block
+        val fracX = px - bx
         val fracZ = pz - bz
 
-        // west edge (fracX near 0)
         if (fracX < margin) {
             val adj = world.getBlockState(BlockPos(bx - 1, belowY, bz))
             if (adj.isAir || !adj.fluidState.isEmpty) return true
         }
-        // east edge (fracX near 1)
         if (fracX > 1.0 - margin) {
             val adj = world.getBlockState(BlockPos(bx + 1, belowY, bz))
             if (adj.isAir || !adj.fluidState.isEmpty) return true
         }
-        // north edge (fracZ near 0)
         if (fracZ < margin) {
             val adj = world.getBlockState(BlockPos(bx, belowY, bz - 1))
             if (adj.isAir || !adj.fluidState.isEmpty) return true
         }
-        // south edge (fracZ near 1)
         if (fracZ > 1.0 - margin) {
             val adj = world.getBlockState(BlockPos(bx, belowY, bz + 1))
             if (adj.isAir || !adj.fluidState.isEmpty) return true
@@ -780,10 +598,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         return false
     }
 
-    /**
-     * Compute the cardinal Direction the player is moving based on held WASD keys.
-     * Returns null if no movement keys are held.
-     */
     private fun getMovementDirection(client: Minecraft): Direction? {
         val camYaw = RotationManager.getClientYaw()
         val camRad = Math.toRadians(camYaw.toDouble())
@@ -800,10 +614,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         }
     }
 
-    /**
-     * True if the player is near the edge of their current block in [moveDir]
-     * AND the adjacent block in that direction (at feet-1) is air.
-     */
     private fun isNearForwardEdge(
         player: LocalPlayer,
         world: net.minecraft.client.multiplayer.ClientLevel,
