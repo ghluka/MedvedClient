@@ -77,6 +77,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private var sidebarDragOffY = 0
     private var sidebarScroll = 0f
     private var sidebarScrollMax = 0f
+    private var sidebarConfigScroll = 0f
+    private var sidebarConfigScrollMax = 0f
 
     private var editingString: StringEntry? = null
     private val entryField = TextField()
@@ -514,50 +516,95 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (sidebarTab == 0) {
             val detailMod = sidebarDetailMod
             if (detailMod != null) {
-                var ey = bodyY + 6
-                g.text(smallFont, styled("< Back"), bodyX + 8, ey + 3, TEXT_DIM)
-                ey += 18
-                g.text(smallFont, styled(detailMod.name), bodyX + 6, ey, WHITE)
-                ey += 12
+                val headerY = bodyY + 6
+                val backBtnH = 18
+                val nameH = smallFont.lineHeight + 4
+                val descMaxW = bodyW - 80
+                val descLines = if (detailMod.description.isBlank()) emptyList() else {
+                    val words = detailMod.description.split(" ")
+                    val lines = mutableListOf<String>()
+                    var cur = ""
+                    for (word in words) {
+                        val candidate = if (cur.isEmpty()) word else "$cur $word"
+                        if (smallFont.width(styled(candidate)) <= descMaxW) cur = candidate
+                        else { if (cur.isNotEmpty()) lines += cur; cur = word }
+                    }
+                    if (cur.isNotEmpty()) lines += cur
+                    lines
+                }
+                val descLineH = (smallFont.lineHeight * 1.3).toInt()
+                val descH = descLines.size * descLineH
+                val tgH = 18
+                val toggleH = tgH + 8
+                val staticH = backBtnH + nameH + descH + 8 + toggleH
                 val entries = configEntries(detailMod)
+                var entriesH = 0
+                for (entry in entries) {
+                    entriesH += ENT_H
+                    if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += ENT_H
+                    if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += ENT_H
+                    if (entry == expandedColorEntry && entry is ColorEntry) entriesH += colorChannelCount(entry) * ENT_H
+                }
+                sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
+                if (sidebarConfigScroll > sidebarConfigScrollMax) sidebarConfigScroll = sidebarConfigScrollMax
+                if (sidebarConfigScroll < 0f) sidebarConfigScroll = 0f
+                var ey = headerY
+                g.text(smallFont, styled("< Back"), bodyX + 8, ey + 3, TEXT_DIM)
+                ey += backBtnH
+                g.text(smallFont, styled(detailMod.name), bodyX + 8, ey, WHITE)
+                ey += nameH
+                descLines.forEachIndexed { i, line ->
+                    g.text(smallFont, styled(line), bodyX + 8, ey + i * descLineH, GREY)
+                }
+                ey += descH + 8
+                val tgX = bodyX + 8; val tgY = ey
+                val tgLabel = if (detailMod.isEnabled()) "ON" else "OFF"
+                val tgCol = if (detailMod.isEnabled()) BTN_ON else BTN_OFF
+                g.fill(tgX, tgY, tgX + 60, tgY + tgH, tgCol)
+                g.centeredText(smallFont, styled(tgLabel), tgX + 30, tgY + (tgH - 8) / 2, TEXT)
+                ey += toggleH
+                // --- Render config entries with scroll ---
+                val configRegionTop = ey
+                val configRegionBottom = bodyY + 6 + bodyH
+                var entryY = configRegionTop - sidebarConfigScroll.toInt()
                 if (entries.isEmpty()) {
-                    g.text(smallFont, styled("No settings."), bodyX + 6, ey, GREY)
+                    g.text(smallFont, styled("No settings."), bodyX + 6, entryY, GREY)
                 } else {
                     for (entry in entries) {
-                        if (ey + ENT_H > bodyY + bodyH) break
-                        drawEntry(g, entry, bodyX + 4, ey, bodyW - 8, mx, my)
-                        ey += ENT_H
+                        if (entryY + ENT_H > configRegionBottom) break
+                        drawEntry(g, entry, bodyX + 4, entryY, bodyW - 8, mx, my)
+                        entryY += ENT_H
                         if (entry is IntEntry) {
                             val bounded = entry.min != Int.MIN_VALUE && entry.max != Int.MAX_VALUE
                             drawNumericSliderBar(g, bounded, entry.value.toFloat(),
                                 if (bounded) entry.min.toFloat() else 0f,
                                 if (bounded) entry.max.toFloat() else 1f,
-                                bodyX + 4, ey, bodyW - 8); ey += ENT_H
+                                bodyX + 4, entryY, bodyW - 8); entryY += ENT_H
                         }
                         if (entry is FloatEntry) {
                             val bounded = entry.min != -Float.MAX_VALUE && entry.max != Float.MAX_VALUE
                             drawNumericSliderBar(g, bounded, entry.value,
                                 entry.min.takeIf { it != -Float.MAX_VALUE } ?: 0f,
                                 entry.max.takeIf { it != Float.MAX_VALUE } ?: 1f,
-                                bodyX + 4, ey, bodyW - 8); ey += ENT_H
+                                bodyX + 4, entryY, bodyW - 8); entryY += ENT_H
                         }
                         if (entry is DoubleEntry) {
                             val bounded = entry.min != -Double.MAX_VALUE && entry.max != Double.MAX_VALUE
                             drawNumericSliderBar(g, bounded, entry.value.toFloat(),
                                 entry.min.takeIf { it != -Double.MAX_VALUE }?.toFloat() ?: 0f,
                                 entry.max.takeIf { it != Double.MAX_VALUE }?.toFloat() ?: 1f,
-                                bodyX + 4, ey, bodyW - 8); ey += ENT_H
+                                bodyX + 4, entryY, bodyW - 8); entryY += ENT_H
                         }
-                        if (entry is IntRangeEntry) { drawRangeSliders(g, entry, bodyX + 6, ey, bodyW - 8); ey += ENT_H }
-                        if (entry is FloatRangeEntry) { drawFloatRangeSliders(g, entry, bodyX + 6, ey, bodyW - 8); ey += ENT_H }
+                        if (entry is IntRangeEntry) { drawRangeSliders(g, entry, bodyX + 6, entryY, bodyW - 8); entryY += ENT_H }
+                        if (entry is FloatRangeEntry) { drawFloatRangeSliders(g, entry, bodyX + 6, entryY, bodyW - 8); entryY += ENT_H }
                         if (entry == expandedColorEntry && entry is ColorEntry) {
-                            drawColorPicker(g, entry, bodyX + 6, ey, bodyW - 8)
-                            ey += colorChannelCount(entry) * ENT_H
+                            drawColorPicker(g, entry, bodyX + 6, entryY, bodyW - 8)
+                            entryY += colorChannelCount(entry) * ENT_H
                         }
                         if (entry == expandedEnum && entry is EnumEntry<*>) {
                             val ew = enumDropdownWidth(entry)
                             enumDropdownX = bodyX + bodyW - ew
-                            enumDropdownY = ey
+                            enumDropdownY = entryY
                             enumDropdownW = ew
                         }
                     }
@@ -911,70 +958,81 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
         val enumExp = expandedEnum
         if (enumExp != null) {
-            if (handleEnumDropdownClick(enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)) return true
-            // clicked outside dropdown, close it.
-            expandedEnum = null
-            return true
+            // Only handle dropdown clicks if the dropdown is visible in the current mode
+            val isSidebar = ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR
+            val dropdownInSidebar = isSidebar && enumDropdownY >= sidebarPaneY && enumDropdownY < sidebarPaneY + 320
+            val dropdownInFloating = !isSidebar && enumDropdownY < 10000 // always true for floating, adjust if needed
+            if ((isSidebar && dropdownInSidebar) || (!isSidebar && dropdownInFloating)) {
+                if (handleEnumDropdownClick(enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)) return true
+                // clicked outside dropdown, close it.
+                expandedEnum = null
+                return true
+            } else {
+                // Dropdown is not visible in this mode, ignore click
+                expandedEnum = null
+            }
         }
 
-        // Config panel
-        if (presetFieldActive) presetFieldActive = false
-        val px = cfgPanelX; val py = cfgPanelY
-        val expanded = !cfgPanelCollapsed
+        // Config panel (floating mode only)
+        if (ClickGui.currentMode.value != ClickGui.Mode.SIDEBAR) {
+            if (presetFieldActive) presetFieldActive = false
+            val px = cfgPanelX; val py = cfgPanelY
+            val expanded = !cfgPanelCollapsed
 
-        // Header click
-        if (my in py until py + HDR_H && mx in px until px + PNL_W) {
-            bringConfigToFront()
-            if (btn == 0) { draggingCfgPanel = true; cfgDragOffX = mx - px; cfgDragOffY = my - py }
-            else if (btn == 1) cfgPanelCollapsed = !cfgPanelCollapsed
-            return true
-        }
+            // Header click
+            if (my in py until py + HDR_H && mx in px until px + PNL_W) {
+                bringConfigToFront()
+                if (btn == 0) { draggingCfgPanel = true; cfgDragOffX = mx - px; cfgDragOffY = my - py }
+                else if (btn == 1) cfgPanelCollapsed = !cfgPanelCollapsed
+                return true
+            }
 
-        // Body clicks
-        if (expanded) {
-            val panelH = HDR_H + cfgPanelBodyH()
-            if (mx in px until px + PNL_W && my in py + HDR_H until py + panelH) {
-                var y = py + HDR_H
-                // Name input row
-                if (my in y until y + ENT_H) {
-                    presetFieldActive = true
-                    draggingPresetField = true
-                    val relX = mx - px - 5
-                    presetField.apply { cursor = posFromPixel(relX); selAnchor = cursor; clampScroll(PNL_W - 10) }
-                    return true
-                }
-                y += ENT_H
-                // Buttons row
-                if (my in y until y + MOD_H) {
-                    val btnW = PNL_W / 3
-                    val name = presetField.text.ifBlank { "default" }
-                    when {
-                        mx in px until px + btnW -> {
-                            ConfigManager.savePreset(name)
-                            NotificationManager.show("Config Saved", name)
-                        }
-                        mx in px + btnW until px + btnW * 2 -> {
-                            val exists = name in ConfigManager.listPresets()
-                            ConfigManager.loadPreset(name)
-                            if (exists) NotificationManager.show("Config Loaded", name)
-                            else NotificationManager.show("Not Found", name)
-                        }
-                        else -> ConfigManager.openPresetFolder()
-                    }
-                    return true
-                }
-                y += MOD_H
-                // Preset list rows
-                for (preset in ConfigManager.listPresets()) {
+            // Body clicks
+            if (expanded) {
+                val panelH = HDR_H + cfgPanelBodyH()
+                if (mx in px until px + PNL_W && my in py + HDR_H until py + panelH) {
+                    var y = py + HDR_H
+                    // Name input row
                     if (my in y until y + ENT_H) {
-                        presetField.set(preset)
-                        presetField.clampScroll(PNL_W - 10)
-                        presetNameBuffer = preset
+                        presetFieldActive = true
+                        draggingPresetField = true
+                        val relX = mx - px - 5
+                        presetField.apply { cursor = posFromPixel(relX); selAnchor = cursor; clampScroll(PNL_W - 10) }
                         return true
                     }
                     y += ENT_H
+                    // Buttons row
+                    if (my in y until y + MOD_H) {
+                        val btnW = PNL_W / 3
+                        val name = presetField.text.ifBlank { "default" }
+                        when {
+                            mx in px until px + btnW -> {
+                                ConfigManager.savePreset(name)
+                                NotificationManager.show("Config Saved", name)
+                            }
+                            mx in px + btnW until px + btnW * 2 -> {
+                                val exists = name in ConfigManager.listPresets()
+                                ConfigManager.loadPreset(name)
+                                if (exists) NotificationManager.show("Config Loaded", name)
+                                else NotificationManager.show("Not Found", name)
+                            }
+                            else -> ConfigManager.openPresetFolder()
+                        }
+                        return true
+                    }
+                    y += MOD_H
+                    // Preset list rows
+                    for (preset in ConfigManager.listPresets()) {
+                        if (my in y until y + ENT_H) {
+                            presetField.set(preset)
+                            presetField.clampScroll(PNL_W - 10)
+                            presetNameBuffer = preset
+                            return true
+                        }
+                        y += ENT_H
+                    }
+                    return true
                 }
-                return true
             }
         }
         if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR) {
@@ -1011,68 +1069,138 @@ class ClickGui : Screen(Component.literal("Medved")) {
             val bodyW2 = if (sidebarTab == 0) contentW2 else pw
             if (mx in bodyX until px2 + pw && my in py2 + logoH + tabH until py2 + ph) {
                 val bodyY = py2 + logoH + tabH
+                val bodyH = ph - logoH - tabH - 12
 
                 if (sidebarTab == 0) {
                     val detailMod = sidebarDetailMod
                     if (detailMod != null) {
-                        var ey = bodyY + 6
-                        val backTextW = 40
-                        if (my in ey until ey + 14 && mx in bodyX + 4 until bodyX + 4 + backTextW + 8) {
+                        val headerY = bodyY + 6
+                        val backBtnH = 18
+                        val nameH = guiFont.lineHeight + 4
+                        val descMaxW = bodyW2 - 80
+                        val descLines = if (detailMod.description.isBlank()) emptyList() else {
+                            val words = detailMod.description.split(" ")
+                            val lines = mutableListOf<String>()
+                            var cur = ""
+                            for (word in words) {
+                                val candidate = if (cur.isEmpty()) word else "$cur $word"
+                                if (guiFont.width(styled(candidate)) <= descMaxW) cur = candidate
+                                else { if (cur.isNotEmpty()) lines += cur; cur = word }
+                            }
+                            if (cur.isNotEmpty()) lines += cur
+                            lines
+                        }
+                        val descLineH = (guiFont.lineHeight * 1.3).toInt()
+                        val descH = descLines.size * descLineH
+                        val tgH = 18
+                        val toggleH = tgH + 8
+                        val staticH = backBtnH + nameH + descH + 8 + toggleH
+                        val entries = configEntries(detailMod)
+                        var entriesH = 0
+                        for (entry in entries) {
+                            entriesH += ENT_H
+                            if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += ENT_H
+                            if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += ENT_H
+                            if (entry == expandedColorEntry && entry is ColorEntry) entriesH += colorChannelCount(entry) * ENT_H
+                        }
+                        sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
+                        if (sidebarConfigScroll > sidebarConfigScrollMax) sidebarConfigScroll = sidebarConfigScrollMax
+                        if (sidebarConfigScroll < 0f) sidebarConfigScroll = 0f
+                        var ey = headerY
+                        if (my in ey until ey + backBtnH && mx in bodyX + 4 until bodyX + 4 + 48) {
                             sidebarDetailMod = null; return true
                         }
-                        ey += 18 + 12
-                        for (entry in configEntries(detailMod)) {
-                            if (ey + ENT_H > bodyY + (ph - logoH - tabH)) break
-                            if (my in ey until ey + ENT_H) {
-                                if (entry is HudEditEntry && detailMod is HudModule) {
-                                    minecraft.setScreen(HudEditorScreen(detailMod, this))
-                                } else {
-                                    handleEntryClick(entry, bodyX + 4, ey, bodyW2 - 8, mx, btn)
+                        ey += backBtnH
+                        ey += nameH
+                        ey += descH + 8
+                        val tgY = ey
+                        if (my in tgY until tgY + tgH && mx in bodyX + 8 until bodyX + 8 + 60) {
+                            if (btn == 0 && !detailMod.isProtected) detailMod.toggle()
+                            return true
+                        }
+                        ey += toggleH
+                        val configRegionTop = ey
+                        val configRegionBottom = bodyY + 6 + (ph - logoH - tabH)
+                        var entryY = configRegionTop - sidebarConfigScroll.toInt()
+                        for (entry in entries) {
+                            if (entryY + ENT_H > configRegionBottom) break
+                            if (entryY + ENT_H >= configRegionTop) {
+                                if (my in entryY until entryY + ENT_H) {
+                                    if (entry is HudEditEntry && detailMod is HudModule) {
+                                        minecraft.setScreen(HudEditorScreen(detailMod, this))
+                                    } else {
+                                        handleEntryClick(entry, bodyX + 4, entryY, bodyW2 - 8, mx, btn)
+                                    }
+                                    return true
                                 }
-                                return true
                             }
-                            ey += ENT_H
+                            entryY += ENT_H
                             if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) {
-                                if (my in ey until ey + ENT_H) { handleNumericBarClick(entry, bodyX + 4, ey, bodyW2 - 8, mx, btn); return true }
-                                ey += ENT_H
+                                if (entryY + ENT_H > configRegionBottom) break
+                                if (entryY + ENT_H >= configRegionTop) {
+                                    if (my in entryY until entryY + ENT_H) { handleNumericBarClick(entry, bodyX + 4, entryY, bodyW2 - 8, mx, btn); return true }
+                                }
+                                entryY += ENT_H
                             }
-                            if (entry is IntRangeEntry) { if (handleRangeClick(entry, bodyX + 6, ey, bodyW2 - 8, mx, my)) return true; ey += ENT_H }
-                            if (entry is FloatRangeEntry) { if (handleFloatRangeClick(entry, bodyX + 6, ey, bodyW2 - 8, mx, my)) return true; ey += ENT_H }
+                            if (entry is IntRangeEntry) {
+                                if (entryY + ENT_H > configRegionBottom) break
+                                if (entryY + ENT_H >= configRegionTop) {
+                                    if (handleRangeClick(entry, bodyX + 6, entryY, bodyW2 - 8, mx, my)) return true
+                                }
+                                entryY += ENT_H
+                            }
+                            if (entry is FloatRangeEntry) {
+                                if (entryY + ENT_H > configRegionBottom) break
+                                if (entryY + ENT_H >= configRegionTop) {
+                                    if (handleFloatRangeClick(entry, bodyX + 6, entryY, bodyW2 - 8, mx, my)) return true
+                                }
+                                entryY += ENT_H
+                            }
                             if (entry == expandedColorEntry && entry is ColorEntry) {
-                                if (handleColorClick(entry, bodyX + 6, ey, bodyW2 - 8, mx, my)) return true
-                                ey += colorChannelCount(entry) * ENT_H
+                                val colorH = colorChannelCount(entry) * ENT_H
+                                if (entryY + colorH > configRegionBottom) break
+                                if (entryY + colorH >= configRegionTop) {
+                                    if (handleColorClick(entry, bodyX + 6, entryY, bodyW2 - 8, mx, my)) return true
+                                }
+                                entryY += colorH
                             }
                         }
                     } else {
                         val mods = selectedCategory?.let { ModuleManager.getByCategory(it) } ?: emptyList()
                         val lineH = guiFont.lineHeight
                         val cardPad = 4
+                        val nameTopPad = 8
+                        val nameBottomPad = 8
+                        val descLineSpacingF = 1.3f
                         val cardList = mods.map { mod ->
                             val descMaxW = bodyW2 - 80
-                            val descLines = if (mod.description.isBlank()) 0 else run {
+                            val descLines = if (mod.description.isBlank()) emptyList() else {
                                 val words = mod.description.split(" ")
-                                var cur = ""; var count = 1
+                                val lines = mutableListOf<String>()
+                                var cur = ""
                                 for (word in words) {
                                     val candidate = if (cur.isEmpty()) word else "$cur $word"
                                     if (guiFont.width(styled(candidate)) <= descMaxW) cur = candidate
-                                    else { count++; cur = word }
+                                    else { if (cur.isNotEmpty()) lines += cur; cur = word }
                                 }
-                                count
+                                if (cur.isNotEmpty()) lines += cur
+                                lines
                             }
-                            val cardH = 8 + lineH + (if (descLines == 0) 0 else descLines * lineH + 2) + 8
+                            val descLineSpacing = (lineH * descLineSpacingF).toInt()
+                            val cardH = nameTopPad + lineH + (if (descLines.isEmpty()) 0 else descLines.size * descLineSpacing + nameBottomPad) + 8
                             Triple(mod, descLines, cardH)
                         }
                         var my2 = bodyY + 6 - sidebarScroll.toInt()
                         for ((mod, descLines, cardH) in cardList) {
-                            if (my2 + cardH < bodyY) { my2 += cardH + cardPad; continue }
-                            if (my2 > bodyY + (ph - logoH - tabH)) break
+                            if (my2 + cardH < bodyY + 6) { my2 += cardH + cardPad; continue }
+                            if (my2 > bodyY + 6 + bodyH) break
                             if (my in my2 until my2 + cardH) {
                                 val tgX = bodyX + bodyW2 - 44
-                                if (btn == 0 && mx in tgX until tgX + 40) {
+                                val tgY = my2 + cardH / 2 - 6
+                                if (btn == 0 && mx in tgX until tgX + 40 && my in tgY until tgY + 12) {
                                     if (!mod.isProtected) mod.toggle()
                                 } else if (btn == 0) {
-                                    if (configEntries(mod).isNotEmpty()) sidebarDetailMod = mod
-                                    else if (!mod.isProtected) mod.toggle()
+                                    sidebarDetailMod = mod
                                 }
                                 return true
                             }
@@ -1181,17 +1309,63 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
     
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
-        if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR && sidebarTab == 0) {
-            val pw = 480; val ph = 320
-            val px = sidebarPaneX; val py = sidebarPaneY
-            val catW = 110
-            val contentX = px + catW
-            val contentW = pw - catW
-            val logoH = 24; val tabH = 24
-            val bodyX = contentX; val bodyY = py + logoH + tabH; val bodyW = contentW; val bodyH = ph - logoH - tabH
-            if (mouseX in bodyX.toDouble()..(bodyX + bodyW).toDouble() && mouseY in bodyY.toDouble()..(bodyY + bodyH).toDouble()) {
-                sidebarScroll = (sidebarScroll - scrollY * 32f).coerceIn(0.0, sidebarScrollMax.toDouble()).toFloat()
-                return true
+        if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR) {
+            if (sidebarTab == 0 && sidebarDetailMod != null) {
+                val pw = 480; val ph = 320
+                val px = sidebarPaneX; val py = sidebarPaneY
+                val catW = 110
+                val contentX = px + catW
+                val contentW = pw - catW
+                val logoH = 24; val tabH = 24
+                val bodyX = contentX; val bodyY = py + logoH + tabH; val bodyW = contentW; val bodyH = ph - logoH - tabH - 12
+                val detailMod = sidebarDetailMod
+                val headerY = bodyY + 6
+                val backBtnH = 18
+                val nameH = guiFont.lineHeight + 4
+                val descMaxW = bodyW - 80
+                val descLines = if (detailMod != null && detailMod.description.isNotBlank()) {
+                    val words = detailMod.description.split(" ")
+                    val lines = mutableListOf<String>()
+                    var cur = ""
+                    for (word in words) {
+                        val candidate = if (cur.isEmpty()) word else "$cur $word"
+                        if (guiFont.width(styled(candidate)) <= descMaxW) cur = candidate
+                        else { if (cur.isNotEmpty()) lines += cur; cur = word }
+                    }
+                    if (cur.isNotEmpty()) lines += cur
+                    lines
+                } else emptyList()
+                val descLineH = (guiFont.lineHeight * 1.3).toInt()
+                val descH = descLines.size * descLineH
+                val tgH = 18
+                val toggleH = tgH + 8
+                val staticH = backBtnH + nameH + descH + 8 + toggleH
+                val entries = if (detailMod != null) configEntries(detailMod) else emptyList()
+                var entriesH = 0
+                for (entry in entries) {
+                    entriesH += ENT_H
+                    if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += ENT_H
+                    if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += ENT_H
+                    if (entry == expandedColorEntry && entry is ColorEntry) entriesH += colorChannelCount(entry) * ENT_H
+                }
+                sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
+                if (mouseX in bodyX.toDouble()..(bodyX + bodyW).toDouble() && mouseY in bodyY.toDouble()..(bodyY + bodyH).toDouble()) {
+                    sidebarConfigScroll = (sidebarConfigScroll - scrollY * 32f).coerceIn(0.0, sidebarConfigScrollMax.toDouble()).toFloat()
+                    return true
+                }
+            }
+            if (sidebarTab == 0 && sidebarDetailMod == null) {
+                val pw = 480; val ph = 320
+                val px = sidebarPaneX; val py = sidebarPaneY
+                val catW = 110
+                val contentX = px + catW
+                val contentW = pw - catW
+                val logoH = 24; val tabH = 24
+                val bodyX = contentX; val bodyY = py + logoH + tabH; val bodyW = contentW; val bodyH = ph - logoH - tabH
+                if (mouseX in bodyX.toDouble()..(bodyX + bodyW).toDouble() && mouseY in bodyY.toDouble()..(bodyY + bodyH).toDouble()) {
+                    sidebarScroll = (sidebarScroll - scrollY * 32f).coerceIn(0.0, sidebarScrollMax.toDouble()).toFloat()
+                    return true
+                }
             }
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
