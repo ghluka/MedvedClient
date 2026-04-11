@@ -9,5 +9,6 @@ object Colour : Module("Color", "Global accent color for GUI and HUD elements", 
     override val showInModulesList = false
     init { enabled.value = true }
 
+    val bg = color("bg", Color(9, 9, 9), allowAlpha = false)
     val accent = color("accent", Color(150, 75, 0), allowAlpha = false)
 }

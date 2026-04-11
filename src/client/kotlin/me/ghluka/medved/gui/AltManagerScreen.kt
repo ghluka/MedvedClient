@@ -84,7 +84,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
     private val cursorVisible get() = (System.currentTimeMillis() / 530) % 2 == 0L
 
     private fun shade(base: Int, mix: Float, alpha: Int = 255): Int {
-        val c = Colour.accent.value
+        val c = Colour.bg.value
         val r = (base + (c.r - base) * mix).toInt().coerceIn(0, 255)
         val g = (base + (c.g - base) * mix).toInt().coerceIn(0, 255)
         val b = (base + (c.b - base) * mix).toInt().coerceIn(0, 255)
@@ -94,7 +94,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
     private fun emx(mx: Int) = ssCx + ((mx - ssCx) / uiSf).toInt()
     private fun emy(my: Int) = ssCy + ((my - ssCy) / uiSf).toInt()
 
-    private val PNL_BG   get() = shade(6, 0.04f, 255)
+    private val PNL_BG   get() = shade(8, 0.05f, 100)
     private val HDR_BG   get() = shade(20, 0.22f)
     private val ROW_BG   get() = shade(24, 0.07f, 200)
     private val BTN_BG   get() = shade(18, 0.10f, 255)
@@ -404,7 +404,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
                     g.text(codeFont, styled(info.userCode), codeX + 10, fy + 4, argb(255, 100, 230, 130))
                     fy += 26
 
-                    drawBtn(g, cx - BTN_W / 2, fy, BTN_W, BTN_H, "Copy Code", mx, my); fy += BTN_H + 12
+                    drawBtn(g, cx - BTN_WIDE / 2, fy, BTN_WIDE, BTN_H, "Copy Code", mx, my); fy += BTN_H + 12
                     if (msState == MsState.WAITING) {
                         g.centeredText(FONT, styled("Waiting for login..."), cx, fy, argb(180, 160, 160, 180))
                     }

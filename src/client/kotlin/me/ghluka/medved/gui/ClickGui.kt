@@ -27,7 +27,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
     companion object {
         /** Categories that are currently collapsed (header only, content hidden). */
         val collapsed = mutableSetOf<Module.Category>()
-        /** Top-left corner of each category's floating panel. */
         val positions = mutableMapOf<Module.Category, Pair<Int, Int>>()
         val expandedModules = mutableSetOf<Module>()
         var expandedColorEntry: ColorEntry? = null
@@ -38,8 +37,20 @@ class ClickGui : Screen(Component.literal("Medved")) {
         var cfgPanelX = -1
         var cfgPanelY = -1
         var cfgPanelCollapsed = true
+        var sidebarPaneX = -1
+        var sidebarPaneY = -1
+
         fun resetPositions() {
-            val w = net.minecraft.client.Minecraft.getInstance().window.guiScaledWidth
+            val mc = net.minecraft.client.Minecraft.getInstance()
+            val w = mc.window.guiScaledWidth
+            val h = mc.window.guiScaledHeight
+            if (me.ghluka.medved.module.modules.other.ClickGui.currentMode.value ==
+                    me.ghluka.medved.module.modules.other.ClickGui.Mode.SIDEBAR) {
+                sidebarPaneX = (w - 480) / 2
+                sidebarPaneY = (h - 320) / 2
+                NotificationManager.show("Panel Centered")
+                return
+            }
             positions.clear()
             renderOrder.clear()
             renderOrder.addAll(Module.Category.entries)
@@ -57,6 +68,15 @@ class ClickGui : Screen(Component.literal("Medved")) {
             NotificationManager.show("Layout Reset")
         }
     }
+
+    private var selectedCategory: Module.Category? = null
+    private var sidebarTab = 0 // 0=Modules, 1=Config
+    private var sidebarDetailMod: Module? = null // module whose config page is open
+    private var draggingSidebar = false
+    private var sidebarDragOffX = 0
+    private var sidebarDragOffY = 0
+    private var sidebarScroll = 0f
+    private var sidebarScrollMax = 0f
 
     private var editingString: StringEntry? = null
     private val entryField = TextField()
@@ -101,7 +121,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
     /** Blend a gray base toward the accent color. */
     private fun shade(base: Int, mix: Float, alpha: Int = 255): Int {
-        val c = Colour.accent.value
+        val c = Colour.bg.value
         val r = (base + (c.r - base) * mix).toInt().coerceIn(0, 255)
         val g = (base + (c.g - base) * mix).toInt().coerceIn(0, 255)
         val b = (base + (c.b - base) * mix).toInt().coerceIn(0, 255)
@@ -111,7 +131,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private val BG       get() = shade(8, 0.05f, 100)
     private val PNL_BG   get() = shade(18, 0.08f, 240)
     private val HDR_BG   get() = shade(20, 0.20f)
-    private val HDR_ACC  get() = Colour.accent.value.argb
+    private val HDR_ACC  get() = Colour.bg.value.argb
     private val MOD_NORM get() = shade(20, 0.06f)
     private val MOD_HOV  get() = shade(30, 0.10f)
     private val ACCENT   get() = Colour.accent.value.argb
@@ -167,6 +187,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             cfgPanelX = x; cfgPanelY = y; cfgPanelCollapsed = true
         }
         if (cfgPanelX < 0) { cfgPanelX = 10; cfgPanelY = 30; cfgPanelCollapsed = true }
+        if (sidebarPaneX < 0) { sidebarPaneX = (width - 480) / 2; sidebarPaneY = (height - 320) / 2 }
         if (renderOrder.isEmpty()) {
             renderOrder.addAll(Module.Category.entries)
             renderOrder.add(null) // null = CONFIGS panel
@@ -181,14 +202,15 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun isInGameUi() = true
 
     override fun extractBackground(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
-    }
-
-    override fun extractRenderState(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
         hoveredMod = null
-        if (ClickGui.showBackground.value) g.fill(0, 0, width, height, BG)
-        for (cat in renderOrder) {
-            if (cat == null) drawConfigBar(g, mx, my)
-            else drawCategoryPanel(g, cat, mx, my)
+        if (ClickGui.currentMode.value == ClickGui.Mode.DROPDOWN) {
+            if (ClickGui.showBackground.value) g.fill(0, 0, width, height, BG)
+            for (cat in renderOrder) {
+                if (cat == null) drawConfigBar(g, mx, my)
+                else drawCategoryPanel(g, cat, mx, my)
+            }
+        } else {
+            drawSidebarMode(g, mx, my)
         }
         // draw dropdown overlay (always above panels)
         val enumExp = expandedEnum
@@ -196,9 +218,13 @@ class ClickGui : Screen(Component.literal("Medved")) {
             drawEnumDropdown(g, enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)
         }
         val hov = hoveredMod
-        if (hov != null && ClickGui.showDescriptions.value && hov.description.isNotBlank()) {
+        if (hov != null && ClickGui.showDescriptions.value && hov.description.isNotBlank() &&
+            ClickGui.currentMode.value == ClickGui.Mode.DROPDOWN) {
             drawTooltip(g, hov.description, mx, my)
         }
+    }
+
+    override fun extractRenderState(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
     }
 
     private fun cfgPanelBodyH(): Int {
@@ -212,10 +238,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (expanded) {
             g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG, CORNERS_TOP)
             g.roundedFill(px, py + HDR_H, PNL_W, cfgPanelBodyH(), 3, PNL_BG, CORNERS_BOT)
-            g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNER_TL)
         } else {
             g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG)
-            g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNERS_LEFT)
         }
         g.centeredText(guiFont, styled("CONFIGS"), px + PNL_W / 2, py + (HDR_H - 8) / 2, -1)
         g.text(guiFont, jbMono(if (expanded) "-" else "+"), px + PNL_W - 12, py + (HDR_H - 8) / 2, TEXT_DIM)
@@ -356,12 +380,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (expanded) {
             g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG, CORNERS_TOP)
             g.roundedFill(px, py + HDR_H, PNL_W, panelH - HDR_H, 3, PNL_BG, CORNERS_BOT)
-            // Accent strip: only top-left corner rounded (bottom connects to panel body)
-            g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNER_TL)
         } else {
             g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG)
-            // Accent strip: both left corners rounded (panel is header-only)
-            g.roundedFill(px, py, 3, HDR_H, 3, HDR_ACC, CORNERS_LEFT)
         }
         g.centeredText(guiFont, styled(cat.name), px + PNL_W / 2, py + (HDR_H - 8) / 2, -1)
         g.text(guiFont, jbMono(if (expanded) "-" else "+"), px + PNL_W - 12, py + (HDR_H - 8) / 2, TEXT_DIM)
@@ -436,6 +456,225 @@ class ClickGui : Screen(Component.literal("Medved")) {
         g.disableScissor()
     }
 
+    private fun drawSidebarMode(g: GuiGraphicsExtractor, mx: Int, my: Int) {
+        if (ClickGui.showBackground.value) g.fill(0, 0, width, height, BG)
+
+        val pw = 480; val ph = 320
+        val px = sidebarPaneX; val py = sidebarPaneY
+        val tabH = 24
+        val catW = 110    // left category column width
+        val contentX = px + catW
+        val contentW = pw - catW
+        val modRowH = 36  // big module card height
+        val smallFont = guiFont
+        val WHITE = argb(255, 230, 230, 240)
+        val GREY  = argb(255, 130, 130, 150)
+
+        val logoH = 24  // full-width drag/logo strip at top
+        g.roundedFill(px, py, pw, ph, 4, PNL_BG)
+
+        g.fill(px, py, px + pw, py + logoH, shade(20, 0.15f))
+        g.centeredText(smallFont, styled("MEDVED"), px + pw / 2, py + (logoH - 8) / 2, TEXT_DIM)
+
+        val tabW = pw / 2
+        val tabs = listOf("Modules", "Config")
+        val tabBarY = py + logoH
+        for ((i, tabName) in tabs.withIndex()) {
+            val tx = px + i * tabW
+            val tabSel = sidebarTab == i
+            val tabHov = mx in tx until tx + tabW && my in tabBarY until tabBarY + tabH
+            g.fill(tx, tabBarY, tx + tabW, tabBarY + tabH,
+                if (tabSel) shade(30, 0.18f) else if (tabHov) shade(25, 0.12f) else shade(18, 0.08f))
+            if (tabSel) g.fill(tx, tabBarY + tabH - 2, tx + tabW, tabBarY + tabH, ACCENT)
+            g.centeredText(smallFont, styled(tabName), tx + tabW / 2, tabBarY + (tabH - 8) / 2, if (tabSel) TEXT else TEXT_DIM)
+        }
+
+        if (sidebarTab == 0) {
+            val catAreaY = py + logoH + tabH
+            g.fill(px, catAreaY, contentX, py + ph, shade(14, 0.06f))
+            var cy = catAreaY + 6
+            val catPad = 2
+            for (cat in Module.Category.entries) {
+                val rowH = 18
+                val catHov = mx in px until contentX && my in cy until cy + rowH
+                val catSel = selectedCategory == cat
+                g.fill(px, cy, contentX, cy + rowH,
+                    if (catSel) shade(35, 0.22f) else if (catHov) shade(28, 0.14f) else shade(14, 0.06f))
+                g.centeredText(smallFont, styled(cat.name), px + catW / 2, cy + (rowH - 8) / 2, if (catSel) WHITE else GREY)
+                cy += rowH + catPad
+            }
+        }
+
+        val bodyX = if (sidebarTab == 0) contentX else px
+        val bodyY = py + logoH + tabH
+        val bodyW = if (sidebarTab == 0) contentW else pw
+        val bodyH = ph - logoH - tabH - 12
+        g.enableScissor(bodyX, bodyY + 6, bodyX + bodyW, bodyY + 6 + bodyH)
+
+        if (sidebarTab == 0) {
+            val detailMod = sidebarDetailMod
+            if (detailMod != null) {
+                var ey = bodyY + 6
+                g.text(smallFont, styled("< Back"), bodyX + 8, ey + 3, TEXT_DIM)
+                ey += 18
+                g.text(smallFont, styled(detailMod.name), bodyX + 6, ey, WHITE)
+                ey += 12
+                val entries = configEntries(detailMod)
+                if (entries.isEmpty()) {
+                    g.text(smallFont, styled("No settings."), bodyX + 6, ey, GREY)
+                } else {
+                    for (entry in entries) {
+                        if (ey + ENT_H > bodyY + bodyH) break
+                        drawEntry(g, entry, bodyX + 4, ey, bodyW - 8, mx, my)
+                        ey += ENT_H
+                        if (entry is IntEntry) {
+                            val bounded = entry.min != Int.MIN_VALUE && entry.max != Int.MAX_VALUE
+                            drawNumericSliderBar(g, bounded, entry.value.toFloat(),
+                                if (bounded) entry.min.toFloat() else 0f,
+                                if (bounded) entry.max.toFloat() else 1f,
+                                bodyX + 4, ey, bodyW - 8); ey += ENT_H
+                        }
+                        if (entry is FloatEntry) {
+                            val bounded = entry.min != -Float.MAX_VALUE && entry.max != Float.MAX_VALUE
+                            drawNumericSliderBar(g, bounded, entry.value,
+                                entry.min.takeIf { it != -Float.MAX_VALUE } ?: 0f,
+                                entry.max.takeIf { it != Float.MAX_VALUE } ?: 1f,
+                                bodyX + 4, ey, bodyW - 8); ey += ENT_H
+                        }
+                        if (entry is DoubleEntry) {
+                            val bounded = entry.min != -Double.MAX_VALUE && entry.max != Double.MAX_VALUE
+                            drawNumericSliderBar(g, bounded, entry.value.toFloat(),
+                                entry.min.takeIf { it != -Double.MAX_VALUE }?.toFloat() ?: 0f,
+                                entry.max.takeIf { it != Double.MAX_VALUE }?.toFloat() ?: 1f,
+                                bodyX + 4, ey, bodyW - 8); ey += ENT_H
+                        }
+                        if (entry is IntRangeEntry) { drawRangeSliders(g, entry, bodyX + 6, ey, bodyW - 8); ey += ENT_H }
+                        if (entry is FloatRangeEntry) { drawFloatRangeSliders(g, entry, bodyX + 6, ey, bodyW - 8); ey += ENT_H }
+                        if (entry == expandedColorEntry && entry is ColorEntry) {
+                            drawColorPicker(g, entry, bodyX + 6, ey, bodyW - 8)
+                            ey += colorChannelCount(entry) * ENT_H
+                        }
+                        if (entry == expandedEnum && entry is EnumEntry<*>) {
+                            val ew = enumDropdownWidth(entry)
+                            enumDropdownX = bodyX + bodyW - ew
+                            enumDropdownY = ey
+                            enumDropdownW = ew
+                        }
+                    }
+                }
+            } else {
+                val mods = selectedCategory?.let { ModuleManager.getByCategory(it) } ?: emptyList()
+                if (mods.isEmpty()) {
+                    g.centeredText(smallFont, styled("Select a category"), bodyX + bodyW / 2, bodyY + 6 + bodyH / 2 - 4, GREY)
+                    sidebarScroll = 0f; sidebarScrollMax = 0f
+                } else {
+                    val lineH = guiFont.lineHeight
+                    val cardPad = 4
+                    val cardList = mods.map { mod ->
+                        val descMaxW = bodyW - 80
+                        val descLines = if (mod.description.isBlank()) emptyList() else {
+                            val words = mod.description.split(" ")
+                            val lines = mutableListOf<String>()
+                            var cur = ""
+                            for (word in words) {
+                                val candidate = if (cur.isEmpty()) word else "$cur $word"
+                                if (guiFont.width(styled(candidate)) <= descMaxW) {
+                                    cur = candidate
+                                } else {
+                                    if (cur.isNotEmpty()) lines += cur
+                                    cur = word
+                                }
+                            }
+                            if (cur.isNotEmpty()) lines += cur
+                            lines
+                        }
+                        val nameTopPad = 8
+                        val nameBottomPad = 8
+                        val descLineSpacing = (lineH * 1.3).toInt()
+                        val cardH = nameTopPad + lineH + (if (descLines.isEmpty()) 0 else descLines.size * descLineSpacing + nameBottomPad) + 8
+                        Triple(mod, descLines, cardH)
+                    }
+                    val totalH = cardList.sumOf { it.third + cardPad } - cardPad
+                    sidebarScrollMax = (totalH - bodyH).coerceAtLeast(0).toFloat()
+                    if (sidebarScroll > sidebarScrollMax) sidebarScroll = sidebarScrollMax
+                    if (sidebarScroll < 0f) sidebarScroll = 0f
+                    var my2 = bodyY + 6 - sidebarScroll.toInt()
+                    for ((mod, descLines, cardH) in cardList) {
+                        if (my2 + cardH < bodyY + 6) { my2 += cardH + cardPad; continue }
+                        if (my2 > bodyY + 6 + bodyH) break
+                        val mHov = mx in bodyX until bodyX + bodyW && my in my2 until my2 + cardH
+                        if (mHov) hoveredMod = mod
+                        g.roundedFill(bodyX + 4, my2, bodyW - 8, cardH, 3,
+                            if (mHov) shade(38, 0.14f) else shade(32, 0.09f))
+                        if (mod.isEnabled()) g.roundedFill(bodyX + 4, my2, 3, cardH, 3, ACCENT, CORNERS_LEFT)
+                        val nameTopPad = 8
+                        val nameBottomPad = 8
+                        val descLineSpacing = (lineH * 1.3).toInt()
+                        g.text(smallFont, styled(mod.name), bodyX + 12, my2 + nameTopPad, WHITE)
+                        descLines.forEachIndexed { i, line ->
+                            g.text(smallFont, styled(line), bodyX + 12, my2 + nameTopPad + lineH + nameBottomPad + i * descLineSpacing, GREY)
+                        }
+                        val tgX = bodyX + bodyW - 44; val tgY = my2 + cardH / 2 - 6
+                        g.fill(tgX, tgY, tgX + 32, tgY + 12, if (mod.isEnabled()) BTN_ON else BTN_OFF)
+                        g.centeredText(smallFont, styled(if (mod.isEnabled()) "ON" else "OFF"), tgX + 16, tgY + 2, TEXT)
+                        if (configEntries(mod).isNotEmpty()) {
+                            g.text(smallFont, plain("⋮"), tgX - 12, my2 + cardH / 2 - 4, TEXT_DIM)
+                        }
+                        my2 += cardH + cardPad
+                    }
+                }
+            }
+        } else {
+            var ey = bodyY + 6
+            val visW = bodyW - 10
+            val textX2 = bodyX + 5
+            g.fill(bodyX, ey, bodyX + bodyW, ey + ENT_H, if (presetFieldActive) shade(40, 0.25f) else ENT_BG)
+            g.fill(bodyX, ey, bodyX + bodyW, ey + 1, if (presetFieldActive) ACCENT else shade(10, 0.05f))
+            g.enableScissor(textX2, ey, textX2 + visW, ey + ENT_H)
+            if (presetFieldActive && presetField.hasSelection) {
+                val sx2 = textX2 - presetField.scrollPx + guiFont.width(styled(presetField.text.substring(0, presetField.selMin)))
+                val ex2 = textX2 - presetField.scrollPx + guiFont.width(styled(presetField.text.substring(0, presetField.selMax)))
+                g.fill(sx2, ey + 1, ex2, ey + ENT_H - 1, argb(170, 60, 110, 210))
+            }
+            if (presetField.text.isEmpty() && !presetFieldActive)
+                g.text(guiFont, styled("preset name..."), textX2, ey + (ENT_H - 8) / 2, TEXT_DIM)
+            else
+                g.text(guiFont, styled(presetField.text), textX2 - presetField.scrollPx, ey + (ENT_H - 8) / 2, TEXT)
+            if (presetFieldActive && cursorVisible) {
+                val cx2 = textX2 - presetField.scrollPx + guiFont.width(styled(presetField.text.substring(0, presetField.cursor)))
+                g.fill(cx2, ey + 1, cx2 + 1, ey + ENT_H - 1, argb(230, 220, 220, 255))
+            }
+            g.disableScissor()
+            ey += ENT_H
+            val btnW2 = bodyW / 3
+            for ((i, label2) in listOf("Save", "Load", "Folder").withIndex()) {
+                val bx2 = bodyX + i * btnW2
+                val bHov = mx in bx2 until bx2 + btnW2 && my in ey until ey + MOD_H
+                g.fill(bx2, ey, bx2 + btnW2, ey + MOD_H, if (bHov) shade(50, 0.20f) else BTN_BG)
+                if (i < 2) g.fill(bx2 + btnW2 - 1, ey, bx2 + btnW2, ey + MOD_H, shade(10, 0.05f))
+                g.centeredText(guiFont, styled(label2), bx2 + btnW2 / 2, ey + (MOD_H - 8) / 2, TEXT)
+            }
+            ey += MOD_H
+            val presets = ConfigManager.listPresets()
+            if (presets.isEmpty()) {
+                g.fill(bodyX, ey, bodyX + bodyW, ey + ENT_H, ENT_BG)
+                g.text(guiFont, styled("(no presets saved)"), bodyX + 5, ey + (ENT_H - 8) / 2, TEXT_DIM)
+            } else {
+                for (preset in presets) {
+                    if (ey + ENT_H > bodyY + bodyH) break
+                    val pHov = mx in bodyX until bodyX + bodyW && my in ey until ey + ENT_H
+                    val pSel = preset == presetField.text
+                    g.fill(bodyX, ey, bodyX + bodyW, ey + ENT_H, if (pHov) MOD_HOV else ENT_BG)
+                    if (pSel) g.fill(bodyX, ey, bodyX + 3, ey + ENT_H, ACCENT)
+                    g.text(guiFont, styled(preset), bodyX + 7, ey + (ENT_H - 8) / 2, if (pSel) TEXT else TEXT_DIM)
+                    ey += ENT_H
+                }
+            }
+        }
+
+        g.disableScissor()
+    }
+
     private fun fullPanelHeight(cat: Module.Category): Int {
         var h = HDR_H
         for (mod in ModuleManager.getByCategory(cat)) {
@@ -487,7 +726,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private fun drawEntry(g: GuiGraphicsExtractor, entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int) {
         if (entry is HudEditEntry) {
             g.fill(x, y, x + w, y + ENT_H, BTN_BG)
-            g.fill(x, y, x + 2, y + ENT_H, ACCENT)
             g.centeredText(guiFont, styled("Edit Position"), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
             return
         }
@@ -739,6 +977,137 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 return true
             }
         }
+        if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR) {
+            val pw = 480; val ph = 320
+            val px2 = sidebarPaneX; val py2 = sidebarPaneY
+            val tabH = 24; val catW = 110
+            val contentX2 = px2 + catW; val contentW2 = pw - catW
+
+            val logoH = 24
+            if (mx in px2 until px2 + pw && my in py2 until py2 + logoH) {
+                if (btn == 0) { draggingSidebar = true; sidebarDragOffX = mx - px2; sidebarDragOffY = my - py2 }
+                return true
+            }
+            if (mx in px2 until px2 + pw && my in py2 + logoH until py2 + logoH + tabH) {
+                if (btn == 0) {
+                    val tabW = pw / 2
+                    val ti = (mx - px2) / tabW
+                    sidebarTab = ti.coerceIn(0, 1)
+                    sidebarDetailMod = null
+                }
+                return true
+            }
+            if (sidebarTab == 0 && mx in px2 until contentX2 && my in py2 + logoH + tabH until py2 + ph) {
+                if (btn == 0) {
+                    var cy = py2 + logoH + tabH + 6
+                    for (cat in Module.Category.entries) {
+                        if (my in cy until cy + 18) { selectedCategory = cat; sidebarDetailMod = null; return true }
+                        cy += 20
+                    }
+                }
+                return true
+            }
+            val bodyX = if (sidebarTab == 0) contentX2 else px2
+            val bodyW2 = if (sidebarTab == 0) contentW2 else pw
+            if (mx in bodyX until px2 + pw && my in py2 + logoH + tabH until py2 + ph) {
+                val bodyY = py2 + logoH + tabH
+
+                if (sidebarTab == 0) {
+                    val detailMod = sidebarDetailMod
+                    if (detailMod != null) {
+                        var ey = bodyY + 6
+                        val backTextW = 40
+                        if (my in ey until ey + 14 && mx in bodyX + 4 until bodyX + 4 + backTextW + 8) {
+                            sidebarDetailMod = null; return true
+                        }
+                        ey += 18 + 12
+                        for (entry in configEntries(detailMod)) {
+                            if (ey + ENT_H > bodyY + (ph - logoH - tabH)) break
+                            if (my in ey until ey + ENT_H) {
+                                if (entry is HudEditEntry && detailMod is HudModule) {
+                                    minecraft.setScreen(HudEditorScreen(detailMod, this))
+                                } else {
+                                    handleEntryClick(entry, bodyX + 4, ey, bodyW2 - 8, mx, btn)
+                                }
+                                return true
+                            }
+                            ey += ENT_H
+                            if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) {
+                                if (my in ey until ey + ENT_H) { handleNumericBarClick(entry, bodyX + 4, ey, bodyW2 - 8, mx, btn); return true }
+                                ey += ENT_H
+                            }
+                            if (entry is IntRangeEntry) { if (handleRangeClick(entry, bodyX + 6, ey, bodyW2 - 8, mx, my)) return true; ey += ENT_H }
+                            if (entry is FloatRangeEntry) { if (handleFloatRangeClick(entry, bodyX + 6, ey, bodyW2 - 8, mx, my)) return true; ey += ENT_H }
+                            if (entry == expandedColorEntry && entry is ColorEntry) {
+                                if (handleColorClick(entry, bodyX + 6, ey, bodyW2 - 8, mx, my)) return true
+                                ey += colorChannelCount(entry) * ENT_H
+                            }
+                        }
+                    } else {
+                        val mods = selectedCategory?.let { ModuleManager.getByCategory(it) } ?: emptyList()
+                        val lineH = guiFont.lineHeight
+                        val cardPad = 4
+                        val cardList = mods.map { mod ->
+                            val descMaxW = bodyW2 - 80
+                            val descLines = if (mod.description.isBlank()) 0 else run {
+                                val words = mod.description.split(" ")
+                                var cur = ""; var count = 1
+                                for (word in words) {
+                                    val candidate = if (cur.isEmpty()) word else "$cur $word"
+                                    if (guiFont.width(styled(candidate)) <= descMaxW) cur = candidate
+                                    else { count++; cur = word }
+                                }
+                                count
+                            }
+                            val cardH = 8 + lineH + (if (descLines == 0) 0 else descLines * lineH + 2) + 8
+                            Triple(mod, descLines, cardH)
+                        }
+                        var my2 = bodyY + 6 - sidebarScroll.toInt()
+                        for ((mod, descLines, cardH) in cardList) {
+                            if (my2 + cardH < bodyY) { my2 += cardH + cardPad; continue }
+                            if (my2 > bodyY + (ph - logoH - tabH)) break
+                            if (my in my2 until my2 + cardH) {
+                                val tgX = bodyX + bodyW2 - 44
+                                if (btn == 0 && mx in tgX until tgX + 40) {
+                                    if (!mod.isProtected) mod.toggle()
+                                } else if (btn == 0) {
+                                    if (configEntries(mod).isNotEmpty()) sidebarDetailMod = mod
+                                    else if (!mod.isProtected) mod.toggle()
+                                }
+                                return true
+                            }
+                            my2 += cardH + cardPad
+                        }
+                    }
+                } else {
+                    var ey = bodyY + 6
+                    if (my in ey until ey + ENT_H) {
+                        presetFieldActive = true; draggingPresetField = true
+                        val relX = mx - bodyX - 5
+                        presetField.apply { cursor = posFromPixel(relX); selAnchor = cursor; clampScroll(bodyW2 - 10) }
+                        return true
+                    }
+                    ey += ENT_H
+                    if (my in ey until ey + MOD_H) {
+                        val btnW2 = bodyW2 / 3
+                        val name = presetField.text.ifBlank { "default" }
+                        when {
+                            mx in bodyX until bodyX + btnW2 -> { ConfigManager.savePreset(name); NotificationManager.show("Config Saved", name) }
+                            mx in bodyX + btnW2 until bodyX + btnW2 * 2 -> { val exists = name in ConfigManager.listPresets(); ConfigManager.loadPreset(name); if (exists) NotificationManager.show("Config Loaded", name) else NotificationManager.show("Not Found", name) }
+                            else -> ConfigManager.openPresetFolder()
+                        }
+                        return true
+                    }
+                    ey += MOD_H
+                    for (preset in ConfigManager.listPresets()) {
+                        if (my in ey until ey + ENT_H) { presetField.set(preset); presetField.clampScroll(bodyW2 - 10); presetNameBuffer = preset; return true }
+                        ey += ENT_H
+                    }
+                }
+                return true
+            }
+            return true
+        }
 
         for (cat in renderOrder.asReversed()) {
             val (px, py) = positions[cat] ?: continue
@@ -809,6 +1178,23 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return true
         }
         return super.mouseClicked(event, inBounds)
+    }
+    
+    override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
+        if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR && sidebarTab == 0) {
+            val pw = 480; val ph = 320
+            val px = sidebarPaneX; val py = sidebarPaneY
+            val catW = 110
+            val contentX = px + catW
+            val contentW = pw - catW
+            val logoH = 24; val tabH = 24
+            val bodyX = contentX; val bodyY = py + logoH + tabH; val bodyW = contentW; val bodyH = ph - logoH - tabH
+            if (mouseX in bodyX.toDouble()..(bodyX + bodyW).toDouble() && mouseY in bodyY.toDouble()..(bodyY + bodyH).toDouble()) {
+                sidebarScroll = (sidebarScroll - scrollY * 32f).coerceIn(0.0, sidebarScrollMax.toDouble()).toFloat()
+                return true
+            }
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
     }
 
     private fun handleEntryClick(entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, btn: Int) {
@@ -1041,6 +1427,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
             entryField.apply { cursor = posFromPixel(event.x().toInt() - entryFieldTextX); clampScroll(60) }
             return true
         }
+        if (draggingSidebar) {
+            sidebarPaneX = event.x().toInt() - sidebarDragOffX
+            sidebarPaneY = event.y().toInt() - sidebarDragOffY
+            return true
+        }
         if (draggingCfgPanel) {
             cfgPanelX = event.x().toInt() - cfgDragOffX
             cfgPanelY = event.y().toInt() - cfgDragOffY
@@ -1055,6 +1446,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         draggingCat = null
         draggingSlider = null
         draggingCfgPanel = false
+        draggingSidebar = false
         draggingPresetField = false
         draggingStringEntry = false
         return super.mouseReleased(event)

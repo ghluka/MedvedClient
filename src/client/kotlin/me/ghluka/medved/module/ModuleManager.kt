@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
+import net.minecraft.client.Minecraft
 import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
 
@@ -25,7 +26,10 @@ object ModuleManager {
 
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("medved", "modules"),
-            HudElement { extractor, delta -> modules.forEach { it.dispatchHudRender(extractor, delta) } }
+            HudElement { extractor, delta ->
+                if (Minecraft.getInstance().screen?.javaClass?.name != "me.ghluka.medved.gui.ClickGui")
+                    modules.forEach { it.dispatchHudRender(extractor, delta) }
+            }
         )
 
         HudElementRegistry.addLast(

@@ -9,7 +9,13 @@ object ClickGui : Module("Click Gui", "The click GUI", Category.OTHER) {
 
     override val showInModulesList = false
 
-    val showDescriptions = boolean("show_descriptions", true)
+
+    enum class Mode { DROPDOWN, SIDEBAR }
+    val currentMode  = enum("mode", Mode.DROPDOWN)
+
+    val showDescriptions = boolean("show_descriptions", true).also {
+        it.visibleWhen = { currentMode.value == Mode.DROPDOWN }
+    }
     val showBackground   = boolean("show_background", true)
     val resetLayout      = button("reset_layout", "Reset Layout") { ClickGui.resetPositions() }
 
