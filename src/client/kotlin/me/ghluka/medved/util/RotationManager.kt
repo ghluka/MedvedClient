@@ -131,6 +131,7 @@ object RotationManager {
 
     /** Client camera yaw (real mouse rotation, never affected by the server override). */
     @JvmStatic fun getClientYaw(): Float = clientYaw
+    @JvmStatic fun getClientPitch(): Float = clientPitch
 
     /**
      * Recompute minecraft.hitResult using the server rotation so the block

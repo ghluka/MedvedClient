@@ -26,7 +26,7 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 - **Aim Assist**\*
   - Smoothly rotates toward the nearest player within FOV
 - **Auto Block**\*
-  - Holds block with your sword to reduce incoming damage
+  - Blocks with your sword to reduce incoming damage when autoclicking
 - **Left Clicker**\*
   - Automatically left-clicks while holding the attack key
 - **Right Clicker**\*
@@ -43,7 +43,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Modes:
     - Reduce - reduce your knockback by a customizable %
     - Reverse - makes your knockback pull you forwards
-    - Jump Reset - jumps when you get hit to take less knockback, perfect for prediction anticheats
+    - Jump Reset - jumps when you get hit to take less knockback
+    - Delay - customizable latency that happens when you get hit, doesn't reduce knockback but delays it
 - **Combo Tap**\*
   - Taps movement keys on attack to adjust velocity for better combos
   - Modes:
@@ -62,7 +63,10 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
     - Blatant - detected by anticheats but guarantees hits (not recommended)
     - Legit - works 90% of the time and fully undetected by any server
 - **Backtrack**\*
-  - Delays enemy position updates
+  - Delays enemy position updates to hit players at their previous position
+  - Modes:
+    - Manual - directly lets you hit players at previous positions, similar to reach
+    - Lag - modifies your connection to the server by increasing latency to hit players
 </details>
 
 <details>

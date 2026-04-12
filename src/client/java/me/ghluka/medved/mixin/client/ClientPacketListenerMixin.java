@@ -62,6 +62,7 @@ public class ClientPacketListenerMixin {
         Entity entity = packet.getEntity(mc.level);
         if (entity == null || entity instanceof LocalPlayer) return;
         if (Backtrack.INSTANCE.getOnlyPlayers().getValue() && !(entity instanceof Player)) return;
+        if (!Backtrack.INSTANCE.shouldDelay()) return;
         ClientPacketListener connection = (ClientPacketListener)(Object) this;
         Vec3 realPos = new Vec3(
             entity.getX() + packet.getXa() / 4096.0,
@@ -80,6 +81,7 @@ public class ClientPacketListenerMixin {
         Entity entity = mc.level.getEntity(packet.id());
         if (entity == null || entity instanceof LocalPlayer) return;
         if (Backtrack.INSTANCE.getOnlyPlayers().getValue() && !(entity instanceof Player)) return;
+        if (!Backtrack.INSTANCE.shouldDelay()) return;
         ClientPacketListener connection = (ClientPacketListener)(Object) this;
         Vec3 realPos = packet.values().position();
         ci.cancel();
@@ -120,6 +122,9 @@ public class ClientPacketListenerMixin {
                 Velocity.INSTANCE.scheduleJump(System.currentTimeMillis() + delay);
                 ci.cancel();
             }
+        } else if (mode == Velocity.Mode.DELAY) {
+            if (Math.abs(mx) < 0.1 && Math.abs(mz) < 0.1) return;
+            Velocity.INSTANCE.startPacketDelay();
         }
     }
 }

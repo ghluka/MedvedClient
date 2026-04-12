@@ -1,6 +1,8 @@
 package me.ghluka.medved.mixin.client;
 
+import me.ghluka.medved.module.modules.combat.Backtrack;
 import me.ghluka.medved.module.modules.combat.ComboTap;
+import me.ghluka.medved.module.modules.combat.KnockbackDisplacement;
 import me.ghluka.medved.module.modules.combat.NoHitDelay;
 import me.ghluka.medved.module.modules.combat.Reach;
 import me.ghluka.medved.module.modules.movement.NoSlow;
@@ -20,14 +22,19 @@ public class PlayerMixin {
 
     @Inject(method = "attack", at = @At("HEAD"))
     private void medved$onAttack(Entity target, CallbackInfo ci) {
-        if ((Object) this instanceof LocalPlayer && ComboTap.INSTANCE.isEnabled()) {
-            ComboTap.INSTANCE.onAttack();
+        if ((Object) this instanceof LocalPlayer) {
+            if (ComboTap.INSTANCE.isEnabled()) {
+                ComboTap.INSTANCE.onAttack();
+            }
+            if (Backtrack.INSTANCE.isEnabled() && Backtrack.INSTANCE.getMode().getValue() == Backtrack.Mode.LAG) {
+                Backtrack.INSTANCE.triggerLag();
+            }
         }
     }
 
     @Inject(method = "getAttackStrengthScale", at = @At("HEAD"), cancellable = true)
     private void medved$noAttackCooldown(float adjustTicks, CallbackInfoReturnable<Float> cir) {
-        if (NoHitDelay.INSTANCE.isEnabled()) {
+        if (NoHitDelay.INSTANCE.isEnabled() || KnockbackDisplacement.INSTANCE.isEnabled()) {
             cir.setReturnValue(1.0f);
         }
     }
@@ -40,12 +47,6 @@ public class PlayerMixin {
         if (reach > 0) cir.setReturnValue(reach);
     }
 
-    /**
-     * The 0.2× movement-speed penalty while using an item (bow draw, eating,
-     * drinking potions) is applied in Player.aiStep() via an isUsingItem() check.
-     * Since LivingEntity declares the method, the call-site bytecode target is
-     * LivingEntity.isUsingItem(). Redirect it to return false when NoSlow is on.
-     */
     @Redirect(
         method = "aiStep",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;isUsingItem()Z"),

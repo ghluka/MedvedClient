@@ -1,6 +1,8 @@
 package me.ghluka.medved.mixin.client;
 
 import io.netty.channel.ChannelHandlerContext;
+import me.ghluka.medved.module.modules.combat.Backtrack;
+import me.ghluka.medved.module.modules.combat.Velocity;
 import me.ghluka.medved.module.modules.player.Blink;
 import me.ghluka.medved.module.modules.player.ClientBrand;
 import me.ghluka.medved.module.modules.player.FakeLag;
@@ -30,10 +32,20 @@ public class ConnectionMixin {
     @SuppressWarnings("unchecked")
     @Inject(method = "channelRead0", at = @At("HEAD"), cancellable = true)
     private void medved$onChannelRead(ChannelHandlerContext ctx, Packet<?> packet, CallbackInfo ci) {
-        if (!KnockbackDelay.INSTANCE.isEnabled()) return;
-        if (packet instanceof ClientboundKeepAlivePacket || packet instanceof ClientboundPingPacket) return;
         PacketListener listener = packetListener;
         if (!(listener instanceof ClientPacketListener)) return;
+
+        if (Backtrack.INSTANCE.isEnabled()
+                && Backtrack.INSTANCE.getMode().getValue() == Backtrack.Mode.LAG
+                && Backtrack.INSTANCE.shouldDelayIncomingPackets()) {
+            Packet<PacketListener> p = (Packet<PacketListener>) packet;
+            ci.cancel();
+            Backtrack.INSTANCE.bufferIncomingPacket(() -> p.handle(listener));
+            return;
+        }
+
+        if (!KnockbackDelay.INSTANCE.isEnabled()) return;
+        if (packet instanceof ClientboundKeepAlivePacket || packet instanceof ClientboundPingPacket) return;
 
         boolean trigger = false;
         if (!KnockbackDelay.INSTANCE.isHolding() && packet instanceof ClientboundSetEntityMotionPacket mp) {
@@ -74,6 +86,12 @@ public class ConnectionMixin {
         if (Blink.INSTANCE.shouldBuffer() && !isKeepalive) {
             ci.cancel();
             Blink.INSTANCE.bufferPacket(() -> conn.send(packet));
+            return;
+        }
+
+        if (Velocity.INSTANCE.shouldDelayPackets()) {
+            ci.cancel();
+            Velocity.INSTANCE.queuePacket(() -> conn.send(packet));
             return;
         }
 
