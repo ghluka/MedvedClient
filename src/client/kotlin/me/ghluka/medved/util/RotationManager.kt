@@ -1,6 +1,8 @@
 package me.ghluka.medved.util
 
+import me.ghluka.medved.mixin.client.CameraMixin
 import me.ghluka.medved.module.modules.other.Rotations
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.util.Mth
@@ -36,6 +38,8 @@ object RotationManager {
     private var clientPitch = 0f
     private var overriding = false
 
+    @JvmField var perspective: Boolean = false
+    @JvmField var firstTime: Boolean = true
     /**
      * SERVER = our movement is based on the server sided rotation
      * CLIENT = our movement is based on the client sided rotation, flags to anticheat
@@ -103,6 +107,15 @@ object RotationManager {
                 currentPitch = player.getXRot()
                 clientYaw = player.getYRot()
                 clientPitch = player.getXRot()
+                // If we're going into a fake per-entity camera mode, initialize the
+                // per-entity camera to the player's current camera so restoreRotation
+                // has a sensible value even before the next render tick.
+                if (perspective
+                    && player is me.ghluka.medved.util.CameraOverriddenEntity) {
+                    firstTime = false
+                    (player as me.ghluka.medved.util.CameraOverriddenEntity).`medved$setCameraYaw`(player.getYRot())
+                    (player as me.ghluka.medved.util.CameraOverriddenEntity).`medved$setCameraPitch`(player.getXRot())
+                }
             }
         }
         targetYaw = yaw
@@ -111,12 +124,21 @@ object RotationManager {
 
     /** Stop overriding, sendPosition will use the real camera rotation. */
     fun clearRotation() {
+        //perspective = false
         targetYaw = null
         targetPitch = null
-        movementMode = MovementMode.SERVER
-        rotationMode = RotationMode.SERVER
+        movementMode = MovementMode.CLIENT
+        rotationMode = RotationMode.CLIENT
         physicsYawOverride = Float.NaN
         skipPositionSnap = false
+        firstTime = true
+        // If the per-entity fake camera is in use, sync it to the current client camera
+        val mc = Minecraft.getInstance()
+        val player = mc.player
+        if (player != null && perspective) {
+            restoreClientCamera(player)
+        }
+        perspective = false
     }
 
     /** Whether an override is currently active. */
@@ -130,8 +152,25 @@ object RotationManager {
     @JvmStatic fun getCurrentPitch(): Float = currentPitch
 
     /** Client camera yaw (real mouse rotation, never affected by the server override). */
-    @JvmStatic fun getClientYaw(): Float = clientYaw
-    @JvmStatic fun getClientPitch(): Float = clientPitch
+    @JvmStatic fun getClientYaw(): Float {
+        val mc = Minecraft.getInstance()
+        val player = mc.player
+        if (perspective
+            && player is me.ghluka.medved.util.CameraOverriddenEntity) {
+            return (player as me.ghluka.medved.util.CameraOverriddenEntity).`medved$getCameraYaw`()
+        }
+        return clientYaw
+    }
+
+    @JvmStatic fun getClientPitch(): Float {
+        val mc = Minecraft.getInstance()
+        val player = mc.player
+        if (perspective
+            && player is me.ghluka.medved.util.CameraOverriddenEntity) {
+            return (player as me.ghluka.medved.util.CameraOverriddenEntity).`medved$getCameraPitch`()
+        }
+        return clientPitch
+    }
 
     /**
      * Recompute minecraft.hitResult using the server rotation so the block
@@ -190,35 +229,7 @@ object RotationManager {
      * Advances toward the target at maximum believable mouse-flick speed.
      */
     fun flickTick() {
-        val tYaw = targetYaw ?: return
-        val tPitch = targetPitch ?: return
-
-        val yawDiff = Mth.wrapDegrees(tYaw - currentYaw)
-        val pitchDiff = Mth.wrapDegrees(tPitch - currentPitch)
-        val dist = sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff)
-
-        if (dist < 0.01f) {
-            currentYaw = tYaw
-            currentPitch = tPitch
-            return
-        }
-
-        val sensitivity = Minecraft.getInstance().options.sensitivity().get()
-        val f = sensitivity * 0.6 + 0.2
-        val degreesPerCount = (f * f * f * 8.0).toFloat()
-
-        // Full-speed step: use 100% of distance, capped at 120 mouse counts.
-        val counts = (dist / degreesPerCount).coerceIn(1f, 120f) + Random.nextFloat() * 0.4f - 0.2f
-        val step = degreesPerCount * counts
-
-        if (dist <= step || dist < degreesPerCount * 1.5f) {
-            currentYaw = tYaw
-            currentPitch = tPitch
-        } else {
-            val ratio = step / dist
-            currentYaw += yawDiff * ratio
-            currentPitch = (currentPitch + pitchDiff * ratio).coerceIn(-90f, 90f)
-        }
+        quickTick(20000f)
     }
 
     /**
@@ -360,8 +371,14 @@ object RotationManager {
      */
     @JvmStatic
     fun restoreClientCamera(player: LocalPlayer) {
-        player.setYRot(clientYaw)
-        player.setXRot(clientPitch)
+        if (perspective
+            && player is me.ghluka.medved.util.CameraOverriddenEntity) {
+            player.setYRot((player as me.ghluka.medved.util.CameraOverriddenEntity).`medved$getCameraYaw`())
+            player.setXRot((player as me.ghluka.medved.util.CameraOverriddenEntity).`medved$getCameraPitch`())
+        } else {
+            player.setYRot(clientYaw)
+            player.setXRot(clientPitch)
+        }
     }
 
     /** Called by mixin at sendPosition HEAD. */
@@ -371,9 +388,15 @@ object RotationManager {
             pendingFireAction?.let { it.run(); pendingFireAction = null }
             return
         }
+
         overriding = true
         player.setYRot(currentYaw)
         player.setXRot(currentPitch)
+
+        if ((rotationMode == RotationMode.CLIENT && movementMode == MovementMode.CLIENT) ||
+            perspective) {
+            return
+        }
 
         val mc = Minecraft.getInstance()
         val opts = mc.options
@@ -461,8 +484,12 @@ object RotationManager {
     @JvmStatic
     fun restoreRotation(player: LocalPlayer) {
         if (targetYaw == null) return
-        player.setYRot(clientYaw)
-        player.setXRot(clientPitch)
+        if (!perspective) {
+
+            player.setYRot(clientYaw)
+            player.setXRot(clientPitch)
+        }
+        //restoreClientCamera(player)
         overriding = false
         // Consume the one-shot flag, it only applies to the tick it was set on.
         skipPositionSnap = false

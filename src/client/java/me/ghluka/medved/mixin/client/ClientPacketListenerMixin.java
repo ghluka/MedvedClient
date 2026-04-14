@@ -26,7 +26,7 @@ public class ClientPacketListenerMixin {
 
     @Inject(method = "handleRotatePlayer", at = @At("RETURN"))
     private void medved$afterRotatePlayer(ClientboundPlayerRotationPacket packet, CallbackInfo ci) {
-        if (RotationManager.isActive()) {
+        if (!RotationManager.perspective && RotationManager.isActive()) {
             LocalPlayer player = Minecraft.getInstance().player;
             if (player != null) {
                 RotationManager.restoreClientCamera(player);

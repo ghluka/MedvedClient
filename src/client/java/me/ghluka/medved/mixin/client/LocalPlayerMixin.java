@@ -13,14 +13,14 @@ public class LocalPlayerMixin {
     @Inject(method = "aiStep", at = @At("HEAD"))
     private void medved$preAiStep(CallbackInfo ci) {
         float override = RotationManager.physicsYawOverride;
-        if (!Float.isNaN(override)) {
+        if (!RotationManager.perspective && !Float.isNaN(override)) {
             ((LocalPlayer)(Object)this).setYRot(override);
         }
     }
 
     @Inject(method = "aiStep", at = @At("RETURN"))
     private void medved$postAiStep(CallbackInfo ci) {
-        if (!Float.isNaN(RotationManager.physicsYawOverride)) {
+        if (!RotationManager.perspective && !Float.isNaN(RotationManager.physicsYawOverride)) {
             ((LocalPlayer)(Object)this).setYRot(RotationManager.getClientYaw());
             RotationManager.physicsYawOverride = Float.NaN;
         }
