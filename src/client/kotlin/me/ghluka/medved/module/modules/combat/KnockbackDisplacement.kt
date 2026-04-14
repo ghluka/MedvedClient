@@ -18,7 +18,7 @@ object KnockbackDisplacement : Module(
     Category.COMBAT
 ) {
 
-    enum class FlickMode { LEFT, RIGHT, RANDOM }
+    enum class FlickMode { LEFT, RIGHT, RANDOM, STRAFE }
 
     private val flickAngle    = floatRange("flick angle", 85f to 95f, 10f, 180f)
     private val flickMode     = enum("flick mode", FlickMode.RIGHT)
@@ -79,11 +79,14 @@ object KnockbackDisplacement : Module(
     @JvmStatic
     fun scheduleAttack(player: LocalPlayer, target: LivingEntity, gameMode: MultiPlayerGameMode): Boolean {
         if (requireSprint.value && !player.isSprinting) return false
+        val mc = Minecraft.getInstance()
+        val opts = mc.options
 
         val side = when (flickMode.value) {
             FlickMode.LEFT   -> -1f
             FlickMode.RIGHT  ->  1f
             FlickMode.RANDOM -> if (Random.nextBoolean()) -1f else 1f
+            FlickMode.STRAFE   -> if (opts.keyLeft.isDown) -1f else 1f
         }
         val (lo, hi) = flickAngle.value
         val angle = if (hi > lo) lo + Random.nextFloat() * (hi - lo) else lo
@@ -108,5 +111,13 @@ object KnockbackDisplacement : Module(
         }
 
         return true
+    }
+
+    override fun hudInfo(): String {
+        val (lo, hi) = flickAngle.value
+        var str = "%.1f-%.1f°".format(lo, hi)
+        if ((hi - lo < 15) && hi > 90 && lo < 90) str = "90°"
+        if ((hi - lo < 15) && hi >= 179) str = "180°"
+        return str
     }
 }

@@ -27,7 +27,6 @@ object AimAssist : Module(
     private val targetPoint  = enum("target", TargetPoint.HEAD)
     private val onlyAttacking = boolean("only when attacking", true)
     private val players      = boolean("players only", true)
-    private val silent       = boolean("silent", false)
 
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
@@ -81,20 +80,10 @@ object AimAssist : Module(
 
         val jFactor = 0.75f + Random.nextFloat() * 0.5f
 
-        if (silent.value) {
-            RotationManager.movementMode = RotationManager.MovementMode.SERVER
-            RotationManager.rotationMode  = RotationManager.RotationMode.SERVER
-        }
-        else {
-            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
-            RotationManager.rotationMode  = RotationManager.RotationMode.CLIENT
-        } 
+        RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+        RotationManager.rotationMode  = RotationManager.RotationMode.CLIENT
         RotationManager.setTargetRotation(player.yRot + nudgeYaw * jFactor, player.xRot + nudgePitch * jFactor)
         RotationManager.tick()  // humanised interpolation instead of instant snap
-    }
-
-    override fun onDisabled() {
-        if (silent.value) RotationManager.clearRotation()
     }
 
     private fun calcRotation(player: Player, target: LivingEntity): Pair<Float, Float> {

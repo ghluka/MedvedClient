@@ -35,11 +35,11 @@ object Velocity : Module("Velocity", "Modifies knockback you receive from attack
         it.visibleWhen = { mode.value == Mode.JUMP_RESET }
     }
 
-    val groundDelay = intRange("ground delay (ms)", 100 to 200, 0, 2000).also {
+    val groundDelay = intRange("ground delay (ms)", 200 to 250, 0, 2000).also {
         it.visibleWhen = { mode.value == Mode.DELAY }
     }
 
-    val airDelay = intRange("air delay (ms)", 200 to 300, 0, 2000).also {
+    val airDelay = intRange("air delay (ms)", 50 to 100, 0, 2000).also {
         it.visibleWhen = { mode.value == Mode.DELAY }
     }
 
