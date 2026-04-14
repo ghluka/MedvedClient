@@ -232,12 +232,10 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             val (aimYaw, aimPitch) = faceAim(player, placement.neighbor, placement.face)
 
             // server's known look vector and the placed block face always agree.
-            if (silent.value) {
-                RotationManager.movementMode = RotationManager.MovementMode.SERVER
-                RotationManager.rotationMode = RotationManager.RotationMode.SERVER
-            } else {
                 RotationManager.movementMode = RotationManager.MovementMode.CLIENT
                 RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
+            if (silent.value) {
+                RotationManager.perspective = true
             }
             RotationManager.setTargetRotation(aimYaw, aimPitch)
             RotationManager.quickTick(rotSpeed.value)
