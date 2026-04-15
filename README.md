@@ -23,6 +23,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 <details>
   <summary>Combat</summary>
 
+- **Kill Aura**\*
+  - Silently aims and attacks enemies when they enter your range
 - **Aim Assist**
   - Smoothly rotates toward the nearest player within FOV
 - **Left Clicker**
@@ -110,7 +112,7 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Automatically places blocks when looking at a block surface
 - **Bed Breaker**
   - Automatically breaks enemy beds
-- **Chest Aura**
+- **Chest Aura**\*
   - Automatically opens nearby chests with legit rotations. Also works as a Powder Chest Aura for Skyblock with an optional drill swap
 </details>
 
@@ -123,6 +125,20 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Displays target info and fight prediction when in combat
 - **Block Counter**
   - Displays hotbar block count for the item in hand
+</details>
+
+<details>
+    <summary>Other</summary>
+
+- **Click Gui**
+- **Colour**
+  - Global accent color for GUI and HUD elements
+- **Font**
+  - Customize the font used in GUI and HUD elements
+- **Rotations**
+  - Global aim interpolation settings for all rotation modules
+- **Target Filter**\*
+  - Filters targets across combat modules (anti-bot, teams, etc)
 </details>
 
 *module isn't available in release, but available in workflow artifact

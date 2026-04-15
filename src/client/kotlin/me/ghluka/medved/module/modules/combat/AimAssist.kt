@@ -3,6 +3,7 @@ package me.ghluka.medved.module.modules.combat
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.combat.KnockbackDisplacement
 import me.ghluka.medved.module.modules.world.Scaffold
+import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RotationManager
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
@@ -87,7 +88,8 @@ object AimAssist : Module(
                 e !== player &&
                 !e.isDeadOrDying &&
                 !(players.value && e !is Player) &&
-                player.distanceTo(e) <= maxRange
+                player.distanceTo(e) <= maxRange &&
+                TargetFilter.isValidTarget(player, e)
             }
 
         val best = candidates.minByOrNull { e ->

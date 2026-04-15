@@ -26,6 +26,7 @@ object MedvedClient : ClientModInitializer {
         AltManager.init(gameDir.resolve("config/medved"))
 
         // combat
+        ModuleManager.register(KillAura)
         ModuleManager.register(AimAssist)
         ModuleManager.register(LeftClicker)
         ModuleManager.register(RightClicker)
@@ -57,6 +58,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Font)
         ModuleManager.register(Colour)
         ModuleManager.register(Rotations)
+        ModuleManager.register(TargetFilter)
         // hud
         ModuleManager.register(ModulesList)
         ModuleManager.register(TargetHud)
