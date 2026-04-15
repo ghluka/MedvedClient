@@ -25,14 +25,14 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 
 - **Aim Assist**
   - Smoothly rotates toward the nearest player within FOV
-- **Auto Block**
-  - Blocks with your sword to reduce incoming damage when autoclicking
 - **Left Clicker**
   - Automatically left-clicks while holding the attack key
 - **Right Clicker**
   - Automatically right-clicks while holding the use key
 - **No Hit Delay**
   - Removes the 1.8 attack hit delay for 1.7-style PvP on 1.8 servers
+- **Block Hit**
+  - Blocks with your sword to reduce incoming damage when autoclicking
 - **Hit Select**
   - Restricts auto-clicks and attacks to the most effective moments
   - Modes:
@@ -110,6 +110,8 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Automatically places blocks when looking at a block surface
 - **Bed Breaker**
   - Automatically breaks enemy beds
+- **Chest Aura**
+  - Automatically opens nearby chests with legit rotations. Also works as a Powder Chest Aura for Skyblock with an optional drill swap
 </details>
 
 <details>

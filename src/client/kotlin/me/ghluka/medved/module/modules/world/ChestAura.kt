@@ -58,8 +58,9 @@ object ChestAura : Module(
             return
         }
 
-        RotationManager.rotationMode = RotationManager.RotationMode.SERVER
-        RotationManager.movementMode = RotationManager.MovementMode.SERVER
+        RotationManager.perspective = true
+        RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
+        RotationManager.movementMode = RotationManager.MovementMode.CLIENT
         val (yaw, pitch) = getRotationTo(player, chest)
         RotationManager.setTargetRotation(yaw, pitch)
         RotationManager.quickTick(rotationSpeed.value)

@@ -27,10 +27,10 @@ object MedvedClient : ClientModInitializer {
 
         // combat
         ModuleManager.register(AimAssist)
-        ModuleManager.register(AutoBlock)
         ModuleManager.register(LeftClicker)
         ModuleManager.register(RightClicker)
         ModuleManager.register(NoHitDelay)
+        ModuleManager.register(AutoBlock)
         ModuleManager.register(HitSelect)
         ModuleManager.register(Velocity)
         ModuleManager.register(ComboTap)

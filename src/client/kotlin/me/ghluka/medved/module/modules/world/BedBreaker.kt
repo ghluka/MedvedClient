@@ -4,6 +4,7 @@ import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.util.RotationManager
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.player.LocalPlayer
@@ -23,7 +24,7 @@ object BedBreaker : Module(
     category = Category.WORLD,
 ) {
     enum class BreakMode { LEGIT, BLATANT }
-    enum class RotationMode { SERVER, NONE }
+    enum class RotationMode { NONE, CLIENT, SERVER }
 
     private val breakMode    = enum("mode", BreakMode.LEGIT)
     private val rotationMode = enum("rotations", RotationMode.SERVER)
@@ -82,11 +83,26 @@ object BedBreaker : Module(
             pendingHitFace = targetFace
             wasBreaking    = true
 
-            if (rotationMode.value == RotationMode.SERVER) {
-                val (yaw, pitch) = calcRotation(player, targetPos)
-                RotationManager.movementMode = RotationManager.MovementMode.SERVER
-                RotationManager.setTargetRotation(yaw, pitch)
-                RotationManager.tick()
+            when (rotationMode.value) {
+                RotationMode.CLIENT -> {
+                    val (yaw, pitch) = calcRotation(player, targetPos)
+                    RotationManager.clearRotation()
+                    RotationManager.perspective = false
+                    RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+                    RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
+                    RotationManager.setTargetRotation(yaw, pitch)
+                }
+                RotationMode.SERVER -> {
+                    val (yaw, pitch) = calcRotation(player, targetPos)
+                    RotationManager.clearRotation()
+                    RotationManager.perspective = true
+                    RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+                    RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
+                    RotationManager.setTargetRotation(yaw, pitch)
+                }
+                RotationMode.NONE -> {
+                    RotationManager.clearRotation()
+                }
             }
 
             if (breakMode.value == BreakMode.LEGIT && autoTool.value) {
@@ -112,6 +128,12 @@ object BedBreaker : Module(
         pendingHitPos = null
         restoreTool()
         RotationManager.clearRotation()
+    }
+
+    override fun onLevelRender(ctx: LevelRenderContext) {
+        if (rotationMode.value != RotationMode.NONE && RotationManager.isActive()) {
+            RotationManager.tick()
+        }
     }
 
     private fun restoreTool() {
