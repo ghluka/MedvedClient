@@ -56,7 +56,9 @@ object KillAura : Module(
     }
 
     private fun clearAura() {
-        RotationManager.clearRotation()
+        if (!me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld) {
+            RotationManager.clearRotation()
+        }
         target = null
     }
 
@@ -152,6 +154,7 @@ object KillAura : Module(
         val currentTarget = target ?: return
 
         if (Scaffold.isEnabled() ||
+            me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld ||
             (me.ghluka.medved.module.modules.world.BedBreaker.isEnabled() && me.ghluka.medved.module.modules.world.BedBreaker.pendingHitPos != null) ||
             (me.ghluka.medved.module.modules.world.ChestAura.isEnabled() && RotationManager.isActive()) ||
             (me.ghluka.medved.module.modules.world.Clutch.isEnabled() && RotationManager.isActive())) {

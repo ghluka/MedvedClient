@@ -94,6 +94,7 @@ object KnockbackDisplacement : Module(
         val flickYaw = baseYaw + side * angle
 
         rotationHeld = true
+        RotationManager.clearRotation()
         RotationManager.perspective = true
         RotationManager.movementMode = RotationManager.MovementMode.CLIENT
         RotationManager.rotationMode  = RotationManager.RotationMode.CLIENT

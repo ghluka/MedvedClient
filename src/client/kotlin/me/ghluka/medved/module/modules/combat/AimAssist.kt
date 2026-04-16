@@ -39,9 +39,18 @@ object AimAssist : Module(
         hasLastClientRotation = false
     }
 
+    private fun yieldAssist() {
+        isAssisting = false
+        hasLastClientRotation = false
+    }
+
     override fun onTick(client: Minecraft) {
         if (client.player == null || client.level == null) {
             clearAssist()
+        }
+        
+        if (KnockbackDisplacement.rotationHeld) {
+            yieldAssist()
         }
     }
 
@@ -54,23 +63,23 @@ object AimAssist : Module(
         }
 
         if (Scaffold.isEnabled()) {
-            clearAssist()
+            yieldAssist()
             return
         }
         if (KnockbackDisplacement.rotationHeld) {
-            clearAssist()
+            yieldAssist()
             return
         }
         if (me.ghluka.medved.module.modules.world.BedBreaker.isEnabled() && me.ghluka.medved.module.modules.world.BedBreaker.pendingHitPos != null) {
-            clearAssist()
+            yieldAssist()
             return
         }
         if (me.ghluka.medved.module.modules.world.ChestAura.isEnabled() && RotationManager.isActive()) {
-            clearAssist()
+            yieldAssist()
             return
         }
         if (me.ghluka.medved.module.modules.world.Clutch.isEnabled() && RotationManager.isActive()) {
-            clearAssist()
+            yieldAssist()
             return
         }
 

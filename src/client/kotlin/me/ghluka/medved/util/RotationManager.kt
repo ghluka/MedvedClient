@@ -100,23 +100,19 @@ object RotationManager {
 
     /** Set the target rotation to smoothly move toward. */
     fun setTargetRotation(yaw: Float, pitch: Float) {
-        if (targetYaw == null) {
-            val player = Minecraft.getInstance().player
-            if (player != null) {
-                currentYaw = player.getYRot()
-                currentPitch = player.getXRot()
-                clientYaw = player.getYRot()
-                clientPitch = player.getXRot()
-                // If we're going into a fake per-entity camera mode, initialize the
-                // per-entity camera to the player's current camera so restoreRotation
-                // has a sensible value even before the next render tick.
-                if (perspective
-                    && player is me.ghluka.medved.util.CameraOverriddenEntity) {
-                    firstTime = false
-                    (player as me.ghluka.medved.util.CameraOverriddenEntity).`medved$setCameraYaw`(player.getYRot())
-                    (player as me.ghluka.medved.util.CameraOverriddenEntity).`medved$setCameraPitch`(player.getXRot())
-                }
-            }
+        val player = Minecraft.getInstance().player
+
+        if (perspective && firstTime && player is me.ghluka.medved.util.CameraOverriddenEntity) {
+            firstTime = false
+            player.`medved$setCameraYaw`(player.getYRot())
+            player.`medved$setCameraPitch`(player.getXRot())
+        }
+
+        if (targetYaw == null && player != null) {
+            currentYaw = player.getYRot()
+            currentPitch = player.getXRot()
+            clientYaw = player.getYRot()
+            clientPitch = player.getXRot()
         }
         targetYaw = yaw
         targetPitch = pitch
