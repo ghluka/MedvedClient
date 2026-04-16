@@ -35,40 +35,55 @@ public class ConnectionMixin {
         PacketListener listener = packetListener;
         if (!(listener instanceof ClientPacketListener)) return;
 
-        if (Backtrack.INSTANCE.isEnabled()
-                && Backtrack.INSTANCE.getMode().getValue() == Backtrack.Mode.LAG
-                && Backtrack.INSTANCE.shouldDelayIncomingPackets()) {
-            Packet<PacketListener> p = (Packet<PacketListener>) packet;
-            ci.cancel();
-            Backtrack.INSTANCE.bufferIncomingPacket(() -> p.handle(listener));
-            return;
-        }
-
-        if (!KnockbackDelay.INSTANCE.isEnabled()) return;
-        if (packet instanceof ClientboundKeepAlivePacket || packet instanceof ClientboundPingPacket) return;
-
-        boolean trigger = false;
-        if (!KnockbackDelay.INSTANCE.isHolding() && packet instanceof ClientboundSetEntityMotionPacket mp) {
+        if (KnockbackDelay.INSTANCE.isEnabled() && !KnockbackDelay.INSTANCE.isHolding() && packet instanceof ClientboundSetEntityMotionPacket mp) {
             if (KnockbackDelay.cachedPlayerId != -1 && mp.id() == KnockbackDelay.cachedPlayerId) {
                 int chance = KnockbackDelay.INSTANCE.getChance().getValue();
                 if (chance >= 100 || (int)(Math.random() * 100) < chance) {
                     KnockbackDelay.INSTANCE.triggerDelay(KnockbackDelay.cachedOnGround);
-                    trigger = true;
                 }
             }
         }
 
-        if (!trigger && !KnockbackDelay.INSTANCE.isHolding()) return;
-
-        Packet<PacketListener> p = (Packet<PacketListener>) packet;
-        ci.cancel();
-        KnockbackDelay.INSTANCE.bufferPacket(() -> p.handle(listener));
+        if (me.ghluka.medved.manager.LagManager.INSTANCE.shouldBufferIncoming()) {
+            Packet<PacketListener> p = (Packet<PacketListener>) packet;
+            ci.cancel();
+            me.ghluka.medved.manager.LagManager.INSTANCE.bufferIncoming(() -> p.handle(listener));
+            return;
+        }
     }
 
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"), cancellable = true)
     private void medved$onSend(Packet<?> packet, CallbackInfo ci) {
+        medved$handleOutgoing(packet, ci);
+    }
+
+    @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lio/netty/util/concurrent/GenericFutureListener;)V", at = @At("HEAD"), cancellable = true, require = 0)
+    private void medved$onSendWithListener(Packet<?> packet, io.netty.util.concurrent.GenericFutureListener<? extends io.netty.util.concurrent.Future<? super Void>> listener, CallbackInfo ci) {
         Connection conn = (Connection)(Object) this;
-        boolean isKeepalive = packet instanceof ServerboundKeepAlivePacket || packet instanceof ServerboundPongPacket;
+
+        if (!ClientBrand.INSTANCE.isResending
+                && ClientBrand.INSTANCE.isEnabled()
+                && packet instanceof ServerboundCustomPayloadPacket cp
+                && cp.payload() instanceof BrandPayload) {
+            ci.cancel();
+            ClientBrand.INSTANCE.isResending = true;
+            conn.send(new ServerboundCustomPayloadPacket(new BrandPayload(ClientBrand.INSTANCE.getCurrentBrand())), (io.netty.channel.ChannelFutureListener) listener);
+            ClientBrand.INSTANCE.isResending = false;
+            return;
+        }
+
+        try {
+            if (me.ghluka.medved.manager.LagManager.INSTANCE.shouldBufferOutgoing()) {
+                ci.cancel();
+                me.ghluka.medved.manager.LagManager.INSTANCE.bufferOutgoing(() -> conn.send(packet, (io.netty.channel.ChannelFutureListener) listener));
+            }
+        } catch (Exception e) {
+            // Failsafe escape hatch
+        }
+    }
+
+    private void medved$handleOutgoing(Packet<?> packet, CallbackInfo ci) {
+        Connection conn = (Connection)(Object) this;
 
         // Brand spoofer: intercept the outgoing brand custom payload and replace it.
         // The re-entry guard prevents infinite recursion when we call conn.send() with the replacement.
@@ -83,21 +98,13 @@ public class ConnectionMixin {
             return;
         }
 
-        if (Blink.INSTANCE.shouldBuffer() && !isKeepalive) {
-            ci.cancel();
-            Blink.INSTANCE.bufferPacket(() -> conn.send(packet));
-            return;
-        }
-
-        if (Velocity.INSTANCE.shouldDelayPackets()) {
-            ci.cancel();
-            Velocity.INSTANCE.queuePacket(() -> conn.send(packet));
-            return;
-        }
-
-        if (FakeLag.INSTANCE.shouldDelay()) {
-            ci.cancel();
-            FakeLag.INSTANCE.queuePacket(() -> conn.send(packet));
+        try {
+            if (me.ghluka.medved.manager.LagManager.INSTANCE.shouldBufferOutgoing()) {
+                ci.cancel();
+                me.ghluka.medved.manager.LagManager.INSTANCE.bufferOutgoing(() -> conn.send(packet));
+            }
+        } catch (Exception e) {
+            // Failsafe escape hatch
         }
     }
 }

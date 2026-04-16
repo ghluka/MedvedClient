@@ -70,6 +70,7 @@ object MedvedClient : ClientModInitializer {
         UpdateChecker.init()
 
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
+            me.ghluka.medved.manager.LagManager.onTick()
             val handle = mc.window.handle()
             val down = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_INSERT) == GLFW.GLFW_PRESS
             if (down && !insertWasDown) ClickGui.toggle()

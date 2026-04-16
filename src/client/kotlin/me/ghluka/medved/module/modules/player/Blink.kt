@@ -1,5 +1,6 @@
 package me.ghluka.medved.module.modules.player
 
+import me.ghluka.medved.manager.LagManager
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.util.RenderUtil
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
@@ -7,7 +8,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
-import java.util.concurrent.ConcurrentLinkedQueue
 
 object Blink : Module("Blink", "Buffers outgoing packets, making you appear frozen to the server", Category.PLAYER) {
 
@@ -15,11 +15,7 @@ object Blink : Module("Blink", "Buffers outgoing packets, making you appear froz
     val maxPackets   = int("max packets",       500,          10,  2000)
     val showGhost    = boolean("show ghost",    true)
 
-    private val packetBuffer = ConcurrentLinkedQueue<Runnable>()
-
     @Volatile var holding  = false
-        private set
-    @Volatile var flushing = false
         private set
 
     private var holdUntil = 0L
@@ -28,13 +24,9 @@ object Blink : Module("Blink", "Buffers outgoing packets, making you appear froz
     private var ghostWidth  = 0.6f
     private var ghostHeight = 1.8f
 
-    fun shouldBuffer(): Boolean = isEnabled() && holding && !flushing
-
-    fun bufferPacket(action: Runnable) { packetBuffer.add(action) }
-
     override fun onTick(client: Minecraft) {
         if (client.player == null || client.level == null) {
-            packetBuffer.clear()
+            LagManager.flushAllOutgoing()
             holding  = false
             ghostPos = null
             return
@@ -42,9 +34,11 @@ object Blink : Module("Blink", "Buffers outgoing packets, making you appear froz
         val now = System.currentTimeMillis()
 
         if (holding) {
-            if (now >= holdUntil || packetBuffer.size >= maxPackets.value) {
+            if (now >= holdUntil || LagManager.getOutgoingQueueSize() >= maxPackets.value) {
                 holding = false
-                flushBuffer()
+                LagManager.flushAllOutgoing()
+                ghostPos = null
+                disable()
             }
         } else {
             val player = client.player!!
@@ -56,17 +50,6 @@ object Blink : Module("Blink", "Buffers outgoing packets, making you appear froz
             holdUntil = now + ms
             holding = true
         }
-    }
-
-    private fun flushBuffer() {
-        flushing = true
-        try {
-            while (true) { val a = packetBuffer.poll() ?: break; a.run() }
-        } finally {
-            flushing = false
-        }
-        ghostPos = null
-        disable()
     }
 
     override fun onLevelRender(ctx: LevelRenderContext) {
@@ -94,15 +77,6 @@ object Blink : Module("Blink", "Buffers outgoing packets, making you appear froz
         holding   = false
         holdUntil = 0L
         ghostPos  = null
-        if (Minecraft.getInstance().level != null) {
-            flushing = true
-            try {
-                while (true) { val a = packetBuffer.poll() ?: break; a.run() }
-            } finally {
-                flushing = false
-            }
-        } else {
-            packetBuffer.clear()
-        }
+        LagManager.flushAllOutgoing()
     }
 }

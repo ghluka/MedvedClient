@@ -53,7 +53,9 @@ public class MultiPlayerGameModeMixin {
             }
         }
 
-        HitSelect.notifyAttackFiring();
-        FakeLag.notifyAttack();
+        try {
+            HitSelect.notifyAttackFiring();
+            FakeLag.notifyAttack();
+        } catch (Throwable t) {}
     }
 }

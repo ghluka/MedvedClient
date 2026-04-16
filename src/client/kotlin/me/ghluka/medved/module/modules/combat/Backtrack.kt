@@ -36,7 +36,8 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
 
     @Volatile var lagActive = false
         private set
-    @Volatile private var lagUntilMs = 0L
+    @Volatile
+    var lagUntilMs = 0L
     @Volatile private var lagDurationMs = 0L
 
     @Volatile private var incomingFlushing = false

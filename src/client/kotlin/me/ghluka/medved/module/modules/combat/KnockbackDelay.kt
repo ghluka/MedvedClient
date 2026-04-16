@@ -8,8 +8,7 @@ object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets 
     val airDelay    = intRange("delay (ms)",    1900 to 2100, 0, 5000)
     val chance      = int("chance %",               100,          0, 100)
 
-    @Volatile private var holdPacketsUntil = 0L
-    private val packetBuffer = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
+    @JvmField @Volatile var holdPacketsUntil = 0L
 
     @JvmField @Volatile var cachedPlayerId = -1
     @JvmField @Volatile var cachedOnGround = false
@@ -23,21 +22,10 @@ object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets 
 
     fun isHolding(): Boolean = isEnabled() && System.currentTimeMillis() < holdPacketsUntil
 
-    fun bufferPacket(action: Runnable) { packetBuffer.add(action) }
-
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
         cachedPlayerId = player.id
         cachedOnGround = player.onGround()
-        if (!isHolding()) {
-            if (client.level == null || client.connection == null) { packetBuffer.clear() }
-            else {
-                while (true) {
-                    val action = packetBuffer.poll() ?: break
-                    try { action.run() } catch (_: Exception) { packetBuffer.clear(); break }
-                }
-            }
-        }
     }
 
     override fun hudInfo(): String {
@@ -52,9 +40,6 @@ object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets 
 
     override fun onDisabled() {
         holdPacketsUntil = 0L
-        while (true) {
-            val action = packetBuffer.poll() ?: break
-            try { action.run() } catch (_: Exception) { packetBuffer.clear(); break }
-        }
+        me.ghluka.medved.manager.LagManager.flushAllIncoming()
     }
 }

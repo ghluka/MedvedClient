@@ -60,7 +60,7 @@ object HitSelect : Module(
 
     @JvmStatic
     fun notifyAttackFiring() {
-        if (isEnabled()) attackTime = System.currentTimeMillis()
+        if (enabled.value) attackTime = System.currentTimeMillis()
     }
 
     fun canAutoAttack(): Boolean {
