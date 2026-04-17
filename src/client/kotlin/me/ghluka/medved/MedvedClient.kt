@@ -41,6 +41,8 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Backtrack)
         // movement
         ModuleManager.register(Sprint)
+        ModuleManager.register(Speed)
+        ModuleManager.register(Flight)
         ModuleManager.register(Timer)
         // render
         // player

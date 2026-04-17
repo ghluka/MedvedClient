@@ -73,6 +73,19 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 
 - **Sprint**
   - Automatically sprints
+- **Speed**\*
+  - Increases your movement speed
+  - Modes:
+    - On Ground
+    - Bhop
+    - Low Hop
+- **Flight**\*
+  - Allows you to fly or glide in the air
+  - Modes:
+    - Vanilla
+    - Creative
+    - Air Hop
+    - Glide
 - **Timer**
   - Speeds up or slows down the game tick rate
 </details>

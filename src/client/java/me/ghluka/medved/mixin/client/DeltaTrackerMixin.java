@@ -15,8 +15,11 @@ public class DeltaTrackerMixin {
 
     @ModifyVariable(method = "advanceGameTime", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private long medved$scaleTime(long millis) {
-        if (!Timer.INSTANCE.isEnabled()) return millis;
-        float factor = Timer.INSTANCE.speed.getValue();
+        float factor = 1.0f;
+
+        if (Timer.INSTANCE.isEnabled()) factor *= Timer.INSTANCE.speed.getValue();
+
+        if (factor == 1.0f) return millis;
         return (long) (millis * factor);
     }
 }
