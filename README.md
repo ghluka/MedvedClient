@@ -25,6 +25,14 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 
 - **Kill Aura**\*
   - Silently aims and attacks enemies when they enter your range
+  - Modes:
+    - APS - sends attack packets per second
+    - CPS - silently aims and autoclicks onto a player, perfect for 1.8
+    - Sequential - silently aims and times attacks after the previous one, perfect for 1.9+
+  - Targeting:
+    - Single - locks onto the closest target and attacks until they die or get out of range
+    - Switch - switches to attack players based on the best candidate
+    - Multi - requires APS mode, attacks multiple players at a time 
 - **Aim Assist**
   - Smoothly rotates toward the nearest player within FOV
 - **Left Clicker**
