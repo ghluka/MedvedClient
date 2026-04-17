@@ -106,6 +106,8 @@ public class ClientPacketListenerMixin {
             float factorY  = 1f - (Velocity.INSTANCE.getReduceYPercent().getValue() / 100f);
             player.lerpMotion(new Vec3(mx * factorXZ, my * factorY, mz * factorXZ));
             ci.cancel();
+        } else if (mode == Velocity.Mode.CANCEL) {
+            ci.cancel();
         } else if (mode == Velocity.Mode.REVERSE) {
             float factor = Velocity.INSTANCE.getReversePercent().getValue() / 100f;
             player.lerpMotion(new Vec3(-mx * factor, my, -mz * factor));

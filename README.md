@@ -53,6 +53,7 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Modes:
     - Reduce - reduce your knockback by a customizable %
     - Reverse - makes your knockback pull you forwards
+    - Cancel - completely cancels knockback packets
     - Jump Reset - jumps when you get hit to take less knockback
     - Delay - customizable latency that happens when you get hit, doesn't reduce knockback but delays it
 - **Combo Tap**
@@ -74,6 +75,12 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
   - Modes:
     - Manual - directly lets you hit players at previous positions, similar to reach
     - Lag - modifies your connection to the server by increasing latency to hit players
+- **Criticals**\*
+  - Forces critical hits on attacks
+  - Modes:
+    - No Ground - works for 1.8 servers
+    - Packet - works for 1.9+ servers
+    - Jump - jumps legit
 </details>
 
 <details>
@@ -96,6 +103,12 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
     - Glide
 - **Timer**
   - Speeds up or slows down the game tick rate
+- **No Fall**\*
+  - Prevents taking fall damage
+  - Modes:
+    - Packet
+    - Spoof
+    - Distance
 </details>
 
 <details>

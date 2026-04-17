@@ -1,5 +1,6 @@
 package me.ghluka.medved.mixin.client;
 
+import me.ghluka.medved.module.modules.combat.Criticals;
 import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,10 +30,18 @@ public class LocalPlayerMixin {
     @Inject(method = "sendPosition", at = @At("HEAD"))
     private void medved$preSendPosition(CallbackInfo ci) {
         RotationManager.applyOverride((LocalPlayer) (Object) this);
+        if (Criticals.INSTANCE.isEnabled() && Criticals.INSTANCE.getMode().getValue() == Criticals.Mode.NO_GROUND) {
+            Criticals.cachedOnGround = ((LocalPlayer)(Object)this).onGround();
+            ((LocalPlayer)(Object)this).setOnGround(false);
+        }
     }
 
     @Inject(method = "sendPosition", at = @At("RETURN"))
     private void medved$postSendPosition(CallbackInfo ci) {
         RotationManager.restoreRotation((LocalPlayer) (Object) this);
+        LocalPlayer lp = (LocalPlayer)(Object)this;
+        if (Criticals.INSTANCE.isEnabled() && Criticals.INSTANCE.getMode().getValue() == Criticals.Mode.NO_GROUND) {
+            lp.setOnGround(Criticals.cachedOnGround);
+        }
     }
 }

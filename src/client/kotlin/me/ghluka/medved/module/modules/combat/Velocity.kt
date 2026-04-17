@@ -9,6 +9,7 @@ object Velocity : Module("Velocity", "Modifies knockback you receive from attack
     enum class Mode {
         REDUCE,
         REVERSE,
+        CANCEL,
         JUMP_RESET,
         DELAY
     }
@@ -95,6 +96,7 @@ object Velocity : Module("Velocity", "Modifies knockback you receive from attack
         Mode.REVERSE    -> "Reverse ${reversePercent.value.toInt()}%"
         Mode.JUMP_RESET -> "Jump Reset"
         Mode.DELAY      -> "Delay"
+        Mode.CANCEL     -> "Cancel"
     }
 
     override fun onDisabled() {

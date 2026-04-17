@@ -39,11 +39,13 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Reach)
         ModuleManager.register(KnockbackDisplacement)
         ModuleManager.register(Backtrack)
+        ModuleManager.register(Criticals)
         // movement
         ModuleManager.register(Sprint)
         ModuleManager.register(Speed)
         ModuleManager.register(Flight)
         ModuleManager.register(Timer)
+        ModuleManager.register(NoFall)
         // render
         // player
         ModuleManager.register(FakeLag)
