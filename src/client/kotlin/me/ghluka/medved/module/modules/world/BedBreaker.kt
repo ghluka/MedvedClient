@@ -86,7 +86,6 @@ object BedBreaker : Module(
             when (rotationMode.value) {
                 RotationMode.CLIENT -> {
                     val (yaw, pitch) = calcRotation(player, targetPos)
-                    RotationManager.clearRotation()
                     RotationManager.perspective = false
                     RotationManager.movementMode = RotationManager.MovementMode.CLIENT
                     RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
@@ -94,7 +93,6 @@ object BedBreaker : Module(
                 }
                 RotationMode.SERVER -> {
                     val (yaw, pitch) = calcRotation(player, targetPos)
-                    RotationManager.clearRotation()
                     RotationManager.perspective = true
                     RotationManager.movementMode = RotationManager.MovementMode.CLIENT
                     RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
@@ -114,13 +112,18 @@ object BedBreaker : Module(
                 }
             }
 
-            client.options.keyAttack.setDown(true)
+            if (pendingHitPos != targetPos || !wasBreaking) {
+                client.gameMode?.startDestroyBlock(targetPos, targetFace)
+                wasBreaking = true
+            } else {
+                client.gameMode?.continueDestroyBlock(targetPos, targetFace)
+            }
+            player.swing(net.minecraft.world.InteractionHand.MAIN_HAND)
         }
     }
 
     private fun stopAndClean() {
         val mc = Minecraft.getInstance()
-        mc.options.keyAttack.setDown(false)
         if (wasBreaking) {
             mc.gameMode?.stopDestroyBlock()
             wasBreaking = false

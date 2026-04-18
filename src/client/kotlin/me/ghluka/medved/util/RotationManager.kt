@@ -131,8 +131,18 @@ object RotationManager {
         // If the per-entity fake camera is in use, sync it to the current client camera
         val mc = Minecraft.getInstance()
         val player = mc.player
-        if (player != null && perspective) {
-            restoreClientCamera(player)
+        if (player != null) {
+            if (perspective) {
+                restoreClientCamera(player)
+            }
+            
+            val currentClientYaw = player.getYRot()
+            val diff = currentClientYaw - currentYaw
+            val periods = Math.round(diff / 360.0f)
+            if (periods != 0) {
+                player.setYRot(currentClientYaw - periods * 360.0f)
+                clientYaw = player.getYRot()
+            }
         }
         perspective = false
     }
@@ -217,8 +227,13 @@ object RotationManager {
     fun snapToTarget() {
         val tYaw = targetYaw ?: return
         val tPitch = targetPitch ?: return
-        currentYaw = tYaw
-        currentPitch = tPitch
+        
+        val sensitivity = Minecraft.getInstance().options.sensitivity().get()
+        val f = sensitivity * 0.6 + 0.2
+        val gcdMulti = (f * f * f * 8.0).toFloat() * 0.15f
+        
+        snapToGcdTarget(tYaw, tPitch, gcdMulti)
+        updateClientIfRequired()
     }
 
     /**
@@ -240,28 +255,23 @@ object RotationManager {
         val pitchDiff = Mth.wrapDegrees(tPitch - currentPitch)
         val dist = sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff)
 
+        val sensitivity = Minecraft.getInstance().options.sensitivity().get()
+        val f = sensitivity * 0.6 + 0.2
+        val gcdMulti = (f * f * f * 8.0).toFloat() * 0.15f
+
         if (dist <= maxDeg) {
-            currentYaw   = tYaw
-            currentPitch = tPitch
+            snapToGcdTarget(tYaw, tPitch, gcdMulti)
         } else {
             val ratio = maxDeg / dist
-            currentYaw    = currentYaw   + yawDiff   * ratio
-            currentPitch  = (currentPitch + pitchDiff * ratio).coerceIn(-90f, 90f)
+            val mouseDX = Math.round((yawDiff * ratio) / gcdMulti)
+            val mouseDY = Math.round((pitchDiff * ratio) / gcdMulti)
+            
+            currentYaw += mouseDX * gcdMulti
+            currentPitch = (currentPitch + mouseDY * gcdMulti).coerceIn(-90f, 90f)
         }
 
         applyMicroJitter()
-
-        if (rotationMode == RotationMode.CLIENT) {
-            val p = Minecraft.getInstance().player
-            if (p != null) {
-                p.setYRot(currentYaw)
-                p.setXRot(currentPitch)
-                clientYaw   = currentYaw
-                clientPitch = currentPitch
-            }
-        }
-
-        updateHitResult()   // no-op in CLIENT mode (returns early); acts in SERVER mode
+        updateClientIfRequired()
     }
 
     /**
@@ -277,88 +287,115 @@ object RotationManager {
         val pitchDiff = Mth.wrapDegrees(tPitch - currentPitch)
         val dist = sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff)
 
-        if (dist < 0.01f) {
-            currentYaw   = tYaw
-            currentPitch = tPitch
+        val sensitivity = Minecraft.getInstance().options.sensitivity().get()
+        val f = sensitivity * 0.6 + 0.2
+        val gcdMulti = (f * f * f * 8.0).toFloat() * 0.15f
+
+        if (dist < stdMaxAngle(gcdMulti)) {
+            // Reached target exactly, snap to multiple of GCD (or target if we don't care exactly here, 
+            // but we must to avoid last-tick detection).
+            snapToGcdTarget(tYaw, tPitch, gcdMulti)
             applyMicroJitter()
-            if (rotationMode == RotationMode.CLIENT) {
-                val p = Minecraft.getInstance().player
-                if (p != null) {
-                    p.setYRot(currentYaw)
-                    p.setXRot(currentPitch)
-                    clientYaw   = currentYaw
-                    clientPitch = currentPitch
-                }
-            }
-            updateHitResult()
+            updateClientIfRequired()
             return
         }
 
-        val sensitivity = Minecraft.getInstance().options.sensitivity().get()
-        val f = sensitivity * 0.6 + 0.2
-        val degreesPerCount = (f * f * f * 8.0).toFloat()
-
         // --- per-tick speed fraction (randomised within slider range, then eased) ---
         val (speedLo, speedHi) = Rotations.speed.value
-        val rawFraction = if (speedHi > speedLo)
-            speedLo + Random.nextFloat() * (speedHi - speedLo)
-        else speedLo
+        val rawFraction = if (speedHi > speedLo) speedLo + Random.nextFloat() * (speedHi - speedLo) else speedLo
         val fraction = Rotations.ease(rawFraction)
 
-        // Fixed per-tick step (does NOT scale with remaining distance).
-        // Old proportional formula (dist * fraction) caused large jumps when far from
-        // target and silky smoothness when close, inconsistent and easy to flag.
-        // Now every tick moves the same absolute degrees regardless of how far we are.
         val rawStep = Rotations.maxSpeedDeg.value * fraction
         val jitter  = Rotations.countJitter.value
-        val counts  = (rawStep / degreesPerCount)
-            .coerceIn(1f, Rotations.maxCounts.value.toFloat()) +
-            Random.nextFloat() * jitter * 2f - jitter
-        // Absolute per-tick cap, prevents flagging at high sensitivity where degreesPerCount is large
-        val step = (degreesPerCount * counts).coerceAtMost(Rotations.maxSpeedDeg.value)
+        
+        // Calculate non-linear arc for pitch: keep pitch relatively horizontal, shift towards end
+        val progress = 1f - (dist / Math.max(1f, 180f)) // roughly how far we are
+        val arcFactor = if (progress < 0.7f) 0.2f else 1.0f // lag pitch behind
+        val effectivePitchDiff = pitchDiff * arcFactor
 
-        if (dist <= step || dist < degreesPerCount * 1.5f) {
-            currentYaw   = tYaw
-            currentPitch = tPitch
+        val step = rawStep.coerceAtMost(Rotations.maxSpeedDeg.value)
+
+        if (dist <= step || dist < gcdMulti * 2f) {
+            snapToGcdTarget(tYaw, tPitch, gcdMulti)
         } else {
-            // --- optional overshoot ---
-            val overshootRoll = Rotations.overshootChance.value
-            val doOvershoot   = overshootRoll > 0 && Random.nextInt(100) < overshootRoll
-            val effectiveDist = if (doOvershoot) {
-                val (osLo, osHi) = Rotations.overshootAmount.value
-                val os = if (osHi > osLo) osLo + Random.nextFloat() * (osHi - osLo) else osLo
-                dist + os           // move past target; next tick will snap back
-            } else dist
-
-            val ratio = step / effectiveDist
-            currentYaw    = currentYaw  + yawDiff   * ratio
-            currentPitch  = (currentPitch + pitchDiff * ratio).coerceIn(-90f, 90f)
+            val ratio = step / Math.max(0.1f, dist)
+            val dYaw = yawDiff * ratio
+            val dPitch = effectivePitchDiff * ratio
+            
+            // convert to mouse dx/dy and snap to integers!
+            val mouseDX = Math.round(dYaw / gcdMulti)
+            val mouseDY = Math.round(dPitch / gcdMulti)
+            
+            // Apply mouse movement, naturally respecting GCD
+            currentYaw += mouseDX * gcdMulti
+            currentPitch = (currentPitch + mouseDY * gcdMulti).coerceIn(-90f, 90f)
         }
 
         applyMicroJitter()
+        updateClientIfRequired()
+    }
 
-        // For CLIENT rotation mode, actually move the player's camera to follow.
+    private fun stdMaxAngle(gcd: Float) = Math.max(0.1f, gcd * 1.5f)
+
+    private fun snapToGcdTarget(tYaw: Float, tPitch: Float, gcd: Float) {
+        val yDiff = Mth.wrapDegrees(tYaw - currentYaw)
+        val pDiff = tPitch - currentPitch
+        
+        val mouseDX = Math.round(yDiff / gcd)
+        val mouseDY = Math.round(pDiff / gcd)
+        
+        currentYaw += mouseDX * gcd
+        currentPitch = (currentPitch + mouseDY * gcd).coerceIn(-90f, 90f)
+    }
+
+    private fun updateClientIfRequired() {
         if (rotationMode == RotationMode.CLIENT) {
             val player = Minecraft.getInstance().player
             if (player != null) {
                 player.setYRot(currentYaw)
                 player.setXRot(currentPitch)
-                // Keep clientYaw/clientPitch in sync so restoreRotation doesn't fight us.
                 clientYaw   = currentYaw
                 clientPitch = currentPitch
             }
         }
-
-        // Update the block crosshair/outline to reflect the server rotation.
         updateHitResult()
     }
 
-    /** Adds tiny random noise to the current rotation (hand-tremor simulation). */
     private fun applyMicroJitter() {
-        val mj = Rotations.microJitter.value
-        if (mj <= 0f) return
-        currentYaw   += (Random.nextFloat() * 2f - 1f) * mj
-        currentPitch  = (currentPitch + (Random.nextFloat() * 2f - 1f) * mj).coerceIn(-90f, 90f)
+        val rawMj = Rotations.microJitter.value
+        if (rawMj <= 0f) return
+        
+        val tYaw = targetYaw ?: currentYaw
+        val tPitch = targetPitch ?: currentPitch
+        val yDiff = Mth.wrapDegrees(tYaw - currentYaw)
+        val pDiff = tPitch - currentPitch
+        val dist = sqrt(yDiff * yDiff + pDiff * pDiff)
+
+        // Dampen jitter as it gets very close to the target
+        val scale = (dist / 10f).coerceIn(0f, 1f)
+        val mj = rawMj * scale
+        if (mj <= 0.001f) return
+        
+        val sensitivity = Minecraft.getInstance().options.sensitivity().get()
+        val f = sensitivity * 0.6 + 0.2
+        val gcd = (f * f * f * 8.0).toFloat() * 0.15f
+        
+        val countsRaw = mj / gcd
+        val maxCounts = countsRaw.toInt()
+        val fractional = countsRaw - maxCounts
+        
+        var jitterCounts = maxCounts
+        if (Random.nextFloat() < fractional) {
+            jitterCounts += 1
+        }
+        
+        if (jitterCounts <= 0) return
+        
+        val jitterX = Random.nextInt(-jitterCounts, jitterCounts + 1)
+        val jitterY = Random.nextInt(-jitterCounts, jitterCounts + 1)
+        
+        currentYaw += jitterX * gcd
+        currentPitch = (currentPitch + jitterY * gcd).coerceIn(-90f, 90f)
     }
 
     /**
