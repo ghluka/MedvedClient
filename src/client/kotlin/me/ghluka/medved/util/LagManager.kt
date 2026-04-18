@@ -1,10 +1,11 @@
-package me.ghluka.medved.manager
+package me.ghluka.medved.util
 
 import me.ghluka.medved.module.modules.combat.Backtrack
 import me.ghluka.medved.module.modules.combat.KnockbackDelay
+import me.ghluka.medved.module.modules.combat.KnockbackDisplacement
+import me.ghluka.medved.module.modules.combat.Velocity
 import me.ghluka.medved.module.modules.player.Blink
 import me.ghluka.medved.module.modules.player.FakeLag
-import me.ghluka.medved.module.modules.combat.Velocity
 import net.minecraft.client.Minecraft
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -28,10 +29,11 @@ object LagManager {
         if (flushingOutgoing) return false
 
         val blink = Blink.enabled.value && Blink.holding
-        val fakeLag = FakeLag.enabled.value && FakeLag.isCurrentlyLagging       
+        val fakeLag = FakeLag.enabled.value && FakeLag.isCurrentlyLagging
         val velocity = Velocity.enabled.value && Velocity.mode.value == Velocity.Mode.DELAY && Velocity.isDelayWindowActive()
+        val kbDisplaceBlink = KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive
 
-        if (!blink && !fakeLag && !velocity) {
+        if (!blink && !fakeLag && !velocity && !kbDisplaceBlink) {
             if (!outgoingQueue.isEmpty()) flushAllOutgoing()
             return false
         }
@@ -51,7 +53,7 @@ object LagManager {
             if (!incomingQueue.isEmpty()) flushAllIncoming()
             return false
         }
-        
+
         return true
     }
 
@@ -63,7 +65,7 @@ object LagManager {
 
         val now = System.currentTimeMillis()
 
-        if (Blink.enabled.value && Blink.holding) {
+        if ((Blink.enabled.value && Blink.holding) || (KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive)) {
             outgoingQueue.add(Long.MAX_VALUE to action)
             return
         }

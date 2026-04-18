@@ -1,21 +1,14 @@
 package me.ghluka.medved.mixin.client;
 
 import io.netty.channel.ChannelHandlerContext;
-import me.ghluka.medved.module.modules.combat.Backtrack;
-import me.ghluka.medved.module.modules.combat.Velocity;
-import me.ghluka.medved.module.modules.player.Blink;
 import me.ghluka.medved.module.modules.player.ClientBrand;
-import me.ghluka.medved.module.modules.player.FakeLag;
 import me.ghluka.medved.module.modules.combat.KnockbackDelay;
+import me.ghluka.medved.util.LagManager;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
-import net.minecraft.network.protocol.common.ClientboundPingPacket;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
-import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import net.minecraft.network.protocol.common.custom.BrandPayload;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -44,10 +37,10 @@ public class ConnectionMixin {
             }
         }
 
-        if (me.ghluka.medved.manager.LagManager.INSTANCE.shouldBufferIncoming()) {
+        if (LagManager.INSTANCE.shouldBufferIncoming()) {
             Packet<PacketListener> p = (Packet<PacketListener>) packet;
             ci.cancel();
-            me.ghluka.medved.manager.LagManager.INSTANCE.bufferIncoming(() -> p.handle(listener));
+            LagManager.INSTANCE.bufferIncoming(() -> p.handle(listener));
             return;
         }
     }
@@ -73,9 +66,9 @@ public class ConnectionMixin {
         }
 
         try {
-            if (me.ghluka.medved.manager.LagManager.INSTANCE.shouldBufferOutgoing()) {
+            if (LagManager.INSTANCE.shouldBufferOutgoing()) {
                 ci.cancel();
-                me.ghluka.medved.manager.LagManager.INSTANCE.bufferOutgoing(() -> conn.send(packet, (io.netty.channel.ChannelFutureListener) listener));
+                LagManager.INSTANCE.bufferOutgoing(() -> conn.send(packet, (io.netty.channel.ChannelFutureListener) listener));
             }
         } catch (Exception e) {
             // Failsafe escape hatch
@@ -99,9 +92,9 @@ public class ConnectionMixin {
         }
 
         try {
-            if (me.ghluka.medved.manager.LagManager.INSTANCE.shouldBufferOutgoing()) {
+            if (LagManager.INSTANCE.shouldBufferOutgoing()) {
                 ci.cancel();
-                me.ghluka.medved.manager.LagManager.INSTANCE.bufferOutgoing(() -> conn.send(packet));
+                LagManager.INSTANCE.bufferOutgoing(() -> conn.send(packet));
             }
         } catch (Exception e) {
             // Failsafe escape hatch

@@ -10,23 +10,6 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-/**
- * Overrides the server-side rotation without affecting the client camera.
- * Call [setTargetRotation] to set a desired server yaw/pitch; the rotation
- * smoothly interpolates toward the target each tick using the client's
- * mouse sensitivity setting, so it looks like natural mouse movement.
- *
- * Perspective/silent-aim behaviour:
- * - The client camera always shows the real mouse rotation.
- * - The server rotation (sent in movement packets) is the spoofed value.
- * - The block outline (minecraft.hitResult) is recomputed each tick using
- *   the spoofed rotation so the player sees what the server "sees".
- * - Movement direction (WASD) continues to follow the real camera yaw.
- *
- * The mixin in [me.ghluka.medved.mixin.client.LocalPlayerMixin] swaps the
- * fields for the duration of [LocalPlayer.sendPosition] only, so exactly
- * one packet per tick is sent with the spoofed values.
- */
 object RotationManager {
 
     private var targetYaw: Float? = null
@@ -40,65 +23,26 @@ object RotationManager {
 
     @JvmField var perspective: Boolean = false
     @JvmField var firstTime: Boolean = true
-    /**
-     * SERVER = our movement is based on the server sided rotation
-     * CLIENT = our movement is based on the client sided rotation, flags to anticheat
-     */
+
     enum class MovementMode { CLIENT, SERVER }
-
-    /**
-     * SERVER = silent aim: server sees rotation, client camera is unchanged.
-     * CLIENT = camera aim: rotation is applied to the client camera as well.
-     */
     enum class RotationMode { SERVER, CLIENT }
-
     @JvmField var movementMode: MovementMode = MovementMode.SERVER
     @JvmField var rotationMode: RotationMode = RotationMode.SERVER
 
-    /**
-     * When set to a non-NaN value, LocalPlayerMixin applies this yaw before aiStep
-     * so that the physics movement direction matches the spoofed rotation. This means
-     * the position delta sent in the packet is already in the correct direction and
-     * the re-snap in applyOverride is a no-op, no velocity mismatch for Grim.
-     * Consumed and reset to NaN immediately after aiStep.
-     */
     @JvmField var physicsYawOverride: Float = Float.NaN
 
-    /**
-     * When true, the position re-snap inside applyOverride is skipped entirely.
-     * Set this when the caller has already ensured physics ran at the correct yaw
-     * (via physicsYawOverride) so the position delta is already in the right direction.
-     */
     @JvmField var skipPositionSnap: Boolean = false
 
-    /** Action to fire inside sendPosition, right after rotation override. */
     @JvmField
     var pendingFireAction: Runnable? = null
 
-    /**
-     * allowStrafe: A or D held, keep the strafe component in the packet.
-     * allowForward: W or S held, keep the forward component in the packet.
-     * When both false (no keys): both components are near-zero anyway.
-     * When both true (diagonal): neither is clamped, full diagonal movement passes through.
-     */
     @JvmField var allowStrafe: Boolean = false
     @JvmField var allowForward: Boolean = false
 
-    /**
-     * When true, the KeyboardInputMixin zeros movement input after
-     * KeyboardInput.tick() so aiStep() produces no movement.
-     * Set each tick in START_CLIENT_TICK, consumed by the mixin.
-     */
     @JvmField var freezeMovement: Boolean = false
 
-    /**
-     * When true, the KeyboardInputMixin rebuilds keyPresses with jump=false
-     * so aiStep() won't make the player jump. Used to delay jumps during
-     * WASD+space bridging until the player reaches the block edge.
-     */
     @JvmField var suppressJump: Boolean = false
 
-    /** Set the target rotation to smoothly move toward. */
     fun setTargetRotation(yaw: Float, pitch: Float) {
         val player = Minecraft.getInstance().player
 
@@ -118,7 +62,6 @@ object RotationManager {
         targetPitch = pitch
     }
 
-    /** Stop overriding, sendPosition will use the real camera rotation. */
     fun clearRotation() {
         //perspective = false
         targetYaw = null
@@ -128,7 +71,6 @@ object RotationManager {
         physicsYawOverride = Float.NaN
         skipPositionSnap = false
         firstTime = true
-        // If the per-entity fake camera is in use, sync it to the current client camera
         val mc = Minecraft.getInstance()
         val player = mc.player
         if (player != null) {
@@ -147,17 +89,13 @@ object RotationManager {
         perspective = false
     }
 
-    /** Whether an override is currently active. */
     @JvmStatic
     fun isActive(): Boolean = targetYaw != null
 
-    /** Current spoofed yaw being sent to the server. */
     @JvmStatic fun getCurrentYaw(): Float = currentYaw
 
-    /** Current spoofed pitch being sent to the server. */
     @JvmStatic fun getCurrentPitch(): Float = currentPitch
 
-    /** Client camera yaw (real mouse rotation, never affected by the server override). */
     @JvmStatic fun getClientYaw(): Float {
         val mc = Minecraft.getInstance()
         val player = mc.player
@@ -178,11 +116,6 @@ object RotationManager {
         return clientPitch
     }
 
-    /**
-     * Recompute minecraft.hitResult using the server rotation so the block
-     * outline matches where the server thinks the player is looking.
-     * Call once per tick after [tick].
-     */
     @JvmStatic
     fun updateHitResult() {
         if (targetYaw == null) return
@@ -199,7 +132,6 @@ object RotationManager {
         player.setXRot(savedPitch)
     }
 
-    /** Whether the current rotation is within tolerance of the target. */
     fun hasReachedTarget(toleranceDeg: Float = 1f): Boolean {
         val tYaw = targetYaw ?: return true
         val tPitch = targetPitch ?: return true
@@ -207,23 +139,16 @@ object RotationManager {
                kotlin.math.abs(Mth.wrapDegrees(tPitch - currentPitch)) <= toleranceDeg
     }
 
-    /**
-     * Only update the pitch target, leaving yaw unchanged.
-     * Use when airborne to prevent yaw from drifting due to A/D micro-adjustments.
-     * No-op if rotation is not currently active.
-     */
     fun setTargetPitchOnly(pitch: Float) {
         if (targetYaw == null) return
         targetPitch = pitch
     }
 
-    /** Whether the yaw alone has converged, pitch changes don't need movement frozen. */
     fun hasYawReachedTarget(toleranceDeg: Float = 1f): Boolean {
         val tYaw = targetYaw ?: return true
         return kotlin.math.abs(Mth.wrapDegrees(tYaw - currentYaw)) <= toleranceDeg
     }
 
-    /** Instantly set current rotation to the target (for time-critical placements). */
     fun snapToTarget() {
         val tYaw = targetYaw ?: return
         val tPitch = targetPitch ?: return
@@ -236,17 +161,10 @@ object RotationManager {
         updateClientIfRequired()
     }
 
-    /**
-     * Advances toward the target at maximum believable mouse-flick speed.
-     */
     fun flickTick() {
         quickTick(20000f)
     }
 
-    /**
-     * Advances the rotation toward the target at a fixed absolute linear speed.
-     * Always calls [updateHitResult] at the end (SERVER mode only).
-     */
     fun quickTick(maxDeg: Float = 50f) {
         val tYaw   = targetYaw   ?: return
         val tPitch = targetPitch ?: return
@@ -274,11 +192,6 @@ object RotationManager {
         updateClientIfRequired()
     }
 
-    /**
-     * Advances the current rotation toward the target.
-     * All interpolation parameters (easing, speed, jitter, overshoot) are read from
-     * the [Rotations] settings module so users can tune them without recompiling.
-     */
     fun tick() {
         val tYaw = targetYaw ?: return
         val tPitch = targetPitch ?: return
@@ -292,25 +205,21 @@ object RotationManager {
         val gcdMulti = (f * f * f * 8.0).toFloat() * 0.15f
 
         if (dist < stdMaxAngle(gcdMulti)) {
-            // Reached target exactly, snap to multiple of GCD (or target if we don't care exactly here, 
-            // but we must to avoid last-tick detection).
             snapToGcdTarget(tYaw, tPitch, gcdMulti)
             applyMicroJitter()
             updateClientIfRequired()
             return
         }
 
-        // --- per-tick speed fraction (randomised within slider range, then eased) ---
         val (speedLo, speedHi) = Rotations.speed.value
         val rawFraction = if (speedHi > speedLo) speedLo + Random.nextFloat() * (speedHi - speedLo) else speedLo
         val fraction = Rotations.ease(rawFraction)
 
         val rawStep = Rotations.maxSpeedDeg.value * fraction
         val jitter  = Rotations.countJitter.value
-        
-        // Calculate non-linear arc for pitch: keep pitch relatively horizontal, shift towards end
-        val progress = 1f - (dist / Math.max(1f, 180f)) // roughly how far we are
-        val arcFactor = if (progress < 0.7f) 0.2f else 1.0f // lag pitch behind
+
+        val progress = 1f - (dist / Math.max(1f, 180f))
+        val arcFactor = if (progress < 0.7f) 0.2f else 1.0f
         val effectivePitchDiff = pitchDiff * arcFactor
 
         val step = rawStep.coerceAtMost(Rotations.maxSpeedDeg.value)
@@ -321,12 +230,10 @@ object RotationManager {
             val ratio = step / Math.max(0.1f, dist)
             val dYaw = yawDiff * ratio
             val dPitch = effectivePitchDiff * ratio
-            
-            // convert to mouse dx/dy and snap to integers!
+
             val mouseDX = Math.round(dYaw / gcdMulti)
             val mouseDY = Math.round(dPitch / gcdMulti)
-            
-            // Apply mouse movement, naturally respecting GCD
+
             currentYaw += mouseDX * gcdMulti
             currentPitch = (currentPitch + mouseDY * gcdMulti).coerceIn(-90f, 90f)
         }
@@ -371,7 +278,6 @@ object RotationManager {
         val pDiff = tPitch - currentPitch
         val dist = sqrt(yDiff * yDiff + pDiff * pDiff)
 
-        // Dampen jitter as it gets very close to the target
         val scale = (dist / 10f).coerceIn(0f, 1f)
         val mj = rawMj * scale
         if (mj <= 0.001f) return
@@ -398,10 +304,6 @@ object RotationManager {
         currentPitch = (currentPitch + jitterY * gcd).coerceIn(-90f, 90f)
     }
 
-    /**
-     * Called after the server's rotation packet (S08 / ClientboundPlayerRotationPacket)
-     * has been processed.
-     */
     @JvmStatic
     fun restoreClientCamera(player: LocalPlayer) {
         if (perspective
@@ -414,7 +316,6 @@ object RotationManager {
         }
     }
 
-    /** Called by mixin at sendPosition HEAD. */
     @JvmStatic
     fun applyOverride(player: LocalPlayer) {
         if (targetYaw == null) {
@@ -441,15 +342,11 @@ object RotationManager {
         if (opts.keyRight.isDown) strafeInput -= 1f
 
         if (forwardInput != 0f || strafeInput != 0f) {
-            // Skip position snap when the caller already ran physics at the flick yaw.
-            // Any re-snap on top of a correct delta introduces floating-point drift that
             if (!skipPositionSnap) {
             val inputLen = sqrt(forwardInput * forwardInput + strafeInput * strafeInput)
             val nf = (forwardInput / inputLen).toDouble()
             val ns = (strafeInput / inputLen).toDouble()
 
-            // World direction: CLIENT mode follows the real camera yaw; SERVER mode follows the
-            // spoofed yaw so the packet movement aligns with where the server thinks we're looking.
             val dirYaw = if (movementMode == MovementMode.SERVER) currentYaw else clientYaw
             val dirRad = Math.toRadians(dirYaw.toDouble())
             val dSin = kotlin.math.sin(dirRad)
@@ -457,7 +354,6 @@ object RotationManager {
             val worldDx = ns * dCos - nf * dSin
             val worldDz = nf * dCos + ns * dSin
 
-            // Find the closest of 8 possible input directions at the server yaw
             val serverRad = Math.toRadians(currentYaw.toDouble())
             val sSin = kotlin.math.sin(serverRad)
             val sCos = kotlin.math.cos(serverRad)
@@ -493,14 +389,9 @@ object RotationManager {
                     player.setPos(newX, player.y, newZ)
                 }
             }
-            } // end !skipPositionSnap
+            }
         }
 
-        // If movement is frozen (pauseOnRotate) the keys are zeroed so aiStep()
-        // adds no new velocity, but the player still has residual momentum from the
-        // previous tick. Without this, the server sees a non-zero position delta
-        // while the yaw is rotating. Snap position back to xLast/zLast so the
-        // packet sends zero movement.
         if (freezeMovement) {
             val acc2 = player as me.ghluka.medved.mixin.client.LocalPlayerAccessor
             val rdx = player.x - acc2.xLast
@@ -513,7 +404,6 @@ object RotationManager {
         pendingFireAction?.let { it.run(); pendingFireAction = null }
     }
 
-    /** Called by mixin at sendPosition RETURN. */
     @JvmStatic
     fun restoreRotation(player: LocalPlayer) {
         if (targetYaw == null) return
@@ -522,15 +412,10 @@ object RotationManager {
             player.setYRot(clientYaw)
             player.setXRot(clientPitch)
         }
-        //restoreClientCamera(player)
         overriding = false
-        // Consume the one-shot flag, it only applies to the tick it was set on.
         skipPositionSnap = false
     }
 
-    /**
-     * Called by mixin at LocalPlayer.turn() RETURN.
-     */
     @JvmStatic
     fun onTurn(player: LocalPlayer) {
         if (!overriding) {
@@ -538,5 +423,4 @@ object RotationManager {
             clientPitch = player.getXRot()
         }
     }
-
 }

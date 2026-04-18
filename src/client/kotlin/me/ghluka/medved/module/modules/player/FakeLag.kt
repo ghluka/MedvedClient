@@ -1,6 +1,6 @@
 package me.ghluka.medved.module.modules.player
 
-import me.ghluka.medved.manager.LagManager
+import me.ghluka.medved.util.LagManager
 import me.ghluka.medved.module.Module
 import net.minecraft.client.Minecraft
 

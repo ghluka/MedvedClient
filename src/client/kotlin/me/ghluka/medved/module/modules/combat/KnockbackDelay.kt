@@ -1,6 +1,7 @@
 package me.ghluka.medved.module.modules.combat
 
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.util.LagManager
 import net.minecraft.client.Minecraft
 
 object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets when hit, freezing the world until the delay expires", Category.COMBAT) {
@@ -40,6 +41,6 @@ object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets 
 
     override fun onDisabled() {
         holdPacketsUntil = 0L
-        me.ghluka.medved.manager.LagManager.flushAllIncoming()
+        LagManager.flushAllIncoming()
     }
 }

@@ -2,7 +2,7 @@ package me.ghluka.medved.module.modules.combat
 
 import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.module.Module
-import me.ghluka.medved.util.CameraOverriddenEntity
+import me.ghluka.medved.util.LagManager
 import me.ghluka.medved.util.RotationManager
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.KeyMapping
@@ -18,11 +18,13 @@ object KnockbackDisplacement : Module(
     Category.COMBAT
 ) {
 
-    enum class FlickMode { LEFT, RIGHT, RANDOM, STRAFE }
+    enum class FlickMode { LEFT, RIGHT, RANDOM, STRAFE, STRAFE_INVERTED }
 
     private val flickAngle    = floatRange("flick angle", 85f to 95f, 10f, 180f)
     private val flickMode     = enum("flick mode", FlickMode.RIGHT)
     private val requireSprint = boolean("require sprint", true)
+    private val cooldownMs    = int("cooldown (ms)", 250, 0, 2000)
+    private val blink         = boolean("blink", false)
 
     @JvmField
     var skipIntercept = false
@@ -30,25 +32,38 @@ object KnockbackDisplacement : Module(
     @JvmField
     var skipInterceptNextVanillaAttack = false
 
+    @JvmField
+    var isBlinkActive = false
+
     var testYaw = 0f
 
     var rotationHeld = false
     private var pendingAttack: (() -> Unit)? = null
+    private var lastFlickTime = 0L
 
     override fun onEnabled() {
         rotationHeld = false
         skipIntercept = false
         pendingAttack = null
+        lastFlickTime = 0L
     }
 
     override fun onDisabled() {
         if (rotationHeld) {
             RotationManager.clearRotation()
             rotationHeld = false
+            if (isBlinkActive) {
+                isBlinkActive = false
+                LagManager.flushAllOutgoing()
+            }
         }
         skipIntercept = false
         skipInterceptNextVanillaAttack = false
         pendingAttack = null
+        if (isBlinkActive) {
+            isBlinkActive = false
+            LagManager.flushAllOutgoing()
+        }
     }
 
     init {
@@ -63,6 +78,9 @@ object KnockbackDisplacement : Module(
                 if (!skipInterceptNextVanillaAttack) {
                     skipIntercept = false
                 }
+                // Return early! We MUST let the tick finish so the attack sends while the rotation is still flicked,
+                // and flush the packets next tick.
+                return@register
             }
 
             if (!skipInterceptNextVanillaAttack) {
@@ -72,6 +90,10 @@ object KnockbackDisplacement : Module(
             if (rotationHeld) {
                 RotationManager.clearRotation()
                 rotationHeld = false
+                if (isBlinkActive) {
+                    isBlinkActive = false
+                    LagManager.flushAllOutgoing()
+                }
             }
         }
     }
@@ -82,18 +104,37 @@ object KnockbackDisplacement : Module(
         val mc = Minecraft.getInstance()
         val opts = mc.options
 
+        val time = System.currentTimeMillis()
+        if (time - lastFlickTime < cooldownMs.value) return false
+
+        val isLeft = opts.keyLeft.isDown
+        val isRight = opts.keyRight.isDown
+
         val side = when (flickMode.value) {
             FlickMode.LEFT   -> -1f
             FlickMode.RIGHT  ->  1f
             FlickMode.RANDOM -> if (Random.nextBoolean()) -1f else 1f
-            FlickMode.STRAFE   -> if (opts.keyLeft.isDown) -1f else 1f
+            FlickMode.STRAFE -> {
+                if (isLeft && !isRight) -1f
+                else if (isRight && !isLeft) 1f
+                else return false
+            }
+            FlickMode.STRAFE_INVERTED -> {
+                if (isLeft && !isRight) 1f
+                else if (isRight && !isLeft) -1f
+                else return false
+            }
         }
+        
+        lastFlickTime = time
+
         val (lo, hi) = flickAngle.value
         val angle = if (hi > lo) lo + Random.nextFloat() * (hi - lo) else lo
         val baseYaw = player.yRot
         val flickYaw = baseYaw + side * angle
 
         rotationHeld = true
+        if (blink.value) isBlinkActive = true
         RotationManager.clearRotation()
         RotationManager.perspective = true
         RotationManager.movementMode = RotationManager.MovementMode.CLIENT
