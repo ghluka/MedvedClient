@@ -1,0 +1,8 @@
+{
+  "label": "HUD",
+  "position": 7,
+  "link": {
+    "type": "generated-index",
+    "description": "HUD elements that overlay on your screen to give helpful information. You can re-position or scale them to however you want."
+  }
+}

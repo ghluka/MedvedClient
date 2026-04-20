@@ -1,0 +1,8 @@
+{
+  "label": "Render",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "Rendering modules that draw in the 3D world, that give you advantages such as seeing players through walls."
+  }
+}

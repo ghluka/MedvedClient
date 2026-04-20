@@ -1,0 +1,8 @@
+{
+  "label": "Movement",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Movement modules that affect how your player moves, such as speed or flight."
+  }
+}

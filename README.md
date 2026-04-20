@@ -20,4 +20,4 @@ Alternatively, you can get the latest artifact by going to the [build workflows]
 
 ## :scroll: Modules
 
-proper docs coming soon 
+Visit our [documentation](https://ghluka.github.io/MedvedClient) for a comprehensive list of all the modules and their configuration!

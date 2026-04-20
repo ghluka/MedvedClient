@@ -3,6 +3,6 @@
   "position": 2,
   "link": {
     "type": "generated-index",
-    "description": "5 minutes to learn the most important Docusaurus concepts."
+    "description": "Modules, also sometimes referred to as \"cheats\" or \"hacks\", can be enabled or disabled to give their described effect.\nLeft click on a module in the Click GUI to enable it or right click it to open it's configuration."
   }
 }
