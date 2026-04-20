@@ -27,6 +27,7 @@ const sidebars = {
         'intro/what-is-grizzly',
         'intro/installation',
         'intro/quick-start',
+        'intro/recommended-mods',
       ],
     },
 
