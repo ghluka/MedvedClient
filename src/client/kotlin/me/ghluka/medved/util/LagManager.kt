@@ -31,9 +31,9 @@ object LagManager {
         val blink = Blink.enabled.value && Blink.holding
         val fakeLag = FakeLag.enabled.value && FakeLag.isCurrentlyLagging
         val velocity = Velocity.enabled.value && Velocity.mode.value == Velocity.Mode.DELAY && Velocity.isDelayWindowActive()
-        val kbDisplaceBlink = KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive
+        //val kbDisplaceBlink = KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive
 
-        if (!blink && !fakeLag && !velocity && !kbDisplaceBlink) {
+        if (!blink && !fakeLag && !velocity){// && !kbDisplaceBlink) {
             if (!outgoingQueue.isEmpty()) flushAllOutgoing()
             return false
         }
@@ -65,7 +65,7 @@ object LagManager {
 
         val now = System.currentTimeMillis()
 
-        if ((Blink.enabled.value && Blink.holding) || (KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive)) {
+        if ((Blink.enabled.value && Blink.holding)){// || (KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive)) {
             outgoingQueue.add(Long.MAX_VALUE to action)
             return
         }

@@ -8,6 +8,7 @@ import me.ghluka.medved.module.modules.player.*
 import me.ghluka.medved.module.modules.hud.*
 import me.ghluka.medved.module.modules.movement.*
 import me.ghluka.medved.module.modules.other.*
+import me.ghluka.medved.module.modules.utility.*
 import me.ghluka.medved.module.modules.world.*
 import me.ghluka.medved.update.UpdateChecker
 import me.ghluka.medved.util.LagManager
@@ -28,6 +29,7 @@ object MedvedClient : ClientModInitializer {
 
         // combat
         ModuleManager.register(KillAura)
+        ModuleManager.register(TriggerBot)
         ModuleManager.register(AimAssist)
         ModuleManager.register(LeftClicker)
         ModuleManager.register(RightClicker)
@@ -35,12 +37,14 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(AutoBlock)
         ModuleManager.register(HitSelect)
         ModuleManager.register(Velocity)
+        ModuleManager.register(Refill)
         ModuleManager.register(ComboTap)
         ModuleManager.register(KnockbackDelay)
         ModuleManager.register(Reach)
         ModuleManager.register(KnockbackDisplacement)
         ModuleManager.register(Backtrack)
         ModuleManager.register(Criticals)
+        ModuleManager.register(AutoRod)
         // movement
         ModuleManager.register(Sprint)
         ModuleManager.register(Speed)
@@ -70,6 +74,10 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(ScaffoldInfo)
         // skyblock
         ModuleManager.register(ChestAura)
+        
+        // utility
+        ModuleManager.register(AntiFireball)
+        ModuleManager.register(AutoTotem)
 
         ModuleManager.init()
         UpdateChecker.init()

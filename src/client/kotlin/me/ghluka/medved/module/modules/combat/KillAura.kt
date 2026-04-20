@@ -14,6 +14,8 @@ import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
+import net.minecraft.tags.ItemTags
+import net.minecraft.world.item.TridentItem
 import net.minecraft.world.item.ShieldItem
 import kotlin.math.atan2
 import kotlin.math.sqrt
@@ -42,7 +44,7 @@ object KillAura : Module(
     private val cps         = floatRange("cps", 10.0f to 13.0f, 1.0f, 20.0f).also {
         it.visibleWhen = { mode.value == Mode.CPS }
     }
-    private val extraDelay  = intRange("extra delay", 0 to 2, 0, 10).also {
+    private val extraDelay  = intRange("extra delay", 0 to 2, -5, 5).also {
         it.visibleWhen = { mode.value == Mode.SEQUENTIAL }
     }
     private val aps         = int("abs", 40, 1, 40).also {
@@ -56,6 +58,7 @@ object KillAura : Module(
     }
     private val playersOnly = boolean("players only", true)
     private val autoBlock   = boolean("auto block", true)
+    private val autoWeapon  = boolean("auto weapon", false)
 
     private var target: LivingEntity? = null
     private var accumulator = 0.0f
@@ -131,6 +134,13 @@ object KillAura : Module(
             return
         }
 
+        if (autoWeapon.value) {
+            val bestSlot = findBestWeapon(player)
+            if (bestSlot != -1 && player.inventory.selectedSlot != bestSlot) {
+                player.inventory.selectedSlot = bestSlot
+            }
+        }
+
         val mainHandItem = player.mainHandItem.item
         val offHandItem = player.offhandItem.item
         val isShield = mainHandItem is ShieldItem || offHandItem is ShieldItem
@@ -163,14 +173,10 @@ object KillAura : Module(
                 }
             }
             Mode.SEQUENTIAL -> {
-                if (player.getAttackStrengthScale(0.5f) >= 1.0f) {
-                    if (seqDelayTicks > 0) {
-                        seqDelayTicks--
-                    } else {
-                        performNormalAttack(client, isShield, isSwordBlock)
-                        val (lo, hi) = extraDelay.value
-                        seqDelayTicks = if (hi > lo) (lo..hi).random() else lo
-                    }
+                if (player.getAttackStrengthScale(0.5f - seqDelayTicks.toFloat()) >= 1.0f) {
+                    performNormalAttack(client, isShield, isSwordBlock)
+                    val (lo, hi) = extraDelay.value
+                    seqDelayTicks = if (hi > lo) (lo..hi).random() else lo
                 }
             }
             Mode.APS -> {
@@ -262,6 +268,22 @@ object KillAura : Module(
         val yaw   = Math.toDegrees(atan2(-dx, dz)).toFloat()
         val pitch = (-Math.toDegrees(atan2(dy, horizDist))).toFloat()
         return yaw to pitch
+    }
+
+    private fun findBestWeapon(player: Player): Int {
+        var bestSlot = -1
+        
+        for (i in 0..8) {
+            val itemStack = player.inventory.getItem(i)
+            if (itemStack.isEmpty) continue
+            val isWeapon = itemStack.`is`(ItemTags.SWORDS) || itemStack.`is`(ItemTags.AXES) || 
+                           itemStack.item is TridentItem
+            
+            if (isWeapon) {
+                 return i
+            }
+        }
+        return bestSlot
     }
 
     private fun pickCps(): Float {

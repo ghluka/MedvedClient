@@ -128,9 +128,11 @@ object BedBreaker : Module(
             mc.gameMode?.stopDestroyBlock()
             wasBreaking = false
         }
-        pendingHitPos = null
-        restoreTool()
-        RotationManager.clearRotation()
+        if (pendingHitPos != null) {
+            pendingHitPos = null
+            restoreTool()
+            RotationManager.clearRotation()
+        }
     }
 
     override fun onLevelRender(ctx: LevelRenderContext) {

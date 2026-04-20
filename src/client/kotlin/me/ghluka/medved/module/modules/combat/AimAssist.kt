@@ -54,6 +54,10 @@ object AimAssist : Module(
         }
     }
 
+    override fun onDisabled() {
+        clearAssist()
+    }
+
     override fun onLevelRender(ctx: LevelRenderContext) {
         val player = Minecraft.getInstance().player ?: return
         val level  = Minecraft.getInstance().level  ?: return

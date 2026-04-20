@@ -1,7 +1,6 @@
 package me.ghluka.medved.module
 
 import me.ghluka.medved.config.Config
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
@@ -113,6 +112,6 @@ abstract class Module(
     }
 
     enum class Category {
-        COMBAT, MOVEMENT, RENDER, PLAYER, WORLD, MISC, HUD, OTHER
+        COMBAT, MOVEMENT, RENDER, PLAYER, WORLD, UTILITY, HUD, OTHER
     }
 }
