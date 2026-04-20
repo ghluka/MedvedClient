@@ -73,11 +73,20 @@ object AutoRod : Module(
         if (now < waitTime) return
 
         val targets = client.level?.entitiesForRendering()?.filterIsInstance<LivingEntity>()
-            ?.filter { it != player && it.isAlive && TargetFilter.isValidTarget(player, it) } ?: emptyList()
+            ?.filter { e ->
+                if (e === player || !e.isAlive || !TargetFilter.isValidTarget(player, e)) return@filter false
+                val dx = e.x - player.x
+                val dz = e.z - player.z
+                val yaw = Math.toDegrees(kotlin.math.atan2(-dx, dz)).toFloat()
+                val fov = net.minecraft.util.Mth.wrapDegrees(yaw - player.yRot)
+                kotlin.math.abs(fov) < 45f
+            } ?: emptyList()
         
         val closest = targets.minByOrNull { player.distanceTo(it) }
 
-        if (notMeleeRange.value > 0f && closest != null && player.distanceTo(closest) <= notMeleeRange.value) {
+        val hasValidTarget = closest != null && (notMeleeRange.value <= 0f || player.distanceTo(closest) > notMeleeRange.value)
+
+        if (!hasValidTarget) {
             if (state != State.IDLE && state != State.SWITCHING_BACK && state != State.RETRACTING) {
                 state = State.SWITCHING_BACK
                 waitTime = now + getDelay(actionDelay.value)

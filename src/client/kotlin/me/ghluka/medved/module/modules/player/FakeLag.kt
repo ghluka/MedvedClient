@@ -22,8 +22,17 @@ object FakeLag : Module("Fake Lag", "Delays outgoing packets to simulate real ne
             val mc = Minecraft.getInstance()
             val player = mc.player ?: return false
             val level  = mc.level  ?: return false
+            val reachModule = me.ghluka.medved.module.modules.combat.Reach
+            val maxReach = if (reachModule.enabled.value) reachModule.customRange.value.second else 3.0f
+            val triggerDist = maxReach + 0.14f
             level.players().any { e ->
-                e !== player && !e.isDeadOrDying && player.distanceTo(e) <= 6f
+                if (e === player || e.isDeadOrDying) return@any false
+                if (player.distanceTo(e) > triggerDist) return@any false
+                val dx = e.x - player.x
+                val dz = e.z - player.z
+                val yaw = Math.toDegrees(kotlin.math.atan2(-dx, dz)).toFloat()
+                val fov = net.minecraft.util.Mth.wrapDegrees(yaw - player.yRot)
+                kotlin.math.abs(fov) < 20f
             }
         }
         Mode.REPEL -> System.currentTimeMillis() < repelUntilMs
