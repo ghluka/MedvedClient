@@ -46,6 +46,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Criticals)
         ModuleManager.register(AutoRod)
         ModuleManager.register(HitSwap)
+        ModuleManager.register(CrystalAura)
         // movement
         ModuleManager.register(Sprint)
         ModuleManager.register(Speed)
