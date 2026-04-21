@@ -19,11 +19,26 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Minecraft.class)
 public class MinecraftMixin {
 
     @Mutable @Shadow public HitResult hitResult;
+
+    @Inject(method = "startAttack", at = @At("HEAD"))
+    private void medved$onStartAttack(CallbackInfoReturnable<Boolean> cir) {
+        if (me.ghluka.medved.module.modules.combat.HitSwap.INSTANCE.isEnabled()) {
+            me.ghluka.medved.module.modules.combat.HitSwap.INSTANCE.onStartAttack();
+        }
+    }
+
+    @Inject(method = "continueAttack", at = @At("HEAD"))
+    private void medved$onContinueAttack(boolean leftClick, CallbackInfo ci) {
+        if (leftClick && me.ghluka.medved.module.modules.combat.HitSwap.INSTANCE.isEnabled()) {
+            me.ghluka.medved.module.modules.combat.HitSwap.INSTANCE.onStartAttack();
+        }
+    }
 
     @Inject(method = "pick", at = @At("RETURN"))
     private void medved$overrideHitResult(float partialTick, CallbackInfo ci) {

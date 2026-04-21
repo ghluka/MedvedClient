@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import me.ghluka.medved.module.modules.combat.HitSwap;
 
 @Mixin(MultiPlayerGameMode.class)
 public class MultiPlayerGameModeMixin {
@@ -48,6 +49,9 @@ public class MultiPlayerGameModeMixin {
             FakeLag.notifyAttack();
             if (Criticals.INSTANCE.isEnabled()) {
                 Criticals.INSTANCE.onAttack(target);
+            }
+            if (HitSwap.INSTANCE.isEnabled()) {
+                HitSwap.INSTANCE.onAttack(player, target);
             }
         } catch (Throwable t) {}
     }

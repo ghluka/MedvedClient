@@ -5,6 +5,7 @@ import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.util.RotationManager
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
+import net.minecraft.tags.ItemTags
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import kotlin.math.atan2
@@ -173,12 +174,26 @@ object CrystalAura : Module(
                 when (targetMode.value) {
                     TargetMode.DISTANCE -> player.distanceTo(e).toFloat()
                     TargetMode.HEALTH -> e.health
-                    else -> player.distanceTo(e).toFloat()
+                    TargetMode.YAW -> {
+                        val (tYaw, _) = calcRotationVec(player, e.position())
+                        kotlin.math.abs(net.minecraft.util.Mth.wrapDegrees(tYaw - player.yRot))
+                    }
+                    TargetMode.ARMOR -> e.armorValue.toFloat()
+                    TargetMode.THREAT -> {
+                        var threat = e.health + e.armorValue.toFloat()
+                        if (e is Player) {
+                            val handItem = e.mainHandItem.item
+                            if (e.mainHandItem.`is`(ItemTags.SWORDS)) threat += 10f
+                            if (handItem is net.minecraft.world.item.AxeItem) threat += 12f
+                            if (handItem == net.minecraft.world.item.Items.END_CRYSTAL) threat += 20f
+                        }
+                        -threat
+                    }
                 }
             }
 
             if (bestTarget != null) {
-                // Predictive optimization
+                // predictive optimization
                 val predX = if (optimization.value == Optimization.PREDICT) bestTarget.deltaMovement.x * 2 else 0.0
                 val predZ = if (optimization.value == Optimization.PREDICT) bestTarget.deltaMovement.z * 2 else 0.0
                 val targetPredictedPos = bestTarget.position().add(predX, 0.0, predZ)
@@ -258,7 +273,7 @@ object CrystalAura : Module(
                                     requiresObs = !isBuiltObsidian
                                     obsTargetVec = supportVec
                                     
-                                    // Rapid fire optimization
+                                    // rapid fire optimization
                                     val realDmg = if (isBuiltObsidian) enemyDmg - 1000f else enemyDmg
                                     if (optimization.value == Optimization.RAPID_FIRE && isBuiltObsidian && realDmg > minEfficiency.value + 4.0f) {
                                         break
