@@ -86,7 +86,6 @@ object HitSwap : Module(
                 
                 if (!requireLunge.value || hasLunge) {
                     swapToSlot(player, spearSlot)
-                    Minecraft.getInstance().connection?.send(net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(spearSlot))
                     if (shouldSwapBack) {
                         swapBackDelay = 1
                     }

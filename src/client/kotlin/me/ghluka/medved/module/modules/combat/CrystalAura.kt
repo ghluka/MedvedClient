@@ -72,12 +72,76 @@ object CrystalAura : Module(
         manualSequenceStep = 0
     }
 
-    private fun getDamage(crystalPos: net.minecraft.world.phys.Vec3, target: LivingEntity): Float {
+    private fun getExposure(crystalPos: net.minecraft.world.phys.Vec3, target: LivingEntity, ignorePos: net.minecraft.core.BlockPos? = null): Float {
+        val level = target.level() ?: return 1.0f
+        val bbox = target.boundingBox
+        val d0 = 1.0 / ((bbox.maxX - bbox.minX) * 2.0 + 1.0)
+        val d1 = 1.0 / ((bbox.maxY - bbox.minY) * 2.0 + 1.0)
+        val d2 = 1.0 / ((bbox.maxZ - bbox.minZ) * 2.0 + 1.0)
+        val d3 = (1.0 - kotlin.math.floor(1.0 / d0) * d0) / 2.0
+        val d4 = (1.0 - kotlin.math.floor(1.0 / d2) * d2) / 2.0
+        if (d0 >= 0.0 && d1 >= 0.0 && d2 >= 0.0) {
+            var hits = 0
+            var rays = 0
+            var f = 0.0f
+            while (f <= 1.0f) {
+                var f1 = 0.0f
+                while (f1 <= 1.0f) {
+                    var f2 = 0.0f
+                    while (f2 <= 1.0f) {
+                        val d5 = net.minecraft.util.Mth.lerp(f.toDouble(), bbox.minX, bbox.maxX)
+                        val d6 = net.minecraft.util.Mth.lerp(f1.toDouble(), bbox.minY, bbox.maxY)
+                        val d7 = net.minecraft.util.Mth.lerp(f2.toDouble(), bbox.minZ, bbox.maxZ)
+                        val vec3 = net.minecraft.world.phys.Vec3(d5 + d3, d6, d7 + d4)
+                        val hit = level.clip(net.minecraft.world.level.ClipContext(vec3, crystalPos, net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, target))
+                        if (hit.type == net.minecraft.world.phys.HitResult.Type.MISS || (ignorePos != null && hit.type == net.minecraft.world.phys.HitResult.Type.BLOCK && (hit as net.minecraft.world.phys.BlockHitResult).blockPos == ignorePos)) {
+                            hits++
+                        }
+                        rays++
+                        f2 = (f2 + d2).toFloat()
+                    }
+                    f1 = (f1 + d1).toFloat()
+                }
+                f = (f + d0).toFloat()
+            }
+            return if (rays == 0) 0.0f else hits.toFloat() / rays.toFloat()
+        }
+        return 0.0f
+    }
+
+    private fun getDamage(crystalPos: net.minecraft.world.phys.Vec3, target: LivingEntity, ignorePos: net.minecraft.core.BlockPos? = null): Float {
         val distSq = target.distanceToSqr(crystalPos)
         if (distSq > 144.0) return 0f
+        val level = target.level() ?: return 0f
         val dist = kotlin.math.sqrt(distSq)
-        val impact = (1.0 - (dist / 12.0))
-        return ((impact * impact + impact) / 2.0 * 7.0 * 12.0 + 1.0).toFloat()
+        val impact = 1.0 - (dist / 12.0)
+        
+        val exposure = getExposure(crystalPos, target, ignorePos)
+        val modifiedImpact = impact * exposure
+        
+        var damage = ((modifiedImpact * modifiedImpact + modifiedImpact) / 2.0 * 7.0 * 12.0 + 1.0).toFloat()
+        if (damage <= 0f) return 0f
+        
+        val diff = level.difficulty.id
+        damage = when (diff) {
+            0 -> 0f
+            1 -> kotlin.math.min(damage / 2.0f + 1.0f, damage)
+            3 -> damage * 1.5f
+            else -> damage
+        }
+        
+        val armor = target.armorValue.toFloat()
+        val toughness = if (armor > 15.0f) 8.0f else 0.0f
+        
+        val f = 2.0f + toughness / 4.0f
+        val g = kotlin.math.max(armor - damage / f, armor * 0.2f)
+        damage *= (1.0f - g / 25.0f)
+        
+        val epf = if (armor >= 15.0f) 16 else 0
+        val f2 = kotlin.math.min(epf.toFloat(), 20.0f)
+        damage *= (1.0f - f2 / 25.0f)
+        
+        return kotlin.math.max(0f, damage)
     }
 
     override fun onTick(client: Minecraft) {
@@ -239,13 +303,16 @@ object CrystalAura : Module(
                                 
                                 if (!isBuiltObsidian && (!autoObsidian.value || !isReplaceable || !hasObsidian)) continue
 
-                                val crystalBox = net.minecraft.world.phys.AABB(pos.x.toDouble(), pos.y + 1.0, pos.z.toDouble(), pos.x + 1.0, pos.y + 3.0, pos.z + 1.0)
-                                if (level.getEntities(null, crystalBox).isNotEmpty()) continue
+                                val crystalBox = net.minecraft.world.phys.AABB(pos.x.toDouble(), pos.y + 1.0, pos.z.toDouble(), pos.x + 1.0, pos.y + 3.0, pos.z + 1.0).inflate(0.01)
+                                val expandedTargetBox = bestTarget.boundingBox.inflate(0.1)
+                                if (crystalBox.intersects(expandedTargetBox) || crystalBox.intersects(player.boundingBox)) continue
+                                if (level.getEntities(null, crystalBox).any { !it.isSpectator }) continue
                                 
                                 var supportVec: net.minecraft.world.phys.Vec3? = null
                                 if (!isBuiltObsidian) {
-                                    val obsBox = net.minecraft.world.phys.AABB(pos)
-                                    if (level.getEntities(null, obsBox).isNotEmpty()) continue
+                                    val obsBox = net.minecraft.world.phys.AABB(pos).inflate(0.01)
+                                    if (obsBox.intersects(expandedTargetBox) || obsBox.intersects(player.boundingBox)) continue
+                                    if (level.getEntities(null, obsBox).any { !it.isSpectator }) continue
                                     
                                     val dirs = arrayOf(net.minecraft.core.Direction.DOWN, net.minecraft.core.Direction.UP, net.minecraft.core.Direction.NORTH, net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.WEST, net.minecraft.core.Direction.EAST)
                                     for (dir in dirs) {
@@ -259,10 +326,10 @@ object CrystalAura : Module(
                                 }
                                 if (!isBuiltObsidian && supportVec == null) continue
 
-                                val selfDmg = getDamage(crystalPosVec, player)
+                                val selfDmg = getDamage(crystalPosVec, player, pos)
                                 if (antiSuicide.value && selfDmg >= maxSelfDamage.value) continue
                                 
-                                var enemyDmg = getDamage(crystalPosVec, bestTarget)
+                                var enemyDmg = getDamage(crystalPosVec, bestTarget, pos)
                                 if (enemyDmg < minEfficiency.value) continue
 
                                 if (isBuiltObsidian) enemyDmg += 1000f
@@ -286,7 +353,7 @@ object CrystalAura : Module(
                     if (bestPlace != null) {
                         targetBlock = bestPlace
                         actionToTake = if (requiresObs) "OBSIDIAN" else "PLACE"
-                        lookTarget = if (requiresObs) obsTargetVec else net.minecraft.world.phys.Vec3(bestPlace.x + 0.5, bestPlace.y + 1.0, bestPlace.z + 0.5)
+                        lookTarget = if (requiresObs) obsTargetVec else net.minecraft.world.phys.Vec3(bestPlace.x + 0.5, bestPlace.y + 0.5, bestPlace.z + 0.5)
                     }
                 }
             }
@@ -306,7 +373,17 @@ object CrystalAura : Module(
             val (tYaw, tPitch) = calcRotationVec(player, lookTarget!!)
             val yawDiff = kotlin.math.abs(net.minecraft.util.Mth.wrapDegrees(tYaw - player.yRot))
             val pitchDiff = kotlin.math.abs(net.minecraft.util.Mth.wrapDegrees(tPitch - player.xRot))
+            
             readyToInteract = yawDiff < 15f && pitchDiff < 15f
+            
+            if (!isManualPlace && (actionToTake == "OBSIDIAN" || actionToTake == "PLACE")) {
+                val hitRes = client.hitResult
+                if (hitRes !is net.minecraft.world.phys.BlockHitResult || hitRes.type == net.minecraft.world.phys.HitResult.Type.MISS) {
+                    readyToInteract = false
+                } else if (targetBlock != null && hitRes.blockPos.distManhattan(targetBlock!!) > 2) {
+                    readyToInteract = false
+                }
+            }
         }
 
         if (readyToInteract) {
@@ -345,7 +422,7 @@ object CrystalAura : Module(
                     
                     if (client.hitResult is net.minecraft.world.phys.BlockHitResult && client.hitResult?.type != net.minecraft.world.phys.HitResult.Type.MISS) {
                         net.minecraft.client.KeyMapping.click(useKey)
-                        placeDelayCounter = 2
+                        placeDelayCounter = 4
                         if (manualSequenceStep == 1) manualSequenceStep = 2
                     }
                 }
