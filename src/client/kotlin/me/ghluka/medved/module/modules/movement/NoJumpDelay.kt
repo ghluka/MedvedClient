@@ -10,6 +10,7 @@ object NoJumpDelay : Module(
     category = Category.MOVEMENT,
 ) {
     override fun onTick(client: Minecraft) {
+        if (client.player == null) return
         (client.player as LivingEntityAccessor).setNoJumpDelay(0)
     }
 }
