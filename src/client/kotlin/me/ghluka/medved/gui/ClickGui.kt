@@ -39,6 +39,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
         var cfgPanelCollapsed = true
         var sidebarPaneX = -1
         var sidebarPaneY = -1
+        private var defaultPositions = mapOf<Module.Category, Pair<Int, Int>>()
+        private var defaultCfgPanelY = -1
+        var dropdownScroll = 0
 
         fun resetPositions() {
             val mc = net.minecraft.client.Minecraft.getInstance()
@@ -63,8 +66,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 positions[cat] = Pair(x, y)
                 x += pnlW + gap
             }
+            defaultPositions = positions.toMap()
             if (x + pnlW > w - margin) { x = margin; y += hdrH + gap }
             cfgPanelX = x; cfgPanelY = y; cfgPanelCollapsed = true
+            defaultCfgPanelY = y
+            dropdownScroll = 0
             NotificationManager.show("Layout Reset")
         }
     }
@@ -195,6 +201,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
             renderOrder.add(null) // null = CONFIGS panel
         }
         if (null !in renderOrder) renderOrder.add(null)
+        
+        dropdownScroll = 0
+        
         scrollTimes.clear()
         presetField.text = presetNameBuffer
         presetField.end(false)
@@ -206,6 +215,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun extractBackground(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
         hoveredMod = null
         if (ClickGui.currentMode.value == ClickGui.Mode.DROPDOWN) {
+            if (draggingCat == null && !draggingCfgPanel) constrainDropdownScroll()
             if (ClickGui.showBackground.value) g.fill(0, 0, width, height, BG)
             for (cat in renderOrder) {
                 if (cat == null) drawConfigBar(g, mx, my)
@@ -235,7 +245,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     private fun drawConfigBar(g: GuiGraphicsExtractor, mx: Int, my: Int) {
-        val px = cfgPanelX; val py = cfgPanelY
+        val px = cfgPanelX; val py = cfgPanelY - dropdownScroll
         val expanded = !cfgPanelCollapsed
         if (expanded) {
             g.roundedFill(px, py, PNL_W, HDR_H, 3, HDR_BG, CORNERS_TOP)
@@ -375,7 +385,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     private fun drawCategoryPanel(g: GuiGraphicsExtractor, cat: Module.Category, mx: Int, my: Int) {
-        val (px, py) = positions[cat] ?: return
+        val pos = positions[cat] ?: return
+        val px = pos.first
+        val py = pos.second - dropdownScroll
         val expanded = cat !in collapsed
         val panelH   = if (expanded) fullPanelHeight(cat) else HDR_H
 
@@ -951,6 +963,30 @@ class ClickGui : Screen(Component.literal("Medved")) {
         return (maxLabel + 16).coerceAtMost(PNL_W - 10)
     }
 
+    private fun constrainDropdownScroll() {
+        if (ClickGui.currentMode.value != ClickGui.Mode.DROPDOWN) return
+        var maxExpandedY = 0
+        for (cat in Module.Category.entries) {
+            val py = positions[cat]?.second ?: continue
+            val h = if (cat in collapsed) HDR_H else fullPanelHeight(cat)
+            val unscrolledBottomY = py + h
+            if (unscrolledBottomY > maxExpandedY) maxExpandedY = unscrolledBottomY
+        }
+        val cfgH = if (cfgPanelCollapsed) HDR_H else HDR_H + cfgPanelBodyH()
+        val cfgUnscrolledBottomY = cfgPanelY + cfgH
+        if (cfgUnscrolledBottomY > maxExpandedY) maxExpandedY = cfgUnscrolledBottomY
+        
+        val viewHeight = height - 50
+        val maxScrollOffset = Math.max(0, maxExpandedY - viewHeight)
+        
+        if (dropdownScroll > maxScrollOffset) {
+            dropdownScroll = maxScrollOffset
+        }
+        if (dropdownScroll < 0) {
+            dropdownScroll = 0
+        }
+    }
+
     override fun mouseClicked(event: MouseButtonEvent, inBounds: Boolean): Boolean {
         val mx = event.x().toInt(); val my = event.y().toInt(); val btn = event.button()
 
@@ -976,7 +1012,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         // Config panel (floating mode only)
         if (ClickGui.currentMode.value != ClickGui.Mode.SIDEBAR) {
             if (presetFieldActive) presetFieldActive = false
-            val px = cfgPanelX; val py = cfgPanelY
+            val px = cfgPanelX; val py = cfgPanelY - dropdownScroll
             val expanded = !cfgPanelCollapsed
 
             // Header click
@@ -1238,7 +1274,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
         }
 
         for (cat in renderOrder.asReversed()) {
-            val (px, py) = positions[cat] ?: continue
+            val pos = positions[cat] ?: continue
+            val px = pos.first
+            val py = pos.second - dropdownScroll
             val expanded = cat!! !in collapsed
 
             if (my in py until py + HDR_H && mx in px until px + PNL_W) {
@@ -1366,6 +1404,30 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     sidebarScroll = (sidebarScroll - scrollY * 32f).coerceIn(0.0, sidebarScrollMax.toDouble()).toFloat()
                     return true
                 }
+            }
+        } else {
+            val scrollAmount = (scrollY * 24).toInt()
+            
+            var maxExpandedY = 0
+            for (cat in Module.Category.entries) {
+                val py = positions[cat]?.second ?: continue
+                val h = if (cat in collapsed) HDR_H else fullPanelHeight(cat)
+                val unscrolledBottomY = py + h
+                if (unscrolledBottomY > maxExpandedY) maxExpandedY = unscrolledBottomY
+            }
+            val cfgH = if (cfgPanelCollapsed) HDR_H else HDR_H + cfgPanelBodyH()
+            val cfgUnscrolledBottomY = cfgPanelY + cfgH
+            if (cfgUnscrolledBottomY > maxExpandedY) maxExpandedY = cfgUnscrolledBottomY
+            
+            val viewHeight = height - 50
+            val maxScrollOffset = Math.max(0, maxExpandedY - viewHeight)
+            
+            val potentialNewScroll = dropdownScroll - scrollAmount
+            val newScroll = potentialNewScroll.coerceIn(0, maxScrollOffset)
+            
+            if (newScroll != dropdownScroll) {
+                dropdownScroll = newScroll
+                return true
             }
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
@@ -1608,11 +1670,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
         }
         if (draggingCfgPanel) {
             cfgPanelX = event.x().toInt() - cfgDragOffX
-            cfgPanelY = event.y().toInt() - cfgDragOffY
+            cfgPanelY = event.y().toInt() - cfgDragOffY + dropdownScroll
             return true
         }
         val cat = draggingCat ?: return super.mouseDragged(event, dragX, dragY)
-        positions[cat] = Pair(event.x().toInt() - dragOffX, event.y().toInt() - dragOffY)
+        positions[cat] = Pair(event.x().toInt() - dragOffX, event.y().toInt() - dragOffY + dropdownScroll)
         return true
     }
 
@@ -1623,6 +1685,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         draggingSidebar = false
         draggingPresetField = false
         draggingStringEntry = false
+        constrainDropdownScroll()
         return super.mouseReleased(event)
     }
 
