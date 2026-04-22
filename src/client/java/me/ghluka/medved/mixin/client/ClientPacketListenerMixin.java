@@ -7,12 +7,7 @@ import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
-import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
-import net.minecraft.network.protocol.game.ClientboundPlayerCombatKillPacket;
-import net.minecraft.network.protocol.game.ClientboundPlayerRotationPacket;
-import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
-import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.network.protocol.game.*;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -20,6 +15,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.Optional;
 
 @Mixin(ClientPacketListener.class)
 public class ClientPacketListenerMixin {
@@ -129,4 +126,36 @@ public class ClientPacketListenerMixin {
             Velocity.INSTANCE.startPacketDelay();
         }
     }
+
+    @Inject(method = "handleExplosion", at = @At("RETURN"), cancellable = true)
+    private void medved$onExplode(ClientboundExplodePacket packet, CallbackInfo ci) {
+        if (!Velocity.INSTANCE.isEnabled()) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null) return;
+
+        Optional<Vec3> knockback = packet.playerKnockback();
+        if (knockback.isEmpty()) return;
+
+        Vec3 motion = knockback.get();
+        double mx = motion.x;
+        double my = motion.y;
+        double mz = motion.z;
+
+        Velocity.Mode mode = Velocity.INSTANCE.getMode().getValue();
+        if (mode == Velocity.Mode.REDUCE) {
+            float factorXZ = 1f - (Velocity.INSTANCE.getReducePercent().getValue() / 100f);
+            float factorY  = 1f - (Velocity.INSTANCE.getReduceYPercent().getValue() / 100f);
+            player.setDeltaMovement(player.getDeltaMovement().subtract(motion).add(mx * factorXZ, my * factorY, mz * factorXZ));
+        } else if (mode == Velocity.Mode.CANCEL) {
+            player.setDeltaMovement(player.getDeltaMovement().subtract(motion));
+        } else if (mode == Velocity.Mode.REVERSE) {
+            float factor = Velocity.INSTANCE.getReversePercent().getValue() / 100f;
+            player.setDeltaMovement(player.getDeltaMovement().subtract(motion).add(-mx * factor, my, -mz * factor));
+        }
+        // we wont jump reset because it might affect in games like bedwars with tnt jumps or fireball jumps
+    }
+
+
+
 }
