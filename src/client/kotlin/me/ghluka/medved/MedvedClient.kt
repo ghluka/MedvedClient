@@ -3,6 +3,8 @@ package me.ghluka.medved
 import me.ghluka.medved.alt.AltManager
 import me.ghluka.medved.config.ConfigManager
 import me.ghluka.medved.module.ModuleManager
+import me.ghluka.medved.module.modules.anarchy.CrystalAura
+import me.ghluka.medved.module.modules.anarchy.KillAura
 import me.ghluka.medved.module.modules.combat.*
 import me.ghluka.medved.module.modules.player.*
 import me.ghluka.medved.module.modules.hud.*
@@ -28,7 +30,7 @@ object MedvedClient : ClientModInitializer {
         AltManager.init(gameDir.resolve("config/medved"))
 
         // combat
-        ModuleManager.register(KillAura)
+        ModuleManager.register(SilentAura)
         ModuleManager.register(TriggerBot)
         ModuleManager.register(AimAssist)
         ModuleManager.register(LeftClicker)
@@ -46,6 +48,9 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Criticals)
         ModuleManager.register(AutoRod)
         ModuleManager.register(HitSwap)
+        ModuleManager.register(AutoCrystal)
+        // anarchy
+        ModuleManager.register(KillAura)
         ModuleManager.register(CrystalAura)
         // movement
         ModuleManager.register(Sprint)

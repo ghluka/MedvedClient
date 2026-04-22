@@ -8,7 +8,6 @@ import me.ghluka.medved.util.RotationManager
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
-import net.minecraft.core.component.DataComponentType
 import net.minecraft.core.component.DataComponents.BLOCKS_ATTACKS
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
@@ -21,41 +20,31 @@ import kotlin.math.atan2
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-object KillAura : Module(
-    name = "Kill Aura",
+object SilentAura : Module(
+    name = "Silent Aura",
     description = "Silently aims and attacks enemies when they enter your range",
     category = Category.COMBAT
 ) {
     enum class Mode {
-        CPS, SEQUENTIAL, APS
+        CPS, SEQUENTIAL
     }
 
     enum class TargetMode {
-        SINGLE, SWITCH, MULTI
+        SINGLE, SWITCH
     }
 
     private val mode = enum("mode", Mode.CPS)
     private val targetMode = enum("targeting", TargetMode.SWITCH)
 
     private val range       = float("range", 4.0f, 1.0f, 8.0f)
-    private val fov         = float("fov", 180.0f, 10.0f, 360.0f).also {
-        it.visibleWhen = { mode.value != Mode.APS }
-    }
+    private val fov         = float("fov", 180.0f, 10.0f, 360.0f)
     private val cps         = floatRange("cps", 10.0f to 13.0f, 1.0f, 20.0f).also {
         it.visibleWhen = { mode.value == Mode.CPS }
     }
     private val extraDelay  = intRange("extra delay", 0 to 2, -5, 5).also {
         it.visibleWhen = { mode.value == Mode.SEQUENTIAL }
     }
-    private val aps         = int("abs", 40, 1, 40).also {
-        it.visibleWhen = { mode.value == Mode.APS }
-    }
-    private val apsRotate   = boolean("aps rotate", false).also {
-        it.visibleWhen = { mode.value == Mode.APS }
-    }
-    private val smoothSpeed = float("smoothness", 30.0f, 1.0f, 100.0f).also {
-        it.visibleWhen = { mode.value != Mode.APS }
-    }
+    private val smoothSpeed = float("smoothness", 30.0f, 1.0f, 100.0f)
     private val playersOnly = boolean("players only", true)
     private val autoBlock   = boolean("auto block", true)
     private val autoWeapon  = boolean("auto weapon", false)
@@ -152,13 +141,12 @@ object KillAura : Module(
             wasBlocking = false
         }
 
-        val isApsBlock = mode.value == Mode.APS && autoBlock.value && (isShield || isSwordBlock)
-        if (isApsBlock || (autoBlock.value && isShield)) {
+        if (autoBlock.value && isShield) {
             if (!wasBlocking) {
                 client.options.keyUse.setDown(true)
                 wasBlocking = true
             }
-        } else if (wasBlocking && !unblockNextTick && !isShield && !isApsBlock) {
+        } else if (wasBlocking && !unblockNextTick && !isShield) {
             client.options.keyUse.setDown(false)
             wasBlocking = false
         }
@@ -177,20 +165,6 @@ object KillAura : Module(
                     performNormalAttack(client, isShield, isSwordBlock)
                     val (lo, hi) = extraDelay.value
                     seqDelayTicks = if (hi > lo) (lo..hi).random() else lo
-                }
-            }
-            Mode.APS -> {
-                accumulator += aps.value / 20.0f
-                while (accumulator >= 1.0f) {
-                    accumulator -= 1.0f
-                    if (targetMode.value == TargetMode.MULTI) {
-                        for (c in candidates) {
-                            client.gameMode?.attack(player, c)
-                        }
-                    } else {
-                        client.gameMode?.attack(player, target!!)
-                    }
-                    player.swing(InteractionHand.MAIN_HAND)
                 }
             }
         }
@@ -224,13 +198,6 @@ object KillAura : Module(
         val player = Minecraft.getInstance().player ?: return
         val currentTarget = target ?: return
 
-        if (mode.value == Mode.APS && !apsRotate.value) {
-            if (!me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld) {
-                RotationManager.clearRotation()
-            }
-            return
-        }
-
         if (Scaffold.isEnabled() ||
             me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld ||
             (me.ghluka.medved.module.modules.world.BedBreaker.isEnabled() && me.ghluka.medved.module.modules.world.BedBreaker.pendingHitPos != null) ||
@@ -245,18 +212,12 @@ object KillAura : Module(
         val pitchJitter = (kotlin.math.sin(time / 150.0) * 1.5).toFloat()
         val targetPitch = baseTargetPitch + pitchJitter
 
-        if (mode.value == Mode.APS) {
-            RotationManager.perspective = false
-            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
-            RotationManager.rotationMode  = RotationManager.RotationMode.SERVER
-        } else {
-            RotationManager.perspective = true
-            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
-            RotationManager.rotationMode  = RotationManager.RotationMode.CLIENT
-        }
+        RotationManager.perspective = true
+        RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+        RotationManager.rotationMode  = RotationManager.RotationMode.CLIENT
 
         RotationManager.setTargetRotation(targetYaw, targetPitch)
-        RotationManager.quickTick(if (mode.value == Mode.APS) 200f else smoothSpeed.value)
+        RotationManager.quickTick(smoothSpeed.value)
     }
 
     private fun calcRotation(player: Player, t: LivingEntity): Pair<Float, Float> {
@@ -298,7 +259,6 @@ object KillAura : Module(
                 if (hi > lo) "%.1f-%.1f cps".format(lo, hi) else "%.1f cps".format(lo)
             }
             Mode.SEQUENTIAL -> "sequential"
-            Mode.APS -> "${aps.value} aps"
         }
     }
 }

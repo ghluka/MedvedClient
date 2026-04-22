@@ -8,12 +8,10 @@ import net.minecraft.client.Minecraft
 import net.minecraft.tags.ItemTags
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
-import kotlin.math.atan2
-import kotlin.math.sqrt
 
-object CrystalAura : Module(
-    name = "Crystal Aura",
-    description = "Automatically places end crystals on obsidian and detonates them to deal damage to nearby targets.",
+object AutoCrystal : Module(
+    name = "Auto Crystal",
+    description = "Automatically places end crystals on obsidian and detonates them to deal damage to nearby targets",
     category = Category.COMBAT
 ) {
     enum class Mode {
@@ -28,7 +26,7 @@ object CrystalAura : Module(
         NONE, RAPID_FIRE, PREDICT
     }
 
-    private val mode = enum("mode", Mode.AUTO)
+    private val mode = enum("mode", Mode.MANUAL)
     private val targetMode = enum("target mode", TargetMode.DISTANCE).also {
         it.visibleWhen = { mode.value == Mode.AUTO }
     }

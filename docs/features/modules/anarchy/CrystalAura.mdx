@@ -1,0 +1,49 @@
+---
+sidebar_position: 20
+---
+
+# Crystal Aura
+
+Automatically places end crystals on obsidian and detonates them to deal damage to nearby targets.
+
+---
+
+### Target Mode
+
+Determines how the module prioritizes target selection when multiple targets are available.
+
+- **Distance**: Prioritizes the closest targets.
+- **Yaw**: Prioritizes targets requiring minimal view angle adjustment.
+- **Armor**: Prioritizes targets with weaker armor.
+- **Threat**: Prioritizes the most dangerous targets based on their weapon and health level.
+- **Health**: Prioritizes targets with the lowest health.
+
+### Range
+
+The maximum distance to check for valid targets.
+
+### Anti-Suicide
+
+Prevents placing or detonating crystals if it would result in fatal self damage.
+
+- **Max Self Damage**: The maximum amount of self-damage allowed per crystal detonation.
+
+### Crystal Optimization
+
+Controls how crystals are evaluated for efficiency.
+
+- **None**: Standard calculation.
+- **Rapid fire**: Will quickly attempt sequence looping if efficiency thresholds are met.
+- **Predict**: Predicts target movement to calculate theoretical maximum damage ahead.
+
+### Crystal Min Efficiency
+
+The minimum damage output required before placing or detonating a crystal.
+
+### Auto Obsidian
+
+Automatically places obsidian logic blocks downwards to create placement surfaces if necessary.
+
+### Only Players
+
+When enabled, limits targets to only human entities. Disable to target hostile, passive, or allied mobs.

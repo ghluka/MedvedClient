@@ -1,0 +1,8 @@
+{
+  "label": "Anarchy",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Modules designed to provide an fair advantage on Anarchy servers or an unfair advantage on vanilla servers with no anticheat."
+  }
+}

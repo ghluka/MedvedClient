@@ -1,6 +1,6 @@
 {
   "label": "Player",
-  "position": 4,
+  "position": 5,
   "link": {
     "type": "generated-index",
     "description": "Player modules designed to affect your gameplay, usually by altering your connection to the server such as fake lag."
