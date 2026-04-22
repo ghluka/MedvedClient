@@ -13,7 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Entity.class)
 public class EntityMixin implements CameraOverriddenEntity {
-
     @Unique
     private float cameraPitch;
 

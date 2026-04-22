@@ -58,6 +58,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Flight)
         ModuleManager.register(Timer)
         ModuleManager.register(NoFall)
+        ModuleManager.register(NoJumpDelay)
         // render
         // player
         ModuleManager.register(FakeLag)

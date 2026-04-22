@@ -1,12 +1,10 @@
 package me.ghluka.medved.util
 
-import me.ghluka.medved.mixin.client.CameraMixin
+import me.ghluka.medved.mixin.client.LocalPlayerAccessor
 import me.ghluka.medved.module.modules.other.Rotations
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.util.Mth
-import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
 
@@ -378,7 +376,7 @@ object RotationManager {
                 }
             }
 
-            val acc = player as me.ghluka.medved.mixin.client.LocalPlayerAccessor
+            val acc = player as LocalPlayerAccessor
             val dx = player.x - acc.xLast
             val dz = player.z - acc.zLast
             if (dx * dx + dz * dz > 1e-10) {
@@ -393,7 +391,7 @@ object RotationManager {
         }
 
         if (freezeMovement) {
-            val acc2 = player as me.ghluka.medved.mixin.client.LocalPlayerAccessor
+            val acc2 = player as LocalPlayerAccessor
             val rdx = player.x - acc2.xLast
             val rdz = player.z - acc2.zLast
             if (rdx * rdx + rdz * rdz > 1e-10) {
