@@ -15,10 +15,14 @@ object Font : Module("Font", "Customize the font used in GUI and HUD elements", 
     init { enabled.value = true }
 
     enum class FontChoice(val namespace: String, val path: String) {
-        MINECRAFT("minecraft", "default"),
-        UNIFORM("minecraft", "uniform"),
+        MINECRAFT("medved", "minecraft"),
+        ARIAL("medved", "arial"),
+        SAN_FRANCISCO("medved", "sanfrancisco"),
         MONTSERRAT("medved", "montserrat"),
-        JETBRAINS_MONO("medved", "jetbrains_mono")
+        JETBRAINS_MONO("medved", "jetbrains_mono"),
+        COMIC_RELIEF("medved", "comic_relief"),
+        IMPACT("medved", "impact"),
+        UNIFORM("minecraft", "uniform"),
     }
 
     val fontChoice = enum("font", FontChoice.MONTSERRAT)

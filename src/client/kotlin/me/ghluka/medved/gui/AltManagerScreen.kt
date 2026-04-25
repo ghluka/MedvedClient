@@ -463,10 +463,8 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             hovered           -> BTN_HOV
             else              -> BTN_BG
         }
-        val border    = if (danger && hovered) argb(255, 200, 60, 60) else ACCENT
         val textColor = if (danger) argb(255, 220, 120, 120) else argb(255, 215, 215, 228)
         g.fill(x, y, x + w, y + h, bg)
-        g.fill(x, y, x + 1,  y + h, border)
         g.centeredText(FONT, labelComp ?: styled(label), x + w / 2, y + (h - 8) / 2, textColor)
     }
 

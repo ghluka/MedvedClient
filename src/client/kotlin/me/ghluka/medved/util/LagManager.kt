@@ -27,6 +27,7 @@ object LagManager {
 
     fun shouldBufferOutgoing(): Boolean {
         if (flushingOutgoing) return false
+        if (Minecraft.getInstance().level == null) return false
 
         val blink = Blink.enabled.value && Blink.holding
         val fakeLag = FakeLag.enabled.value && FakeLag.isCurrentlyLagging
@@ -43,6 +44,7 @@ object LagManager {
 
     fun shouldBufferIncoming(): Boolean {
         if (flushingIncoming) return false
+        if (Minecraft.getInstance().level == null) return false
 
         val knockback = KnockbackDelay.enabled.value && KnockbackDelay.isHolding()
         val backtrackLag = Backtrack.enabled.value && Backtrack.mode.value == Backtrack.Mode.LAG && Backtrack.lagActive
