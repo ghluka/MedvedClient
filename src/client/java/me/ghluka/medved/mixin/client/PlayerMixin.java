@@ -7,6 +7,7 @@ import me.ghluka.medved.module.modules.combat.NoHitDelay;
 import me.ghluka.medved.module.modules.combat.Reach;
 import me.ghluka.medved.module.modules.movement.NoSlow;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -19,7 +20,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Player.class)
 public class PlayerMixin {
-
     @Inject(method = "attack", at = @At("HEAD"))
     private void medved$onAttack(Entity target, CallbackInfo ci) {
         if ((Object) this instanceof LocalPlayer) {
@@ -36,6 +36,13 @@ public class PlayerMixin {
     private void medved$noAttackCooldown(float adjustTicks, CallbackInfoReturnable<Float> cir) {
         if (NoHitDelay.INSTANCE.isEnabled() || KnockbackDisplacement.INSTANCE.isEnabled()) {
             cir.setReturnValue(1.0f);
+        }
+    }
+    
+    @Inject(method = "getItemSwapScale", at = @At("HEAD"), cancellable = true)
+    private void removeSwapCooldown(float adjustTicks, CallbackInfoReturnable<Float> cir) {
+        if (NoHitDelay.INSTANCE.isEnabled()) {
+            cir.setReturnValue(1.0F);
         }
     }
 

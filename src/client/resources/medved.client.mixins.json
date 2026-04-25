@@ -3,11 +3,12 @@
 	"package": "me.ghluka.medved.mixin.client",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"CameraMixin",
 		"ClientPacketListenerMixin",
 		"ConnectionMixin",
 		"DeltaTrackerMixin",
 		"EntityMixin",
-		"CameraMixin",
+		"ItemCooldownsMixin",
 		"JoinMultiplayerScreenMixin",
 		"KeyboardInputMixin",
 		"LivingEntityAccessor",

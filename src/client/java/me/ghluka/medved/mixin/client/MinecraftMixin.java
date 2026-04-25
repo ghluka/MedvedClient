@@ -1,9 +1,13 @@
 package me.ghluka.medved.mixin.client;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import me.ghluka.medved.module.modules.combat.NoHitDelay;
 import me.ghluka.medved.module.modules.combat.Reach;
 import me.ghluka.medved.module.modules.world.BedBreaker;
 import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,10 +22,11 @@ import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(Minecraft.class)
+@Mixin(value = Minecraft.class, priority = 2000)
 public class MinecraftMixin {
 
     @Mutable @Shadow public HitResult hitResult;
@@ -89,5 +94,22 @@ public class MinecraftMixin {
             if (dot > bestDot) { bestDot = dot; best = e; }
         }
         if (best != null) this.hitResult = new EntityHitResult(best);
+    }
+
+    @Shadow
+    protected int missTime;
+
+    @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Minecraft;handleKeybinds()V"))
+    private void moveCooldownIncrement(CallbackInfo ci) {
+        if (NoHitDelay.INSTANCE.isEnabled()) {
+            if (this.missTime > 0) {
+                --this.missTime;
+            }
+        }
+    }
+
+    @WrapOperation(method = "startAttack", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;hasMissTime()Z", ordinal = 1))
+    private boolean removeHitPenalty(MultiPlayerGameMode instance, Operation<Boolean> original) {
+        return !NoHitDelay.INSTANCE.isEnabled() && original.call(instance);
     }
 }
