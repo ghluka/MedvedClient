@@ -85,7 +85,7 @@ object ConfigManager {
     }
 
     fun savePreset(name: String) {
-        val sanitized = name.trim().replace(Regex("[^a-zA-Z0-9_\\-]"), "_").take(64).ifBlank { "default" }
+        val sanitized = name.trim().replace(Regex("[</*?\"\\\\>:|]+"), "_").take(64).ifBlank { "default" }
         Files.createDirectories(presetDir)
         val root = JsonObject()
         configs.forEach { root.add(it.name, it.serialize()) }

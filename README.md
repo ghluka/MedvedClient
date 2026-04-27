@@ -1,10 +1,10 @@
-# :bear: Medved Client
+# :bear: Grizzly Client
 
 [![GitHub License](https://img.shields.io/github/license/ghluka/MedvedClient)](https://github.com/ghluka/MedvedClient/blob/main/LICENSE.md)
 [![Total Downloads](https://img.shields.io/github/downloads/ghluka/MedvedClient/total)](https://github.com/ghluka/MedvedClient/releases/latest)
 
 > [!IMPORTANT]  
-> This is the nextgen version of Medved, for latest Fabric.
+> This is the nextgen version of Grizzly client, for latest Fabric.
 > 
 > Go to [Camel Client](https://github.com/ghluka/CamelClient/tree/main) for the Forge 1.8.9 version.
 
@@ -14,10 +14,8 @@ A quality-of-life utility mod for the latest version of Minecraft on Fabric.
 
 ## :gear: Installation
 
-You can get the latest official build from the [latest release](https://github.com/ghluka/MedvedClient/releases/latest).
-
-Alternatively, you can get the latest artifact by going to the [build workflows](https://github.com/ghluka/MedvedClient/actions/workflows/build.yml), going to the latest build, scrolling to the artifacts and downloading it!
+View the [installation guide](https://ghluka.github.io/MedvedClient/intro/installation), now moved to our documentation site.
 
 ## :scroll: Modules
 
-Visit our [documentation](https://ghluka.github.io/MedvedClient) for a comprehensive list of all the modules and their configuration!
+Visit our [documentation](https://ghluka.github.io/MedvedClient/category/modules) for a comprehensive list of all the modules and their configuration options!

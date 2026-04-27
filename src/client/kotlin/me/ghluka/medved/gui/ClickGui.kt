@@ -488,7 +488,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         g.roundedFill(px, py, pw, ph, 4, PNL_BG)
 
         g.fill(px, py, px + pw, py + logoH, shade(20, 0.15f))
-        g.centeredText(smallFont, styled("MEDVED"), px + pw / 2, py + (logoH - 8) / 2, TEXT_DIM)
+        g.centeredText(smallFont, styled("GRIZZLY"), px + pw / 2, py + (logoH - 8) / 2, TEXT_DIM)
 
         val tabW = pw / 2
         val tabs = listOf("Modules", "Config")
@@ -1554,7 +1554,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 ctrl && key == GLFW.GLFW_KEY_C -> { val s = f.copy(); if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
                 ctrl && key == GLFW.GLFW_KEY_X -> { val s = f.cut();  if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
                 ctrl && key == GLFW.GLFW_KEY_V -> {
-                    val clip = (minecraft.keyboardHandler.clipboard ?: "").replace(Regex("[^a-zA-Z0-9_\\- .]"), "_")
+                    val clip = (minecraft.keyboardHandler.clipboard ?: "").replace(Regex("[</*?\"\\\\>:|]+"), "_")
                     f.insert(clip)
                 }
                 key == GLFW.GLFW_KEY_BACKSPACE -> if (ctrl) f.backspaceWord() else f.backspace()
@@ -1612,7 +1612,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun charTyped(event: CharacterEvent): Boolean {
         if (presetFieldActive) {
             val ch = event.codepointAsString()
-            if (ch.matches(Regex("[a-zA-Z0-9_\\- .]"))) {
+            if (ch.matches(Regex("[^</*?\"\\\\>:|]+"))) {
                 presetField.insert(ch)
                 presetField.clampScroll(PNL_W - 10)
                 presetNameBuffer = presetField.text
