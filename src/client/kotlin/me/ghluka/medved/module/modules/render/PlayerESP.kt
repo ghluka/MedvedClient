@@ -25,10 +25,10 @@ object PlayerESP : Module(
     description = "Highlights nearby players",
     category = Category.RENDER
 ) {
-    enum class ColorMode { THEME, TEAM, HEALTH, STATIC }
+    enum class ColorMode { TEAM, HEALTH, STATIC }
     enum class RenderMode { BOX, CORNERS }
 
-    private val colorMode  = enum("color mode", ColorMode.THEME)
+    private val colorMode  = enum("color mode", ColorMode.TEAM)
     private val renderMode = enum("render mode", RenderMode.BOX)
 
     private val staticColor = color("color", Color(255, 80, 80), allowAlpha = false).also {
@@ -111,8 +111,6 @@ object PlayerESP : Module(
 
     private fun resolveColor(viewer: Player, target: Player): Color? {
         return when (colorMode.value) {
-            ColorMode.THEME -> Colour.accent.value
-
             ColorMode.STATIC -> Color(staticColor.value.r, staticColor.value.g, staticColor.value.b)
 
             ColorMode.HEALTH -> {

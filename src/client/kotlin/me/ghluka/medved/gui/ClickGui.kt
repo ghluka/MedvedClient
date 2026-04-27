@@ -39,6 +39,10 @@ class ClickGui : Screen(Component.literal("Medved")) {
         var cfgPanelCollapsed = true
         var sidebarPaneX = -1
         var sidebarPaneY = -1
+        var colorPickerX = 0
+        var colorPickerY = 0
+        var colorPickerW = 0
+        var colorPickerH = 0
         private var defaultPositions = mapOf<Module.Category, Pair<Int, Int>>()
         private var defaultCfgPanelY = -1
         var dropdownScroll = 0
@@ -96,6 +100,12 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private var dragOffY = 0
     private var hoveredMod: Module? = null
     private var draggingSlider: SliderDrag? = null
+    private var editingColorEntry: ColorEntry? = null
+    private var editingColorChannel: Int? = null
+    private var editingColorHex = false
+    private var colorPickerMode = ColorPickerMode.CUSTOM
+    private var colorPickerModeExpanded = false
+    private var colorPickerCustomValue: Color? = null
     private var presetFieldActive = false
     private val presetField = TextField()
     private var draggingCfgPanel = false
@@ -109,11 +119,19 @@ class ClickGui : Screen(Component.literal("Medved")) {
     private var enumDropdownW = 0
 
     /** Tracks an active slider drag (numeric entry or color channel). */
+    enum class ColorPickerMode { CUSTOM, THEME }
+
     private sealed interface SliderDrag {
         val barX: Int
         val barW: Int
         data class Numeric(val entry: ConfigEntry<*>, override val barX: Int, override val barW: Int) : SliderDrag
         data class ColorChannel(val entry: ColorEntry, val channel: Int, override val barX: Int, override val barW: Int) : SliderDrag
+        data class ColorMap(val entry: ColorEntry, val mapX: Int, val mapY: Int, val mapW: Int, val mapH: Int) : SliderDrag {
+            override val barX: Int get() = mapX
+            override val barW: Int get() = mapW
+        }
+        data class ColorHue(val entry: ColorEntry, override val barX: Int, override val barW: Int, val barY: Int, val barH: Int) : SliderDrag
+        data class ColorAlpha(val entry: ColorEntry, override val barX: Int, override val barW: Int, val barY: Int, val barH: Int) : SliderDrag
         data class Range(val entry: IntRangeEntry, val isHigh: Boolean, override val barX: Int, override val barW: Int) : SliderDrag
         data class FloatRange(val entry: FloatRangeEntry, val isHigh: Boolean, override val barX: Int, override val barW: Int) : SliderDrag
     }
@@ -229,9 +247,14 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (enumExp != null) {
             drawEnumDropdown(g, enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)
         }
+        val colorExp = expandedColorEntry
+        if (colorExp != null) {
+            drawColorPicker(g, colorExp, colorPickerX, colorPickerY, colorPickerW, mx, my)
+        }
         val hov = hoveredMod
         if (hov != null && ClickGui.showDescriptions.value && hov.description.isNotBlank() &&
-            ClickGui.currentMode.value == ClickGui.Mode.DROPDOWN) {
+            ClickGui.currentMode.value == ClickGui.Mode.DROPDOWN &&
+            expandedEnum == null && expandedColorEntry == null) {
             drawTooltip(g, hov.description, mx, my)
         }
     }
@@ -454,8 +477,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
                         y += ENT_H
                     }
                     if (entry == expandedColorEntry && entry is ColorEntry) {
-                        drawColorPicker(g, entry, px + 6, y, PNL_W - 6)
-                        y += colorChannelCount(entry) * ENT_H
+                        colorPickerX = px + 6
+                        colorPickerY = y + ENT_H
+                        colorPickerW = PNL_W - 6
                     }
                     if (entry == expandedEnum && entry is EnumEntry<*>) {
                         val ew = enumDropdownWidth(entry)
@@ -555,7 +579,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     entriesH += ENT_H
                     if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += ENT_H
                     if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += ENT_H
-                    if (entry == expandedColorEntry && entry is ColorEntry) entriesH += colorChannelCount(entry) * ENT_H
+                    if (entry == expandedColorEntry && entry is ColorEntry) {
+                    // overlay picker does not reserve inline height
+                }
                 }
                 sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
                 if (sidebarConfigScroll > sidebarConfigScrollMax) sidebarConfigScroll = sidebarConfigScrollMax
@@ -610,8 +636,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
                         if (entry is IntRangeEntry) { drawRangeSliders(g, entry, bodyX + 6, entryY, bodyW - 8); entryY += ENT_H }
                         if (entry is FloatRangeEntry) { drawFloatRangeSliders(g, entry, bodyX + 6, entryY, bodyW - 8); entryY += ENT_H }
                         if (entry == expandedColorEntry && entry is ColorEntry) {
-                            drawColorPicker(g, entry, bodyX + 6, entryY, bodyW - 8)
-                            entryY += colorChannelCount(entry) * ENT_H
+                            drawColorPicker(g, entry, bodyX + 6, entryY, bodyW - 8, mx, my)
+                            entryY += colorPickerH
                         }
                         if (entry == expandedEnum && entry is EnumEntry<*>) {
                             val ew = enumDropdownWidth(entry)
@@ -745,7 +771,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     if (e is IntRangeEntry || e is FloatRangeEntry || e is IntEntry || e is FloatEntry || e is DoubleEntry) h += ENT_H
                 }
                 val colorExp = entries.firstOrNull { it == expandedColorEntry } as? ColorEntry
-                if (colorExp != null) h += colorChannelCount(colorExp) * ENT_H
+                if (colorExp != null) {
+                    // overlay picker does not reserve inline height
+                }
                 val enumExp = entries.firstOrNull { it == expandedEnum } as? EnumEntry<*>
             }
         }
@@ -920,24 +948,194 @@ class ClickGui : Screen(Component.literal("Medved")) {
         }
     }
 
-    private fun drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry, x: Int, y: Int, w: Int) {
+    private fun drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry, x: Int, y: Int, w: Int, mx: Int, my: Int) {
         val col = entry.value
-        val channels = mutableListOf(
-            Triple("R", col.r, argb(255, 190,  60,  60)),
-            Triple("G", col.g, argb(255,  60, 190,  60)),
-            Triple("B", col.b, argb(255,  60, 100, 200)),
-        )
-        if (entry.allowAlpha) channels.add(Triple("A", col.a, TEXT_DIM))
-        channels.forEachIndexed { i, (lbl, v, fill) ->
-            val ry = y + i * ENT_H
-            g.fill(x, ry, x + w, ry + ENT_H, ENT_BG)
-            g.text(guiFont, styled(lbl), x + 2, ry + (ENT_H - 8) / 2, TEXT_DIM)
-            val bx = x + 12; val bw = w - 34
-            g.fill(bx, ry + 2, bx + bw, ry + ENT_H - 2, SLI_BG)
-            val filled = ((v / 255f) * bw).roundToInt()
-            if (filled > 0) g.fill(bx, ry + 2, bx + filled, ry + ENT_H - 2, fill)
-            g.text(guiFont, styled("$v"), bx + bw + 2, ry + (ENT_H - 8) / 2, TEXT)
+        val (hue, sat, value) = rgbToHsv(col)
+
+        val padding = 6
+        val modeH = 14
+        val mapH = 65
+        val barW = 10
+        val barGap = 4
+        val fieldH = 14
+        val fieldGap = 4
+        
+        val actualW = w.coerceAtMost(160).coerceAtLeast(135)
+        val x0 = x + (w - actualW) / 2
+        val hasAlpha = entry.allowAlpha
+        
+        val overlayH = padding + modeH + 6 + mapH + 6 + fieldH + fieldGap + fieldH + padding
+        
+        colorPickerH = overlayH
+        colorPickerX = x0
+        colorPickerY = y
+        colorPickerW = actualW
+
+        g.roundedFill(x0, y, x0 + actualW, y + overlayH, 6, PNL_BG)
+        g.fill(x0, y, x0 + actualW, y + padding + modeH + 4, shade(20, 0.12f))
+
+        val themeAllowed = supportsThemeMode(entry)
+        if (!themeAllowed && colorPickerMode == ColorPickerMode.THEME) colorPickerMode = ColorPickerMode.CUSTOM
+
+        val modeBtnW = actualW - padding * 2
+        val modeX = x0 + padding
+        val modeY = y + padding
+        val modeHover = mx in modeX until modeX + modeBtnW && my in modeY until modeY + modeH
+        g.fill(modeX, modeY, modeX + modeBtnW, modeY + modeH, if (modeHover) shade(50, 0.24f) else BTN_BG)
+        val modeTextY = modeY + (modeH - guiFont.lineHeight) / 2
+        g.text(guiFont, styled(colorPickerMode.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, modeTextY, TEXT)
+        g.text(guiFont, jbMono(if (colorPickerModeExpanded) "▲" else "▼"), modeX + modeBtnW - 12, modeTextY, TEXT_DIM)
+
+        val options = if (themeAllowed) listOf(ColorPickerMode.CUSTOM, ColorPickerMode.THEME) else listOf(ColorPickerMode.CUSTOM)
+
+        if (colorPickerMode != ColorPickerMode.CUSTOM) {
+            val previewTop = y + padding + modeH + 10
+            g.text(guiFont, styled("Using theme color"), x0 + padding, previewTop, TEXT_DIM)
+            val pY = previewTop + guiFont.lineHeight + 4
+            g.roundedFill(x0 + padding, pY, actualW - padding * 2, 16, 2, argb(col.a, col.r, col.g, col.b))
+            
+            if (colorPickerModeExpanded) {
+                val optionY = modeY + modeH
+                for ((i, option) in options.withIndex()) {
+                    val ry = optionY + i * (modeH + 2)
+                    val selected = colorPickerMode == option
+                    g.fill(modeX, ry, modeX + modeBtnW, ry + modeH, if (selected) shade(30, 0.18f) else ENT_BG)
+                    g.text(guiFont, styled(option.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, ry + (modeH - guiFont.lineHeight) / 2, if (selected) TEXT else TEXT_DIM)
+                }
+            }
+            return
         }
+
+        val mapY = modeY + modeH + 6
+        val mapX = x0 + padding
+        val barsW = if (hasAlpha) barW + barGap + barW else barW
+        val mapW = actualW - padding * 2 - barGap - barsW
+        
+        val hueX = mapX + mapW + barGap
+        val alphaX = hueX + barW + barGap
+
+        val cols = mapW
+        for (i in 0 until cols) {
+            val rx = mapX + i
+            val saturation = i.toFloat() / (cols - 1).coerceAtLeast(1)
+            val topColor = hsvToRgb(hue, saturation, 1f)
+            g.fillGradient(rx, mapY, rx + 1, mapY + mapH, argb(255, topColor.r, topColor.g, topColor.b), argb(255, 0, 0, 0))
+        }
+
+        val selectorX = mapX + (sat * (mapW - 1)).roundToInt()
+        val selectorY = mapY + ((1f - value) * (mapH - 1)).roundToInt()
+        g.fill(selectorX - 1, selectorY - 1, selectorX + 2, selectorY + 2, TEXT)
+
+        val hueColors = intArrayOf(
+            argb(255, 255, 0, 0), argb(255, 255, 255, 0), argb(255, 0, 255, 0),
+            argb(255, 0, 255, 255), argb(255, 0, 0, 255), argb(255, 255, 0, 255), argb(255, 255, 0, 0)
+        )
+        val step = mapH / 6f
+        for (i in 0 until 6) {
+            val y1 = mapY + (i * step).roundToInt()
+            val y2 = mapY + ((i + 1) * step).roundToInt()
+            g.fillGradient(hueX, y1, hueX + barW, y2, hueColors[i], hueColors[i + 1])
+        }
+        val hueSelectorY = mapY + (hue / 360f * (mapH - 1)).roundToInt()
+        g.fill(hueX - 1, hueSelectorY - 1, hueX + barW + 1, hueSelectorY + 2, TEXT)
+
+        if (hasAlpha) {
+            drawAlphaCheckerboard(g, alphaX, mapY, barW, mapH)
+            g.fillGradient(alphaX, mapY, alphaX + barW, mapY + mapH, argb(255, col.r, col.g, col.b), argb(0, col.r, col.g, col.b))
+            val alphaSelectorY = mapY + ((255 - col.a) / 255f * (mapH - 1)).roundToInt()
+            g.fill(alphaX - 1, alphaSelectorY - 1, alphaX + barW + 1, alphaSelectorY + 2, TEXT)
+        }
+
+        val fieldY = mapY + mapH + 6
+        val channelCount = if (hasAlpha) 4 else 3
+        val fieldW = (actualW - padding * 2 - (channelCount - 1) * fieldGap) / channelCount
+        
+        val channels = mutableListOf("R" to col.r, "G" to col.g, "B" to col.b)
+        if (hasAlpha) channels.add("A" to col.a)
+        
+        for ((i, channel) in channels.withIndex()) {
+            val fx = x0 + padding + i * (fieldW + fieldGap)
+            g.fill(fx, fieldY, fx + fieldW, fieldY + fieldH, ENT_BG)
+            val lblW = guiFont.width(styled(channel.first))
+            g.text(guiFont, styled(channel.first), fx + 2, fieldY + (fieldH - guiFont.lineHeight) / 2, TEXT_DIM)
+            val valueText = if (editingColorEntry == entry && editingColorChannel == i && !editingColorHex) entryField.text else channel.second.toString()
+            g.text(guiFont, styled(valueText), fx + 2 + lblW + 2, fieldY + (fieldH - guiFont.lineHeight) / 2, TEXT)
+        }
+
+        val hexY = fieldY + fieldH + fieldGap
+        val previewW = 20
+        val hexW = actualW - padding * 2 - fieldGap - previewW
+        val hexX = x0 + padding
+        g.fill(hexX, hexY, hexX + hexW, hexY + fieldH, ENT_BG)
+        val hexLblW = guiFont.width(styled("HEX"))
+        g.text(guiFont, styled("HEX"), hexX + 2, hexY + (fieldH - guiFont.lineHeight) / 2, TEXT_DIM)
+        val hexText = if (editingColorEntry == entry && editingColorHex) entryField.text else String.format("#%02X%02X%02X%02X", col.a, col.r, col.g, col.b)
+        g.text(guiFont, styled(hexText), hexX + 2 + hexLblW + 2, hexY + (fieldH - guiFont.lineHeight) / 2, TEXT)
+
+        val previewX = hexX + hexW + fieldGap
+        drawAlphaCheckerboard(g, previewX, hexY, previewW, fieldH)
+        g.roundedFill(previewX, hexY, previewW, fieldH, 1, argb(col.a, col.r, col.g, col.b))
+
+        if (colorPickerModeExpanded) {
+            val optionY = modeY + modeH
+            for ((i, option) in options.withIndex()) {
+                val ry = optionY + i * (modeH + 2)
+                val selected = colorPickerMode == option
+                g.fill(modeX, ry, modeX + modeBtnW, ry + modeH + 2, if (selected) shade(30, 0.18f) else ENT_BG)
+                g.text(guiFont, styled(option.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, ry + 3, if (selected) TEXT else TEXT_DIM)
+            }
+        }
+    }
+
+    private fun drawAlphaCheckerboard(g: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int) {
+        val size = 4
+        for (row in 0 until (h + size - 1) / size) {
+            for (col in 0 until (w + size - 1) / size) {
+                val left = x + col * size
+                val top = y + row * size
+                val right = (left + size).coerceAtMost(x + w)
+                val bottom = (top + size).coerceAtMost(y + h)
+                val color = if ((row + col) % 2 == 0) argb(255, 220, 220, 220) else argb(255, 192, 192, 192)
+                g.fill(left, top, right, bottom, color)
+            }
+        }
+    }
+
+    private fun rgbToHsv(color: Color): Triple<Float, Float, Float> {
+        val r = color.r / 255f
+        val g = color.g / 255f
+        val b = color.b / 255f
+        val max = maxOf(r, g, b)
+        val min = minOf(r, g, b)
+        val delta = max - min
+        val hue = when {
+            delta == 0f -> 0f
+            max == r -> ((g - b) / delta % 6f) * 60f
+            max == g -> ((b - r) / delta + 2f) * 60f
+            else -> ((r - g) / delta + 4f) * 60f
+        }.let { if (it < 0f) it + 360f else it }
+        val saturation = if (max == 0f) 0f else delta / max
+        return Triple(hue, saturation, max)
+    }
+
+    private fun hsvToRgb(hue: Float, saturation: Float, value: Float): Color {
+        val c = value * saturation
+        val x = c * (1f - kotlin.math.abs((hue / 60f) % 2f - 1f))
+        val m = value - c
+        val (r1, g1, b1) = when {
+            hue < 60f -> Triple(c, x, 0f)
+            hue < 120f -> Triple(x, c, 0f)
+            hue < 180f -> Triple(0f, c, x)
+            hue < 240f -> Triple(0f, x, c)
+            hue < 300f -> Triple(x, 0f, c)
+            else -> Triple(c, 0f, x)
+        }
+        return Color(
+            ((r1 + m) * 255f).roundToInt().coerceIn(0, 255),
+            ((g1 + m) * 255f).roundToInt().coerceIn(0, 255),
+            ((b1 + m) * 255f).roundToInt().coerceIn(0, 255),
+            255
+        )
     }
 
     private fun drawEnumDropdown(g: GuiGraphicsExtractor, entry: EnumEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int) {
@@ -991,6 +1189,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val mx = event.x().toInt(); val my = event.y().toInt(); val btn = event.button()
 
         if (editingString != null) { editingString!!.value = entryField.text; editingString = null }
+        if (editingColorEntry != null) { commitEditingColor(); editingColorEntry = null; editingColorChannel = null; editingColorHex = false }
 
         val enumExp = expandedEnum
         if (enumExp != null) {
@@ -1007,6 +1206,16 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 // Dropdown is not visible in this mode, ignore click
                 expandedEnum = null
             }
+        }
+
+        val colorExp = expandedColorEntry
+        if (colorExp != null) {
+            if (mx in colorPickerX until colorPickerX + colorPickerW && my in colorPickerY until colorPickerY + colorPickerH) {
+                handleColorClick(colorExp, colorPickerX, colorPickerY, colorPickerW, mx, my)
+                return true
+            }
+            expandedColorEntry = null
+            return true
         }
 
         // Config panel (floating mode only)
@@ -1137,7 +1346,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
                             entriesH += ENT_H
                             if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += ENT_H
                             if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += ENT_H
-                            if (entry == expandedColorEntry && entry is ColorEntry) entriesH += colorChannelCount(entry) * ENT_H
                         }
                         sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
                         if (sidebarConfigScroll > sidebarConfigScrollMax) sidebarConfigScroll = sidebarConfigScrollMax
@@ -1193,12 +1401,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
                                 entryY += ENT_H
                             }
                             if (entry == expandedColorEntry && entry is ColorEntry) {
-                                val colorH = colorChannelCount(entry) * ENT_H
-                                if (entryY + colorH > configRegionBottom) break
-                                if (entryY + colorH >= configRegionTop) {
-                                    if (handleColorClick(entry, bodyX + 6, entryY, bodyW2 - 8, mx, my)) return true
-                                }
-                                entryY += colorH
+                                colorPickerX = bodyX + 6
+                                colorPickerY = entryY + ENT_H
+                                colorPickerW = bodyW2 - 8
                             }
                         }
                     } else {
@@ -1336,7 +1541,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
                         }
                         if (entry == expandedColorEntry && entry is ColorEntry) {
                             if (handleColorClick(entry, px + 6, y, PNL_W - 6, mx, my)) return true
-                            y += colorChannelCount(entry) * ENT_H
                         }
                     }
                 }
@@ -1384,7 +1588,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     entriesH += ENT_H
                     if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += ENT_H
                     if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += ENT_H
-                    if (entry == expandedColorEntry && entry is ColorEntry) entriesH += colorChannelCount(entry) * ENT_H
                 }
                 sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
                 if (mouseX in bodyX.toDouble()..(bodyX + bodyW).toDouble() && mouseY in bodyY.toDouble()..(bodyY + bodyH).toDouble()) {
@@ -1446,7 +1649,19 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 draggingStringEntry = true
                 entryField.clampScroll(60)
             }
-            is ColorEntry   -> expandedColorEntry = if (expandedColorEntry == entry) null else entry
+            is ColorEntry   -> {
+                expandedColorEntry = if (expandedColorEntry == entry) null else entry
+                if (expandedColorEntry == entry) {
+                    colorPickerMode = ColorPickerMode.CUSTOM
+                    colorPickerModeExpanded = false
+                    colorPickerCustomValue = entry.value
+                } else {
+                    colorPickerModeExpanded = false
+                    editingColorEntry = null
+                    editingColorChannel = null
+                    editingColorHex = false
+                }
+            }
             is KeybindEntry -> listeningKeybind   = if (listeningKeybind  == entry) null else entry
             is EnumEntry<*> -> expandedEnum = if (expandedEnum == entry) null else entry
             is ButtonEntry  -> entry.action()
@@ -1476,19 +1691,151 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     private fun handleColorClick(entry: ColorEntry, x: Int, y: Int, w: Int, mx: Int, my: Int): Boolean {
-        val bx = x + 12; val bw = w - 34
-        if (mx !in bx until bx + bw) return false
-        val channels = colorChannelCount(entry)
-        for (i in 0 until channels) {
-            val ry = y + i * ENT_H
-            if (my in ry until ry + ENT_H) {
-                val v = (((mx - bx).toFloat() / bw).coerceIn(0f, 1f) * 255).roundToInt()
-                applyColorChannel(entry, i, v)
-                draggingSlider = SliderDrag.ColorChannel(entry, i, bx, bw)
+        if (entry != expandedColorEntry) return false
+        val pickerX = colorPickerX
+        val pickerY = colorPickerY
+        val pickerW = colorPickerW
+        val pickerH = colorPickerH
+        if (pickerW <= 0 || pickerH <= 0) return false
+        if (mx !in pickerX until pickerX + pickerW || my !in pickerY until pickerY + pickerH) return false
+
+        val padding = 6
+        val modeH = 14
+        val mapH = 65
+        val barW = 10
+        val barGap = 4
+        val fieldH = 14
+        val fieldGap = 4
+
+        val modeX = pickerX + padding
+        val modeY = pickerY + padding
+        val modeBtnW = pickerW - padding * 2
+
+        if (mx in modeX until modeX + modeBtnW && my in modeY until modeY + modeH) {
+            colorPickerModeExpanded = !colorPickerModeExpanded
+            return true
+        }
+
+        if (colorPickerModeExpanded) {
+            val optionY = modeY + modeH
+            val options = if (supportsThemeMode(entry)) listOf(ColorPickerMode.CUSTOM, ColorPickerMode.THEME) else listOf(ColorPickerMode.CUSTOM)
+            for ((i, option) in options.withIndex()) {
+                val ry = optionY + i * (modeH + 2)
+                if (mx in modeX until modeX + modeBtnW && my in ry until ry + modeH) {
+                    colorPickerMode = option
+                    colorPickerModeExpanded = false
+                    if (option == ColorPickerMode.THEME) {
+                        colorPickerCustomValue = entry.value
+                        entry.value = Colour.accent.value.copy(a = entry.value.a)
+                    } else {
+                        entry.value = colorPickerCustomValue ?: entry.value
+                    }
+                    return true
+                }
+            }
+        }
+
+        if (colorPickerMode == ColorPickerMode.THEME) return true
+
+        val mapY = modeY + modeH + 6
+        val mapX = pickerX + padding
+        val hasAlpha = entry.allowAlpha
+        val barsW = if (hasAlpha) barW + barGap + barW else barW
+        val mapW = pickerW - padding * 2 - barGap - barsW
+
+        val hueX = mapX + mapW + barGap
+        val alphaX = hueX + barW + barGap
+
+        val col = entry.value
+        val (hue, _, _) = rgbToHsv(col)
+
+        if (mx in mapX until mapX + mapW && my in mapY until mapY + mapH) {
+            val saturation = ((mx - mapX).toFloat() / (mapW - 1).coerceAtLeast(1)).coerceIn(0f, 1f)
+            val value = 1f - ((my - mapY).toFloat() / (mapH - 1).coerceAtLeast(1)).coerceIn(0f, 1f)
+            entry.value = hsvToRgb(hue, saturation, value).copy(a = col.a)
+            colorPickerCustomValue = entry.value
+            draggingSlider = SliderDrag.ColorMap(entry, mapX, mapY, mapW, mapH)
+            return true
+        }
+
+        if (mx in hueX until hueX + barW && my in mapY until mapY + mapH) {
+            val newHue = ((my - mapY).toFloat() / (mapH - 1).coerceAtLeast(1)).coerceIn(0f, 1f) * 360f
+            val (_, saturation, value) = rgbToHsv(col)
+            entry.value = hsvToRgb(newHue, saturation, value).copy(a = col.a)
+            colorPickerCustomValue = entry.value
+            draggingSlider = SliderDrag.ColorHue(entry, hueX, barW, mapY, mapH)
+            return true
+        }
+
+        if (hasAlpha && mx in alphaX until alphaX + barW && my in mapY until mapY + mapH) {
+            val py = (my - mapY).coerceIn(0, mapH - 1)
+            val alpha = (255f * (1f - (py.toFloat() / (mapH - 1).coerceAtLeast(1)))).roundToInt().coerceIn(0, 255)
+            entry.value = entry.value.copy(a = alpha)
+            colorPickerCustomValue = entry.value
+            draggingSlider = SliderDrag.ColorAlpha(entry, alphaX, barW, mapY, mapH)
+            return true
+        }
+
+        val fieldY = mapY + mapH + 6
+        val channelCount = if (hasAlpha) 4 else 3
+        val fieldW = (pickerW - padding * 2 - (channelCount - 1) * fieldGap) / channelCount
+
+        for (i in 0 until channelCount) {
+            val fx = pickerX + padding + i * (fieldW + fieldGap)
+            if (mx in fx until fx + fieldW && my in fieldY until fieldY + fieldH) {
+                editingColorEntry = entry
+                editingColorChannel = i
+                editingColorHex = false
+                entryField.set(listOf(col.r, col.g, col.b, col.a)[i].toString())
+                entryField.cursor = entryField.text.length
+                entryField.selAnchor = -1
                 return true
             }
         }
-        return false
+
+        val hexY = fieldY + fieldH + fieldGap
+        val previewW = 20
+        val hexW = pickerW - padding * 2 - fieldGap - previewW
+        val hexX = pickerX + padding
+        
+        if (mx in hexX until hexX + hexW && my in hexY until hexY + fieldH) {
+            editingColorEntry = entry
+            editingColorHex = true
+            editingColorChannel = null
+            entryField.set(String.format("#%02X%02X%02X%02X", col.a, col.r, col.g, col.b))
+            entryField.cursor = entryField.text.length
+            entryField.selAnchor = -1
+            return true
+        }
+
+        return true
+    }
+
+    private fun commitEditingColor() {
+        val entry = editingColorEntry ?: return
+        val text = entryField.text.trim()
+        if (editingColorHex) {
+            if (text.matches(Regex("#?[0-9a-fA-F]{8}"))) {
+                val hex = text.removePrefix("#")
+                val a = hex.substring(0, 2).toInt(16)
+                val r = hex.substring(2, 4).toInt(16)
+                val g = hex.substring(4, 6).toInt(16)
+                val b = hex.substring(6, 8).toInt(16)
+                entry.value = entry.value.copy(a = a, r = r, g = g, b = b)
+            }
+        } else {
+            val channel = editingColorChannel ?: return
+            val newValue = text.toIntOrNull()?.coerceIn(0, 255) ?: return
+            val col = entry.value
+            entry.value = when (channel) {
+                0 -> col.copy(r = newValue)
+                1 -> col.copy(g = newValue)
+                2 -> col.copy(b = newValue)
+                3 -> col.copy(a = newValue)
+                else -> col
+            }
+        }
+        colorPickerCustomValue = entry.value
     }
 
     private fun handleRangeClick(entry: IntRangeEntry, x: Int, y: Int, w: Int, mx: Int, my: Int): Boolean {
@@ -1569,6 +1916,25 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return true
         }
 
+        if (editingColorEntry != null) {
+            val f = entryField
+            when {
+                key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER -> { commitEditingColor(); editingColorEntry = null; editingColorChannel = null; editingColorHex = false }
+                key == GLFW.GLFW_KEY_ESCAPE    -> { editingColorEntry = null; editingColorChannel = null; editingColorHex = false }
+                key == GLFW.GLFW_KEY_BACKSPACE -> if ((event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0) f.backspaceWord() else f.backspace()
+                key == GLFW.GLFW_KEY_DELETE    -> f.deleteForward()
+                key == GLFW.GLFW_KEY_LEFT      -> if ((event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0) f.wordMove(false, (event.modifiers() and GLFW.GLFW_MOD_SHIFT) != 0) else f.move(-1, (event.modifiers() and GLFW.GLFW_MOD_SHIFT) != 0)
+                key == GLFW.GLFW_KEY_RIGHT     -> if ((event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0) f.wordMove(true,  (event.modifiers() and GLFW.GLFW_MOD_SHIFT) != 0) else f.move( 1, (event.modifiers() and GLFW.GLFW_MOD_SHIFT) != 0)
+                key == GLFW.GLFW_KEY_HOME      -> f.home((event.modifiers() and GLFW.GLFW_MOD_SHIFT) != 0)
+                key == GLFW.GLFW_KEY_END       -> f.end((event.modifiers() and GLFW.GLFW_MOD_SHIFT) != 0)
+                (event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0 && key == GLFW.GLFW_KEY_A -> f.selectAll()
+                (event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0 && key == GLFW.GLFW_KEY_C -> { val s = f.copy(); if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
+                (event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0 && key == GLFW.GLFW_KEY_X -> { val s = f.cut();  if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
+                (event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0 && key == GLFW.GLFW_KEY_V -> f.insert(minecraft.keyboardHandler.clipboard ?: "")
+            }
+            f.clampScroll(60)
+            return true
+        }
         if (editingString != null) {
             val f = entryField
             val ctrl  = (event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0
@@ -1619,6 +1985,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             }
             return true
         }
+        if (editingColorEntry != null) { entryField.insert(event.codepointAsString()); entryField.clampScroll(60); return true }
         if (editingString != null) { entryField.insert(event.codepointAsString()); entryField.clampScroll(60); return true }
         return false
     }
@@ -1637,6 +2004,27 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 is SliderDrag.ColorChannel -> {
                     val v = (t * 255).roundToInt()
                     applyColorChannel(slider.entry, slider.channel, v)
+                }
+                is SliderDrag.ColorAlpha -> {
+                    val py = (event.y().toInt() - slider.barY).coerceIn(0, slider.barH - 1)
+                    val alpha = (255f * (1f - (py.toFloat() / (slider.barH - 1).coerceAtLeast(1)))).roundToInt().coerceIn(0, 255)
+                    slider.entry.value = slider.entry.value.copy(a = alpha)
+                }
+                is SliderDrag.ColorMap -> {
+                    val px = (event.x().toInt() - slider.mapX).coerceIn(0, slider.mapW - 1)
+                    val py = (event.y().toInt() - slider.mapY).coerceIn(0, slider.mapH - 1)
+                    val current = slider.entry.value
+                    val (hue, _, _) = rgbToHsv(current)
+                    val saturation = px.toFloat() / (slider.mapW - 1).coerceAtLeast(1)
+                    val value = 1f - py.toFloat() / (slider.mapH - 1).coerceAtLeast(1)
+                    slider.entry.value = hsvToRgb(hue, saturation, value).copy(a = current.a)
+                }
+                is SliderDrag.ColorHue -> {
+                    val py = (event.y().toInt() - slider.barY).coerceIn(0, slider.barH - 1)
+                    val newHue = py.toFloat() / (slider.barH - 1).coerceAtLeast(1) * 360f
+                    val current = slider.entry.value
+                    val (_, saturation, value) = rgbToHsv(current)
+                    slider.entry.value = hsvToRgb(newHue, saturation, value).copy(a = current.a)
                 }
                 is SliderDrag.Range -> {
                     val e = slider.entry
@@ -1711,6 +2099,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
             else -> col.copy(a = v)
         }
     }
+
+    private fun supportsThemeMode(entry: ColorEntry) = entry !== Colour.accent
 
     private fun bringToFront(cat: Module.Category) {
         renderOrder.remove(cat)

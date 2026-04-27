@@ -18,7 +18,7 @@ object RiceFarmer : Module(
     description = "Renders a conical hat above your player",
     category = Category.RENDER
 ) {
-    enum class ColorMode { RAINBOW, GRADIENT, SINGLE, THEME }
+    enum class ColorMode { RAINBOW, GRADIENT, SINGLE }
 
     private val radius      = double("radius",   0.5, 0.5, 1.0)
     private val height      = double("height",   0.3, 0.1, 0.7)
@@ -159,8 +159,6 @@ object RiceFarmer : Module(
             } else {
                 Color(gradient2.value.r, gradient2.value.g, gradient2.value.b)
             }
-
-            ColorMode.THEME -> Colour.accent.value
 
             ColorMode.SINGLE -> Color(single.value.r, single.value.g, single.value.b)
         }
