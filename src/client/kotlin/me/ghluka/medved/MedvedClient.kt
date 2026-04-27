@@ -10,6 +10,7 @@ import me.ghluka.medved.module.modules.player.*
 import me.ghluka.medved.module.modules.hud.*
 import me.ghluka.medved.module.modules.movement.*
 import me.ghluka.medved.module.modules.other.*
+import me.ghluka.medved.module.modules.render.*
 import me.ghluka.medved.module.modules.utility.*
 import me.ghluka.medved.module.modules.world.*
 import me.ghluka.medved.update.UpdateChecker
@@ -60,6 +61,8 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(NoFall)
         ModuleManager.register(NoJumpDelay)
         // render
+        ModuleManager.register(PlayerESP)
+        ModuleManager.register(RiceFarmer)
         // player
         ModuleManager.register(FakeLag)
         ModuleManager.register(Blink)

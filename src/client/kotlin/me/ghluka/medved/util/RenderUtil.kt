@@ -1,15 +1,55 @@
 package me.ghluka.medved.util
 
+import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.client.renderer.rendertype.LayeringTransform
+import net.minecraft.client.renderer.rendertype.OutputTarget
+import net.minecraft.client.renderer.rendertype.RenderSetup
+import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.client.renderer.rendertype.RenderTypes
+import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.AABB
+import java.util.Optional
 import kotlin.math.sqrt
 
 object RenderUtil {
+
+    val ESP_FILLED: RenderType by lazy {
+        val pipeline = RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath("medved", "esp_filled"))
+                .withDepthStencilState(Optional.empty())
+                .withCull(false)
+                .build()
+        )
+        RenderType.create(
+            "esp_filled",
+            RenderSetup.builder(pipeline)
+                .sortOnUpload()
+                .createRenderSetup()
+        )
+    }
+
+    val ESP_LINES: RenderType by lazy {
+        val pipeline = RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath("medved", "esp_lines"))
+                .withDepthStencilState(Optional.empty())
+                .build()
+        )
+        RenderType.create(
+            "esp_lines",
+            RenderSetup.builder(pipeline)
+                .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
+                .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                .createRenderSetup()
+        )
+    }
 
     inline fun worldContext(ctx: LevelRenderContext, block: (pose: PoseStack.Pose, buf: MultiBufferSource.BufferSource) -> Unit) {
         val camera = Minecraft.getInstance().gameRenderer.mainCamera.position()
@@ -17,6 +57,37 @@ object RenderUtil {
         ctx.poseStack().translate(-camera.x, -camera.y, -camera.z)
         block(ctx.poseStack().last(), ctx.bufferSource())
         ctx.poseStack().popPose()
+    }
+
+    fun boxFilledBothSides(
+        vc: VertexConsumer, pose: PoseStack.Pose,
+        box: AABB, r: Float, g: Float, b: Float, a: Float
+    ) {
+        val x0 = box.minX.toFloat(); val y0 = box.minY.toFloat(); val z0 = box.minZ.toFloat()
+        val x1 = box.maxX.toFloat(); val y1 = box.maxY.toFloat(); val z1 = box.maxZ.toFloat()
+
+        fun quad(
+            ax: Float, ay: Float, az: Float,
+            bx: Float, by: Float, bz: Float,
+            cx: Float, cy: Float, cz: Float,
+            dx: Float, dy: Float, dz: Float
+        ) {
+            vc.addVertex(pose, ax, ay, az).setColor(r, g, b, a)
+            vc.addVertex(pose, bx, by, bz).setColor(r, g, b, a)
+            vc.addVertex(pose, cx, cy, cz).setColor(r, g, b, a)
+            vc.addVertex(pose, dx, dy, dz).setColor(r, g, b, a)
+            vc.addVertex(pose, dx, dy, dz).setColor(r, g, b, a)
+            vc.addVertex(pose, cx, cy, cz).setColor(r, g, b, a)
+            vc.addVertex(pose, bx, by, bz).setColor(r, g, b, a)
+            vc.addVertex(pose, ax, ay, az).setColor(r, g, b, a)
+        }
+
+        quad(x0, y0, z1, x1, y0, z1, x1, y0, z0, x0, y0, z0) // bottom
+        quad(x0, y1, z0, x1, y1, z0, x1, y1, z1, x0, y1, z1) // top
+        quad(x0, y1, z0, x0, y0, z0, x1, y0, z0, x1, y1, z0) // north
+        quad(x1, y1, z1, x1, y0, z1, x0, y0, z1, x0, y1, z1) // south
+        quad(x0, y1, z1, x0, y0, z1, x0, y0, z0, x0, y1, z0) // west
+        quad(x1, y1, z0, x1, y0, z0, x1, y0, z1, x1, y1, z1) // east
     }
 
     fun boxOutline(

@@ -38,7 +38,7 @@ public class PlayerMixin {
             cir.setReturnValue(1.0f);
         }
     }
-    
+
     @Inject(method = "getItemSwapScale", at = @At("HEAD"), cancellable = true)
     private void removeSwapCooldown(float adjustTicks, CallbackInfoReturnable<Float> cir) {
         if (NoHitDelay.INSTANCE.isEnabled()) {

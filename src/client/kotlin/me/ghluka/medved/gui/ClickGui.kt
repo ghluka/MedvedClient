@@ -56,8 +56,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
             }
             positions.clear()
             renderOrder.clear()
-            renderOrder.addAll(Module.Category.entries)
             renderOrder.add(null) // null = CONFIGS panel; last = on top initially
+            renderOrder.addAll(Module.Category.entries)
             collapsed.addAll(Module.Category.entries)
             val gap = 6; val margin = 10; val pnlW = 160; val hdrH = 18
             var x = margin; var y = 30
@@ -1554,7 +1554,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 ctrl && key == GLFW.GLFW_KEY_C -> { val s = f.copy(); if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
                 ctrl && key == GLFW.GLFW_KEY_X -> { val s = f.cut();  if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
                 ctrl && key == GLFW.GLFW_KEY_V -> {
-                    val clip = (minecraft.keyboardHandler.clipboard ?: "").replace(Regex("[^a-zA-Z0-9_\\-]"), "_")
+                    val clip = (minecraft.keyboardHandler.clipboard ?: "").replace(Regex("[^a-zA-Z0-9_\\- .]"), "_")
                     f.insert(clip)
                 }
                 key == GLFW.GLFW_KEY_BACKSPACE -> if (ctrl) f.backspaceWord() else f.backspace()
@@ -1612,7 +1612,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun charTyped(event: CharacterEvent): Boolean {
         if (presetFieldActive) {
             val ch = event.codepointAsString()
-            if (ch.matches(Regex("[a-zA-Z0-9_\\-]"))) {
+            if (ch.matches(Regex("[a-zA-Z0-9_\\- .]"))) {
                 presetField.insert(ch)
                 presetField.clampScroll(PNL_W - 10)
                 presetNameBuffer = presetField.text
