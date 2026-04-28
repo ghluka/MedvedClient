@@ -73,6 +73,10 @@ abstract class Config(val name: String) {
         }
     }
 
+    fun refreshDynamicColors(themeColor: Color, timeSeconds: Float, supportsThemeMode: (ColorEntry) -> Boolean) {
+        _entries.filterIsInstance<ColorEntry>().forEach { it.applyDynamicColor(themeColor, timeSeconds, supportsThemeMode(it)) }
+    }
+
     /** Polls all [KeybindEntry] instances. Called each client tick by [ConfigManager]. */
     fun tickKeybinds() {
         _entries.filterIsInstance<KeybindEntry>().forEach { it.tick() }

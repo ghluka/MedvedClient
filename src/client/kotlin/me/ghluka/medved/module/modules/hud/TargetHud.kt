@@ -195,7 +195,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         val mc   = Minecraft.getInstance()
         val self = mc.player ?: return
         val font = Font.getFont()
-        val accent = Colour.accent.value.argb
+        val accent = Colour.accent.liveColor(Colour.accent.value).argb
 
         val w = hudWidth()
         val h = hudHeight()
@@ -215,7 +215,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         // Update cached width so next frame's layout is correct
         minimalWidth = (font.width(nameComp) + 14).coerceAtLeast(60).coerceAtMost(150)
 
-        val bgC = bgColor.value.argb
+        val bgC = bgColor.liveColor(bgColor.value).argb
         g.roundedFill(0, 0, w, h, 3, bgC)
         g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
 
@@ -228,7 +228,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         g: GuiGraphicsExtractor, tgt: LivingEntity, self: Player,
         font: net.minecraft.client.gui.Font, w: Int, h: Int, accent: Int
     ) {
-        val bgC = bgColor.value.argb
+        val bgC = bgColor.liveColor(bgColor.value).argb
         g.roundedFill(0, 0, w, h, 3, bgC)
         g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
 
@@ -268,7 +268,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         val hpRow   = headerH + 2     // typically 17
         val rowStep = lh + 1          // typically 10  (consistent row-to-row spacing)
 
-        val bgC = bgColor.value.argb
+        val bgC = bgColor.liveColor(bgColor.value).argb
         g.roundedFill(0, 0, w, h, 3, bgC)
         g.roundedFill(0, 0, w, headerH, 3, darken(bgC, 0.6f), CORNERS_TOP)
         g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)

@@ -78,13 +78,13 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
     private val panelY  get() = (height - PNL_H) / 2
 
     private fun argb(a: Int, r: Int, g: Int, b: Int) = (a shl 24) or (r shl 16) or (g shl 8) or b
-    private val ACCENT    get() = Colour.accent.value.argb
+    private val ACCENT    get() = Colour.accent.liveColor(Colour.accent.value).argb
     private val FONT      get() = Font.getFont()
     private fun styled(s: String) = Font.styledText(s)
     private val cursorVisible get() = (System.currentTimeMillis() / 530) % 2 == 0L
 
     private fun shade(base: Int, mix: Float, alpha: Int = 255): Int {
-        val c = Colour.bg.value
+        val c = Colour.bg.liveColor(Colour.bg.value)
         val r = (base + (c.r - base) * mix).toInt().coerceIn(0, 255)
         val g = (base + (c.g - base) * mix).toInt().coerceIn(0, 255)
         val b = (base + (c.b - base) * mix).toInt().coerceIn(0, 255)

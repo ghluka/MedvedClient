@@ -50,14 +50,14 @@ object ScaffoldInfo : HudModule("Block Counter", "Displays hotbar block count fo
         g.pose().pushMatrix()
         g.pose().translate(px, py)
 
-        g.roundedFill(0, 0, totalWidth, height, 4, bgColor.value.argb)
+        g.roundedFill(0, 0, totalWidth, height, 4, bgColor.liveColor(bgColor.value).argb)
 
         val iconY = font.lineHeight + padding - iconSize
         g.item(handStack, padding, iconY)
 
         val textX = padding + iconSize + iconGap
         val textY = padding
-        g.text(font, textComp, textX, textY, textColor.value.argb)
+        g.text(font, textComp, textX, textY, textColor.liveColor(textColor.value).argb)
 
         g.pose().popMatrix()
     }

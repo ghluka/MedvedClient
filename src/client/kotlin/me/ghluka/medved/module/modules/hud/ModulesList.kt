@@ -115,7 +115,7 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
 
         val font = Font.getFont()
         val borderW = if (leftBorder.value) BORDER_W else 0
-        val accentColor = Colour.accent.value.argb
+        val accentColor = Colour.accent.liveColor(Colour.accent.value).argb
         val onRight = hudX.value > 0.5f
 
         var ry = 0
@@ -133,7 +133,7 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
 
             if (onRight) {
                 val rightEdge = hudWidth()
-                if (background.value) g.fill(rightEdge - rowW, ry, rightEdge, ry + ROW_H, bgColor.value.argb)
+                if (background.value) g.fill(rightEdge - rowW, ry, rightEdge, ry + ROW_H, bgColor.liveColor(bgColor.value).argb)
                 if (leftBorder.value) g.fill(rightEdge - borderW, ry, rightEdge, ry + ROW_H, accentColor)
                 if (infoComp != null) {
                     val infoX = rightEdge - borderW - padX.value - font.width(infoComp)
@@ -148,7 +148,7 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
                     g.text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 }
             } else {
-                if (background.value) g.fill(0, ry, rowW, ry + ROW_H, bgColor.value.argb)
+                if (background.value) g.fill(0, ry, rowW, ry + ROW_H, bgColor.liveColor(bgColor.value).argb)
                 if (leftBorder.value) g.fill(0, ry, borderW, ry + ROW_H, accentColor)
                 val nameX = borderW + padX.value
                 if (textShadow.value) g.text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))

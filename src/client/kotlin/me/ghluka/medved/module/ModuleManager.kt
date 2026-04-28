@@ -21,6 +21,7 @@ object ModuleManager {
         }
 
         LevelRenderEvents.END_MAIN.register { ctx ->
+            ConfigManager.refreshDynamicColors()
             modules.forEach { it.dispatchLevelRender(ctx) }
         }
 

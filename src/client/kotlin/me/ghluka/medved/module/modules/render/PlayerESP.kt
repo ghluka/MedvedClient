@@ -3,6 +3,7 @@ package me.ghluka.medved.module.modules.render
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Axis
 import me.ghluka.medved.config.entry.Color
+import me.ghluka.medved.config.entry.ColorEntry
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.TargetFilter
@@ -32,10 +33,10 @@ object PlayerESP : Module(
     private val renderMode = enum("render mode", RenderMode.BOX)
 
     private val staticColor = color("color", Color(255, 80, 80), allowAlpha = false).also {
-        it.visibleWhen = { colorMode.value == ColorMode.STATIC }
+        it.visibleWhen = { colorMode.value == ColorMode.STATIC || colorMode.value == ColorMode.TEAM }
     }
 
-    private val teamOnly    = boolean("team only", true).also {
+    private val teamOnly    = boolean("team only", false).also {
         it.visibleWhen = { colorMode.value == ColorMode.TEAM }
     }
 
@@ -46,6 +47,10 @@ object PlayerESP : Module(
 
     private val cornerSize  = double("corner size",   0.25, 0.05, 0.5).also {
         it.visibleWhen = { renderMode.value == RenderMode.CORNERS }
+    }
+
+    init {
+        staticColor.pickerMode = ColorEntry.PickerMode.THEME
     }
 
     override fun onLevelRender(ctx: LevelRenderContext) {
@@ -111,7 +116,10 @@ object PlayerESP : Module(
 
     private fun resolveColor(viewer: Player, target: Player): Color? {
         return when (colorMode.value) {
-            ColorMode.STATIC -> Color(staticColor.value.r, staticColor.value.g, staticColor.value.b)
+            ColorMode.STATIC -> {
+                val live = staticColor.liveColor(staticColor.value)
+                Color(live.r, live.g, live.b)
+            }
 
             ColorMode.HEALTH -> {
                 val ratio = (target.health / target.maxHealth).coerceIn(0f, 1f)
@@ -128,7 +136,8 @@ object PlayerESP : Module(
                 if (rgb == null) {
                     if (teamOnly.value) return null
                     // fallback to theme if teamOnly is off and they have no helmet colour
-                    Colour.accent.value
+                    val live = staticColor.liveColor(staticColor.value)
+                    Color(live.r, live.g, live.b)
                 } else {
                     Color((rgb shr 16) and 0xFF, (rgb shr 8) and 0xFF, rgb and 0xFF)
                 }

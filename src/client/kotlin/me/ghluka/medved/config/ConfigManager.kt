@@ -2,8 +2,11 @@ package me.ghluka.medved.config
 
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
+import me.ghluka.medved.config.entry.ColorEntry
+import me.ghluka.medved.module.modules.other.Colour
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -33,10 +36,15 @@ object ConfigManager {
 
         ClientTickEvents.END_CLIENT_TICK.register { _ ->
             configs.forEach { it.tickKeybinds() }
+            refreshDynamicColors()
             if (++tickCounter >= SAVE_INTERVAL_TICKS) {
                 tickCounter = 0
                 saveAll()
             }
+        }
+
+        LevelRenderEvents.END_MAIN.register { _ ->
+            refreshDynamicColors()
         }
 
         ClientLifecycleEvents.CLIENT_STOPPING.register { _ ->
@@ -67,6 +75,7 @@ object ConfigManager {
         try {
             Files.newBufferedReader(file).use { reader ->
                 config.deserialize(gson.fromJson(reader, JsonObject::class.java))
+                refreshDynamicColors()
             }
         } catch (e: Exception) {
             logger.error("Failed to load config '${config.name}'", e)
@@ -105,6 +114,7 @@ object ConfigManager {
                 configs.forEach { config ->
                     if (root.has(config.name)) config.deserialize(root.getAsJsonObject(config.name))
                 }
+                refreshDynamicColors()
             }
         } catch (e: Exception) {
             logger.error("Failed to load preset '$name'", e)
@@ -133,5 +143,16 @@ object ConfigManager {
                 else        -> ProcessBuilder("xdg-open", dir).start()
             }
         } catch (_: Exception) {}
+    }
+
+    fun refreshDynamicColors() {
+        refreshDynamicColorsInternal()
+    }
+
+    private fun refreshDynamicColorsInternal() {
+        val themeColor = Colour.accent.liveColor(Colour.accent.value)
+        val timeSeconds = ColorEntry.chromaTimeSeconds()
+        val supportsTheme: (ColorEntry) -> Boolean = { entry -> entry !== Colour.accent }
+        configs.forEach { it.refreshDynamicColors(themeColor, timeSeconds, supportsTheme) }
     }
 }

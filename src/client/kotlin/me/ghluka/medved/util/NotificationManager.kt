@@ -63,7 +63,7 @@ object NotificationManager {
             queue.removeAll { it.expired }
             if (queue.isEmpty()) return
 
-            val accentRgb = Colour.accent.value.argb and 0x00FFFFFF
+            val accentRgb = Colour.accent.liveColor(Colour.accent.value).argb and 0x00FFFFFF
 
             var bottomY = sh - MARGIN
             for (notif in queue.reversed()) {
