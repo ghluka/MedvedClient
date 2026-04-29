@@ -9,6 +9,8 @@ object ClickGui : Module("Click Gui", "The click GUI", Category.OTHER) {
 
     override val showInModulesList = false
 
+    private var screenInstance: me.ghluka.medved.gui.ClickGui? = null
+
 
     enum class Mode { DROPDOWN, SIDEBAR }
     val currentMode  = enum("mode", Mode.DROPDOWN)
@@ -25,7 +27,8 @@ object ClickGui : Module("Click Gui", "The click GUI", Category.OTHER) {
 
     override fun onEnabled() {
         val mc = Minecraft.getInstance()
-        if (mc.screen !is ClickGui) mc.setScreen(ClickGui())
+        val screen = screenInstance ?: me.ghluka.medved.gui.ClickGui().also { screenInstance = it }
+        if (mc.screen !== screen) mc.setScreen(screen)
     }
 
     override fun onDisabled() {

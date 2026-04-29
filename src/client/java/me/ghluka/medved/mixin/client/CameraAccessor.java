@@ -40,6 +40,9 @@ public interface CameraAccessor {
     @Invoker("setPosition")
     void medved$setPosition(final double x, final double y, final double z);
 
+    @Invoker("setPosition")
+    void medved$setPosition(final Vec3 position);
+
     @Invoker("setEntity")
     void medved$setEntity(final Entity entity);
 
@@ -51,4 +54,13 @@ public interface CameraAccessor {
 
     @Accessor("eyeHeightOld")
     float medved$getEyeHeightOld();
+
+    @Invoker("isDetached")
+    boolean medved$isDetached();
+
+    @Invoker("getMaxZoom")
+    float medved$getMaxZoom(float cameraDist);
+
+    @Invoker("move")
+    void medved$move(final float forwards, final float up, final float right);
 }

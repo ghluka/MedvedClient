@@ -25,13 +25,13 @@ object BedPlates : HudModule(
     private val shellRadius  = int("shell radius",       6,   2,   16)
     private val scanInterval = int("scan interval ms", 500, 100, 2000)
 
-        private data class BedEntry(
-            val pos: BlockPos,
-            val shell: List<BlockPos>,
-            val stacks: List<ItemStack>,
-        )
+    private data class BedEntry(
+        val pos: BlockPos,
+        val shell: List<BlockPos>,
+        val stacks: List<ItemStack>,
+    )
 
-        private var trackedBeds: List<BedEntry> = emptyList()
+    private var trackedBeds: List<BedEntry> = emptyList()
     private var lastScanTime = 0L
 
     override fun onDisabled() {
@@ -51,12 +51,12 @@ object BedPlates : HudModule(
         trackedBeds = allBeds.map { bedPos ->
             val shell = getSurroundingBlocks(level, bedPos, shellRadius.value)
             val stacks = shell
-            .asSequence()
-            .map { level.getBlockState(it) }
-            .mapNotNull { stackFor(it) }
-            .distinctBy { it.item }
-            .sortedBy { it.hoverName.string.lowercase() }
-            .toList()
+                .asSequence()
+                .map { level.getBlockState(it) }
+                .mapNotNull { stackFor(it) }
+                .distinctBy { it.item }
+                .sortedBy { it.hoverName.string.lowercase() }
+                .toList()
             BedEntry(bedPos, shell, stacks)
         }
     }
