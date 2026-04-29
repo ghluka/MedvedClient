@@ -26,7 +26,7 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
         it.visibleWhen = { trigger.value == Trigger.FALL_DISTANCE }
     }
 
-    private val silent = boolean("silent aim", false)
+    private val silent = boolean("silent aim", true)
 
     private val rotateBack = boolean("rotate back", true).also {
         it.visibleWhen = { !silent.value }
