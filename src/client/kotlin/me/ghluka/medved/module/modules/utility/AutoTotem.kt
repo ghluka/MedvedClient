@@ -22,7 +22,7 @@ object AutoTotem : Module("Auto Totem", "Automatically equips totems of undying 
         val player = client.player ?: return
         val gameMode = client.gameMode ?: return
 
-        if (inventoryOnly.value && client.screen !is InventoryScreen) {
+        if (inventoryOnly.value && client.gui.screen() !is InventoryScreen) {
             return
         }
 
@@ -43,15 +43,15 @@ object AutoTotem : Module("Auto Totem", "Automatically equips totems of undying 
             val slot = if (randomSlot.value) hotbarTotems.random() else hotbarTotems.first()
             chosenInvSlot = slot + 36
         } else if (mainTotems.isNotEmpty()) {
-            if (!openInventory.value && client.screen !is InventoryScreen) return
+            if (!openInventory.value && client.gui.screen() !is InventoryScreen) return
             
             val slot = if (randomSlot.value) mainTotems.random() else mainTotems.first()
             chosenInvSlot = slot
             
-            if (!silentOpen.value && client.screen !is InventoryScreen) {
+            if (!silentOpen.value && client.gui.screen() !is InventoryScreen) {
                 client.options.keySprint.setDown(false)
                 player.setSprinting(false)
-                client.setScreen(InventoryScreen(player))
+                client.gui.setScreen(InventoryScreen(player))
                 setDelay()
                 return
             }

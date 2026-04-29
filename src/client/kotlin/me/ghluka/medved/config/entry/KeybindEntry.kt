@@ -41,7 +41,7 @@ class KeybindEntry(name: String, default: Int) : ConfigEntry<Int>(name, default)
         val mc = Minecraft.getInstance()
         val window = mc.window.handle()
         val isDown = GLFW.glfwGetKey(window, value) == GLFW.GLFW_PRESS
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             wasDown = isDown
             return
         }

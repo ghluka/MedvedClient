@@ -85,7 +85,7 @@ object SilentAura : Module(
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
         val level = client.level ?: return
-        if (client.screen != null) return
+        if (client.gui.screen() != null) return
 
         val maxRange = range.value.toDouble()
         val halfFov = fov.value / 2f

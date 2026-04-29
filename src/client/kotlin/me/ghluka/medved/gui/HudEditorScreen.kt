@@ -113,7 +113,7 @@ class HudEditorScreen(
         val my = event.y().toInt()
 
         if (isOverBtn(BTN_PAD, height - BTN_PAD - BTN_H, mx, my)) {
-            minecraft.setScreen(returnScreen)
+            minecraft.gui.setScreen(returnScreen)
             return true
         }
         if (isOverBtn(BTN_PAD + BTN_W + BTN_GAP, height - BTN_PAD - BTN_H, mx, my)) {
@@ -180,7 +180,7 @@ class HudEditorScreen(
 
     override fun keyPressed(event: KeyEvent): Boolean {
         if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
-            minecraft.setScreen(returnScreen)
+            minecraft.gui.setScreen(returnScreen)
             return true
         }
         return super.keyPressed(event)

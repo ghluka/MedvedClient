@@ -57,13 +57,13 @@ object Blink : Module("Blink", "Buffers outgoing packets, making you appear froz
         val pos = ghostPos ?: return
         val hw = ghostWidth / 2.0
         val box = AABB(pos.x - hw, pos.y, pos.z - hw, pos.x + hw, pos.y + ghostHeight, pos.z + hw)
-        RenderUtil.worldContext(ctx) { pose, buf ->
-            val vcFill = buf.getBuffer(RenderTypes.debugFilledBox())
-            RenderUtil.boxFilled(vcFill, pose, box, 0.2f, 0.6f, 1f, 0.4f)
-            buf.endBatch(RenderTypes.debugFilledBox())
-            val vcLines = buf.getBuffer(RenderTypes.LINES)
-            RenderUtil.boxOutline(vcLines, pose, box, 0.4f, 0.8f, 1f, 0.9f)
-            buf.endBatch(RenderTypes.LINES)
+
+        RenderUtil.worldContext(ctx, RenderTypes.debugFilledBox()) { pose, buf ->
+            RenderUtil.boxFilled(buf, pose, box, 0.2f, 0.6f, 1f, 0.4f)
+        }
+
+        RenderUtil.worldContext(ctx, RenderTypes.LINES) { pose, buf ->
+            RenderUtil.boxOutline(buf, pose, box, 0.4f, 0.8f, 1f, 0.9f)
         }
     }
 

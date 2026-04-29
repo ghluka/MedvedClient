@@ -28,11 +28,11 @@ object ClickGui : Module("Click Gui", "The click GUI", Category.OTHER) {
     override fun onEnabled() {
         val mc = Minecraft.getInstance()
         val screen = screenInstance ?: me.ghluka.medved.gui.ClickGui().also { screenInstance = it }
-        if (mc.screen !== screen) mc.setScreen(screen)
+        if (mc.gui.screen() !== screen) mc.gui.setScreen(screen)
     }
 
     override fun onDisabled() {
         val mc = Minecraft.getInstance()
-        if (mc.screen is ClickGui) mc.setScreen(null)
+        if (mc.gui.screen() is ClickGui) mc.gui.setScreen(null)
     }
 }

@@ -37,7 +37,7 @@ object AutoPlace : Module(
 
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
-        if (client.screen != null) return
+        if (client.gui.screen() != null) return
 
         if (requireHolding.value && !client.options.keyUse.isDown) return
         if (woolOnly.value && !player.mainHandItem.`is`(ItemTags.WOOL)) return

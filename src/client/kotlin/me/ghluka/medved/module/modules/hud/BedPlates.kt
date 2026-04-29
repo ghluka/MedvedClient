@@ -117,7 +117,7 @@ object BedPlates : HudModule(
     }
 
     private fun projectToScreen(worldPos: Vec3, mc: Minecraft): Pair<Float, Float>? {
-        val camera = mc.gameRenderer.mainCamera
+        val camera = mc.gameRenderer.mainCamera()
         val camPos = camera.position()
 
         val dx = (worldPos.x - camPos.x).toFloat()

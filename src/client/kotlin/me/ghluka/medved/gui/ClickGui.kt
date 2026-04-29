@@ -798,8 +798,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
     companion object {
         fun resetPositions() {
             val mc = Minecraft.getInstance()
-            if (mc.screen is me.ghluka.medved.gui.ClickGui) {
-                (mc.screen as me.ghluka.medved.gui.ClickGui).resetPos()
+            if (mc.gui.screen() is me.ghluka.medved.gui.ClickGui) {
+                (mc.gui.screen() as me.ghluka.medved.gui.ClickGui).resetPos()
             }
         }
     }

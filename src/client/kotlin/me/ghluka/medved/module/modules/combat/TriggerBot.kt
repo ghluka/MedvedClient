@@ -35,7 +35,7 @@ object TriggerBot : Module(
 
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
-        if (client.screen != null) return
+        if (client.gui.screen() != null) return
 
         val hitResult = client.hitResult ?: return
         if (hitResult.type != HitResult.Type.ENTITY) return

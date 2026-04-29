@@ -133,35 +133,33 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
         if (!showESP.value || realPositions.isEmpty()) return
         val level = Minecraft.getInstance().level ?: return
 
-        RenderUtil.worldContext(ctx) { pose, buf ->
-            data class EspEntry(val frozenBox: AABB, val realBox: AABB)
-            val entries = mutableListOf<EspEntry>()
-            for ((entityId, realPos) in realPositions) {
-                val entity = level.getEntity(entityId) ?: continue
-                val frozenBox = entity.getBoundingBox()
-                val hw = entity.bbWidth / 2.0
-                val realBox = AABB(realPos.x - hw, realPos.y, realPos.z - hw,
-                                   realPos.x + hw, realPos.y + entity.bbHeight, realPos.z + hw)
-                entries += EspEntry(frozenBox, realBox)
-            }
+        data class EspEntry(val frozenBox: AABB, val realBox: AABB)
+        val entries = mutableListOf<EspEntry>()
+        for ((entityId, realPos) in realPositions) {
+            val entity = level.getEntity(entityId) ?: continue
+            val frozenBox = entity.getBoundingBox()
+            val hw = entity.bbWidth / 2.0
+            val realBox = AABB(realPos.x - hw, realPos.y, realPos.z - hw,
+                realPos.x + hw, realPos.y + entity.bbHeight, realPos.z + hw)
+            entries += EspEntry(frozenBox, realBox)
+        }
 
-            val vcLines = buf.getBuffer(RenderTypes.LINES)
+        RenderUtil.worldContext(ctx, RenderTypes.LINES) { pose, buf ->
             for ((frozenBox, realBox) in entries) {
-                RenderUtil.boxOutline(vcLines, pose, frozenBox, 1f, 1f, 1f, 0.8f)
+                RenderUtil.boxOutline(buf, pose, frozenBox, 1f, 1f, 1f, 0.8f)
                 val fc = frozenBox.center
                 val rc = realBox.center
-                RenderUtil.line(vcLines, pose,
+                RenderUtil.line(buf, pose,
                     fc.x.toFloat(), fc.y.toFloat(), fc.z.toFloat(),
                     rc.x.toFloat(), rc.y.toFloat(), rc.z.toFloat(),
                     1f, 1f, 0f, 1f)
             }
-            buf.endBatch(RenderTypes.LINES)
+        }
 
-            val vcFill = buf.getBuffer(RenderTypes.debugFilledBox())
+        RenderUtil.worldContext(ctx, RenderTypes.debugFilledBox()) { pose, buf ->
             for ((_, realBox) in entries) {
-                RenderUtil.boxFilled(vcFill, pose, realBox, 1f, 0.15f, 0.15f, 0.45f)
+                RenderUtil.boxFilled(buf, pose, realBox, 1f, 0.15f, 0.15f, 0.45f)
             }
-            buf.endBatch(RenderTypes.debugFilledBox())
         }
     }
 

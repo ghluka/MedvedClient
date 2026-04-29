@@ -28,7 +28,7 @@ object Refill : Module("Refill", "Automatically refills your hotbar with healing
         val player = client.player ?: return
         val gameMode = client.gameMode ?: return
 
-        if (mode.value == Mode.INVENTORY && client.screen !is InventoryScreen) {
+        if (mode.value == Mode.INVENTORY && client.gui.screen() !is InventoryScreen) {
             return
         }
 

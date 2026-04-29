@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.rendertype.LayeringTransform
 import net.minecraft.client.renderer.rendertype.OutputTarget
@@ -51,11 +50,13 @@ object RenderUtil {
         )
     }
 
-    inline fun worldContext(ctx: LevelRenderContext, block: (pose: PoseStack.Pose, buf: MultiBufferSource.BufferSource) -> Unit) {
-        val camera = Minecraft.getInstance().gameRenderer.mainCamera.position()
+    inline fun worldContext(ctx: LevelRenderContext, renderType: RenderType, crossinline block: (pose: PoseStack.Pose, buf: VertexConsumer) -> Unit) {
+        val camera = Minecraft.getInstance().gameRenderer.mainCamera().position()
         ctx.poseStack().pushPose()
         ctx.poseStack().translate(-camera.x, -camera.y, -camera.z)
-        block(ctx.poseStack().last(), ctx.bufferSource())
+        ctx.submitNodeCollector().submitCustomGeometry(ctx.poseStack(), renderType) { pose, buf ->
+            block(pose, buf)
+        }
         ctx.poseStack().popPose()
     }
 

@@ -480,7 +480,7 @@ internal object SidebarMode {
                         if (entryY + gui.ENT_H >= configRegionTop) {
                             if (my in entryY until entryY + gui.ENT_H) {
                                 if (entry is me.ghluka.medved.config.entry.HudEditEntry && detailMod is me.ghluka.medved.module.HudModule) {
-                                    net.minecraft.client.Minecraft.getInstance().setScreen(me.ghluka.medved.gui.HudEditorScreen(detailMod, gui))
+                                    net.minecraft.client.Minecraft.getInstance().gui.setScreen(me.ghluka.medved.gui.HudEditorScreen(detailMod, gui))
                                 } else {
                                     gui.handleEntryClick(entry, bodyX + 4, entryY, bodyW2 - 8, mx, btn)
                                 }

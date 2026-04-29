@@ -363,7 +363,7 @@ internal object DropdownMode {
                     for (entry in gui.configEntries(mod)) {
                         if (my in y until y + gui.ENT_H) {
                             if (entry is HudEditEntry && mod is HudModule) {
-                                Minecraft.getInstance().setScreen(HudEditorScreen(mod, gui))
+                                Minecraft.getInstance().gui.setScreen(HudEditorScreen(mod, gui))
                             } else {
                                 gui.handleEntryClick(entry, cpx + 3, y, gui.PNL_W - 3, mx, btn)
                             }

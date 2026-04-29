@@ -192,7 +192,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
     override fun onClose() {
         cancelMsAuth()
-        minecraft.setScreen(parent)
+        minecraft.gui.setScreen(parent)
     }
 
     private fun cancelMsAuth() {

@@ -5,21 +5,14 @@ import com.mojang.math.Axis
 import me.ghluka.medved.config.entry.Color
 import me.ghluka.medved.config.entry.ColorEntry
 import me.ghluka.medved.module.Module
-import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RenderUtil
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.MultiBufferSource
-import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.entity.EquipmentSlot
-import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.AABB
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 object PlayerESP : Module(
     name = "Box ESP",
@@ -60,55 +53,53 @@ object PlayerESP : Module(
 
         val partialTick = mc.deltaTracker.getGameTimeDeltaPartialTick(true)
 
-        RenderUtil.worldContext(ctx) { ctxPose, bufferSource ->
-            for (entity in level.players()) {
-                if (entity == player) continue
-                if (!TargetFilter.isValidTarget(player, entity)) continue
+        data class EspEntry(val box: AABB, val r: Float, val g: Float, val b: Float, val fa: Float, val oa: Float, val lw: Float, val mode: RenderMode)
 
-                val color = resolveColor(player, entity) ?: continue
+        val entries = mutableListOf<EspEntry>()
+        for (entity in level.players()) {
+            if (entity == player) continue
+            if (!TargetFilter.isValidTarget(player, entity)) continue
 
-                val ex = entity.xOld + (entity.x - entity.xOld) * partialTick
-                val ey = entity.yOld + (entity.y - entity.yOld) * partialTick
-                val ez = entity.zOld + (entity.z - entity.zOld) * partialTick
-                val e  = expand.value
+            val color = resolveColor(player, entity) ?: continue
 
-                val box = AABB(
-                    ex - entity.bbWidth  / 2 - e, ey - e,                   ez - entity.bbWidth  / 2 - e,
-                    ex + entity.bbWidth  / 2 + e, ey + entity.bbHeight + e, ez + entity.bbWidth  / 2 + e
-                )
+            val ex = entity.xOld + (entity.x - entity.xOld) * partialTick
+            val ey = entity.yOld + (entity.y - entity.yOld) * partialTick
+            val ez = entity.zOld + (entity.z - entity.zOld) * partialTick
+            val e  = expand.value
 
-                val r = color.r / 255f
-                val g = color.g / 255f
-                val b = color.b / 255f
-                val fa = fillAlpha.value.toFloat()
-                val oa = outlineAlpha.value.toFloat()
-                val lw = lineWidth.value.toFloat()
+            val box = AABB(
+                ex - entity.bbWidth  / 2 - e, ey - e,                   ez - entity.bbWidth  / 2 - e,
+                ex + entity.bbWidth  / 2 + e, ey + entity.bbHeight + e, ez + entity.bbWidth  / 2 + e
+            )
 
-                val fillRT = RenderUtil.ESP_FILLED
-                val lineRT = RenderUtil.ESP_LINES
+            entries += EspEntry(
+                box,
+                color.r / 255f, color.g / 255f, color.b / 255f,
+                fillAlpha.value.toFloat(), outlineAlpha.value.toFloat(),
+                lineWidth.value.toFloat(), renderMode.value
+            )
+        }
 
-                when (renderMode.value) {
-                    RenderMode.BOX -> {
-                        val fillVC = bufferSource.getBuffer(fillRT)
-                        RenderUtil.boxFilledBothSides(fillVC, ctxPose, box, r, g, b, fa)
-                        bufferSource.endBatch(fillRT)
+        if (entries.isEmpty()) return
 
-                        val lineVC = bufferSource.getBuffer(lineRT)
-                        RenderUtil.boxOutline(lineVC, ctxPose, box, r, g, b, oa, lw)
-                        bufferSource.endBatch(lineRT)
+        val fillEntries = entries.filter { it.mode == RenderMode.BOX }
+        val lineEntries = entries.filter { it.mode == RenderMode.BOX || it.mode == RenderMode.CORNERS }
+
+        if (fillEntries.isNotEmpty()) {
+            RenderUtil.worldContext(ctx, RenderUtil.ESP_FILLED) { pose, buf ->
+                for (entry in fillEntries) {
+                    RenderUtil.boxFilledBothSides(buf, pose, entry.box, entry.r, entry.g, entry.b, entry.fa)
+                }
+            }
+        }
+
+        if (lineEntries.isNotEmpty()) {
+            RenderUtil.worldContext(ctx, RenderUtil.ESP_LINES) { pose, buf ->
+                for (entry in lineEntries) {
+                    when (entry.mode) {
+                        RenderMode.BOX     -> RenderUtil.boxOutline(buf, pose, entry.box, entry.r, entry.g, entry.b, entry.oa, entry.lw)
+                        RenderMode.CORNERS -> drawCorners(buf, pose, entry.box, entry.r, entry.g, entry.b, entry.oa, entry.lw)
                     }
-
-                    RenderMode.CORNERS -> {
-                        val lineVC = bufferSource.getBuffer(lineRT)
-                        drawCorners(lineVC, ctxPose, box, r, g, b, oa, lw)
-                        bufferSource.endBatch(lineRT)
-                    }
-
-                    //RenderMode.OUTLINE -> {
-                    //    val lineVC = bufferSource.getBuffer(lineRT)
-                    //    RenderUtil.boxOutline(lineVC, ctxPose, box, r, g, b, oa, lw)
-                    //    bufferSource.endBatch(lineRT)
-                    //}
                 }
             }
         }

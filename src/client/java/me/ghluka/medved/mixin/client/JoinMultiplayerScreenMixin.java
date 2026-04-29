@@ -22,7 +22,7 @@ public abstract class JoinMultiplayerScreenMixin extends Screen {
     private void medved$addAltButton(CallbackInfo ci) {
         this.addRenderableWidget(
             Button.builder(Component.literal("Alts"),
-                btn -> Minecraft.getInstance().setScreen(new AltManagerScreen(this))
+                btn -> Minecraft.getInstance().gui.setScreen(new AltManagerScreen(this))
             ).bounds(5, 5, 67, 20).build()
         );
     }

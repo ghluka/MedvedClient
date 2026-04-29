@@ -73,7 +73,7 @@ object ComboTap : Module(
 
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
-        if (client.screen != null) { resetInputFlags(); return }
+        if (client.gui.screen() != null) { resetInputFlags(); return }
 
         val now = System.currentTimeMillis()
         resetInputFlags()

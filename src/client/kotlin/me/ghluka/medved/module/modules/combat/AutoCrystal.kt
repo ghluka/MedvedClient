@@ -145,7 +145,7 @@ object AutoCrystal : Module(
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
         val level = client.level ?: return
-        if (client.screen != null) return
+        if (client.gui.screen() != null) return
 
         if (blastDelayCounter > 0) blastDelayCounter--
         if (placeDelayCounter > 0) placeDelayCounter--

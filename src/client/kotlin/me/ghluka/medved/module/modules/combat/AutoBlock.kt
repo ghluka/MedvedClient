@@ -45,7 +45,7 @@ object AutoBlock : Module(
 
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
-        if (client.screen != null) { release(client); return }
+        if (client.gui.screen() != null) { release(client); return }
 
         val stack = player.mainHandItem
         val isSword = stack.`is`(ItemTags.SWORDS) ||
