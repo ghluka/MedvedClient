@@ -44,7 +44,9 @@ dependencies {
 }
 
 tasks.processResources {
-    val props = project.properties.filterValues { it is String }.mapValues { it.value as String }
+    val props = project.properties.filterValues { it is String }.mapValues {
+        (it.value as String).replace("-snapshot-", "-alpha.")
+    }
     inputs.properties(props)
 
     filesMatching("fabric.mod.json") {
