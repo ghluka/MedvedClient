@@ -9,38 +9,51 @@ import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.gen.Accessor;
+import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(Camera.class)
+@Mixin(value=Camera.class, priority = 1)
 public abstract class CameraMixin {
-    @Unique
-    boolean firstTime = true;
-
     @Shadow
     private Entity entity;
 
     @Shadow
     protected abstract void setRotation(float yaw, float pitch);
 
-    @Inject(method = "alignWithEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;setRotation(FF)V", ordinal = 1, shift = At.Shift.AFTER))
-    public void lockRotation(float f, CallbackInfo ci) {
-        if (RotationManager.perspective &&
-            this.entity instanceof LocalPlayer) {
+    @Redirect(
+            method = "alignWithEntity",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/Camera;setRotation(FF)V"
+            )
+    )
+    public void redirectRotation(Camera instance, float yaw, float pitch) {
+        if (RotationManager.perspective && this.entity instanceof LocalPlayer) {
 
-            CameraOverriddenEntity cameraOverriddenEntity = (CameraOverriddenEntity) this.entity;
+            CameraOverriddenEntity e = (CameraOverriddenEntity) this.entity;
 
             if (RotationManager.firstTime && Minecraft.getInstance().player != null) {
-                cameraOverriddenEntity.medved$setCameraPitch(Minecraft.getInstance().player.getXRot());
-                cameraOverriddenEntity.medved$setCameraYaw(Minecraft.getInstance().player.getYRot());
+                e.medved$setCameraPitch(Minecraft.getInstance().player.getXRot());
+                e.medved$setCameraYaw(Minecraft.getInstance().player.getYRot());
                 RotationManager.firstTime = false;
             }
-            this.setRotation(cameraOverriddenEntity.medved$getCameraYaw(), cameraOverriddenEntity.medved$getCameraPitch());
 
-        }
-        if (!RotationManager.perspective && this.entity instanceof LocalPlayer) {
-            RotationManager.firstTime = true;
+            setRotation(
+                    e.medved$getCameraYaw(),
+                    e.medved$getCameraPitch()
+            );
+
+        } else {
+            setRotation(yaw, pitch);
+
+            if (this.entity instanceof LocalPlayer) {
+                RotationManager.firstTime = true;
+            }
         }
     }
+
 }

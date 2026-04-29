@@ -83,6 +83,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(ModulesList)
         ModuleManager.register(TargetHud)
         ModuleManager.register(ScaffoldInfo)
+        ModuleManager.register(BedPlates)
         // skyblock
         ModuleManager.register(ChestAura)
         
