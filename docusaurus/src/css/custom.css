@@ -98,3 +98,8 @@ footer,
 .pagination-nav__label {
   color: #fff;
 }
+
+a > .MuiChip-label:hover {
+  text-decoration: underline;
+}
+

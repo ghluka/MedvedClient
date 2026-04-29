@@ -1,31 +1,21 @@
-package me.ghluka.medved.module.modules.render
+package me.ghluka.medved.module.modules.hud
 
-import com.mojang.blaze3d.vertex.PoseStack
-import com.mojang.blaze3d.vertex.VertexConsumer
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
-import me.ghluka.medved.util.RenderUtil
 import me.ghluka.medved.util.roundedFill
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
-import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.renderer.MultiBufferSource
-import net.minecraft.client.renderer.block.BlockStateModelSet
-import net.minecraft.client.renderer.block.dispatch.BlockStateModel
-import net.minecraft.client.renderer.rendertype.RenderTypes
-import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
 import net.minecraft.tags.BlockTags
-import net.minecraft.world.item.ItemDisplayContext
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix4f
 import kotlin.math.abs
-
 
 object BedPlates : HudModule(
     "Bed Plates",
@@ -160,7 +150,7 @@ object BedPlates : HudModule(
 
     private fun findAllBeds(
         playerPos: Vec3,
-        level:     net.minecraft.client.multiplayer.ClientLevel,
+        level:     ClientLevel,
         range:     Float,
     ): List<BlockPos> {
         val base    = BlockPos.containing(playerPos.x, playerPos.y, playerPos.z)
@@ -186,7 +176,14 @@ object BedPlates : HudModule(
             while (queue.isNotEmpty()) {
                 val cur = queue.removeFirst()
                 group.add(cur)
-                for (dir in listOf(BlockPos(1,0,0), BlockPos(-1,0,0), BlockPos(0,0,1), BlockPos(0,0,-1), BlockPos(0,1,0), BlockPos(0,-1,0))) {
+                for (dir in listOf(
+                    BlockPos(1, 0, 0),
+                    BlockPos(-1, 0, 0),
+                    BlockPos(0, 0, 1),
+                    BlockPos(0, 0, -1),
+                    BlockPos(0, 1, 0),
+                    BlockPos(0, -1, 0)
+                )) {
                     val n = cur.offset(dir.x, dir.y, dir.z)
                     if (n in rawBeds && n !in visited) {
                         visited.add(n)
@@ -206,16 +203,16 @@ object BedPlates : HudModule(
     }
 
     private fun getSurroundingBlocks(
-        level:       net.minecraft.client.multiplayer.ClientLevel,
-        origin:      BlockPos,
+        level:       ClientLevel,
+        origin: BlockPos,
         maxDistance: Int,
     ): List<BlockPos> {
         val result     = linkedSetOf<BlockPos>()
         val queue      = ArrayDeque<BlockPos>()
         val directions = arrayOf(
-            BlockPos(1,0,0), BlockPos(-1,0,0),
-            BlockPos(0,0,1), BlockPos(0,0,-1),
-            BlockPos(0,1,0),
+            BlockPos(1, 0, 0), BlockPos(-1, 0, 0),
+            BlockPos(0, 0, 1), BlockPos(0, 0, -1),
+            BlockPos(0, 1, 0),
         )
         queue.add(origin); result.add(origin)
         val maxSq = maxDistance * maxDistance
@@ -263,7 +260,7 @@ object BedPlates : HudModule(
 
     private fun stackFor(state: BlockState): ItemStack? {
         val item = state.block.asItem()
-        if (item === net.minecraft.world.item.Items.AIR) return null
+        if (item === Items.AIR) return null
         return ItemStack(item)
     }
 }

@@ -1,0 +1,83 @@
+---
+sidebar_position: 2
+---
+import Chip from '@mui/material/Chip'
+import WarningIcon from '@mui/icons-material/Warning'
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser'
+
+# Anticheat Safety
+
+Not all anticheats are the same and most servers use different ones. There are also different types of anticheats and some combine different checks to detect various different cheats.
+
+Bypassing anticheats depends on what modules and configurations you use.
+
+:::warning
+Whether you are new to cheating, making a new config, or trying out a random one you found online, use an alt account to avoid getting banned on your main account. If you don't know how to bypass you can easily mess up and enable something that is not safe.
+:::
+
+## How do anticheats detect you?
+
+There are many ways anticheats detect you and they boil down to a few large categories. Many anticheats will combine these detection methods.
+
+### Simulation/Prediction
+
+Simulation anticheats simulate movement physics (acceleration, friction, jump arcs)
+to predict where you should be.
+
+On anticheats that do simulation, you wont be able to do any movements that are
+impossible as the anticheat predicts where you should be and blocks all impossible movement.
+
+- [Velocity](/features/modules/combat/Velocity) (only on modes that modify your knockback, not on delay or jump reset mode)
+- [Flight](/features/modules/movement/Flight)
+- [Speed](/features/modules/movement/Speed)
+
+Are just a few modules that will easily get detected by prediction anticheats.
+
+Not all detections will result in an instant ban, most servers will just nullify or
+mitigate suspicious actions and alert staff, for example if you use a module like
+[Reach](/features/modules/combat/Reach), the server might choose to just ignore
+your attacks rather than banning you.
+
+### Heuristics
+
+Instead of having strict rules that immediately flag when triggered, heuristics anticheats will
+look for patterns over time to flag statistically improbable actions, for example:
+
+- Clicks per second consistency
+- Hit accuracy
+- Aim smoothness
+
+These anticheats rarely instantly ban you for these violations, but score you based on suspicion.
+
+### Rule-based checks
+
+This is the most common check and also one of the oldest ways anticheats flag you for cheating,
+these are hard constraints the server checks for to ensure you aren't doing something impossible.
+
+If you do something impossible like hit someone from 6 blocks away, the server will know that you are
+cheating for sure.
+
+## Why do we have modules that ban?
+
+We prioritize making modules that only do humanly-possible behaviour, but we still provide some modules
+for servers that allow cheating or dont have anticheats, or for specific servers and anticheats that might
+not have detections these modules.
+
+## Risk labels
+
+### Ghost: <Chip label="Ghost" color="success" icon={<VerifiedUserIcon />} />
+
+When configured correctly, these modules only do humanly-possible actions.
+
+This does not mean that the module will bypass in any variation of configuration,
+for example, using [Left Clicker](/features/modules/combat/LeftClicker) at 20 CPS,
+it is very likely that you will be detected. But if you use a good configuration,
+it will be reliably safe.
+
+### Warning: <Chip label="Warning" color="warning" icon={<WarningIcon />} />
+
+These modules are very easy to detect by anticheats.
+
+Do not use them unless you are certain that it bypasses and/or you are using an
+alternate account that you dont mind getting banned on.
+
