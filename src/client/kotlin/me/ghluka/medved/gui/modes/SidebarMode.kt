@@ -9,6 +9,8 @@ import me.ghluka.medved.gui.ClickGui
 import me.ghluka.medved.gui.components.*
 import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
+import me.ghluka.medved.util.Text
+import me.ghluka.medved.util.TextCentered
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal object SidebarMode {
@@ -31,7 +33,7 @@ internal object SidebarMode {
         g.roundedFill(px, py, pw, ph, radius, gui.PNL_BG)
 
         g.fill(px, py, px + pw, py + logoH, gui.shade(20, 0.15f))
-        g.centeredText(smallFont, gui.styled("GRIZZLY"), px + pw / 2, py + (logoH - 8) / 2, gui.TEXT_DIM)
+        g.TextCentered(smallFont, gui.styled("GRIZZLY"), px + pw / 2, py + (logoH - 8) / 2, gui.TEXT_DIM)
 
         val tabW = pw / 2
         val tabs = listOf("Modules", "Config")
@@ -48,7 +50,7 @@ internal object SidebarMode {
                 if (tabSel) gui.shade(30, 0.18f) else if (tabHov) gui.shade(25, 0.12f) else gui.shade(18, 0.08f),
             )
             if (tabSel) g.fill(tx, tabBarY + tabH - 2, tx + tabW, tabBarY + tabH, gui.ACCENT)
-            g.centeredText(smallFont, gui.styled(tabName), tx + tabW / 2, tabBarY + (tabH - 8) / 2, if (tabSel) gui.TEXT else gui.TEXT_DIM)
+            g.TextCentered(smallFont, gui.styled(tabName), tx + tabW / 2, tabBarY + (tabH - 8) / 2, if (tabSel) gui.TEXT else gui.TEXT_DIM)
         }
 
         if (gui.sidebarTab == 0) {
@@ -67,7 +69,7 @@ internal object SidebarMode {
                     cy + rowH,
                     if (catSel) gui.shade(35, 0.22f) else if (catHov) gui.shade(28, 0.14f) else gui.shade(14, 0.06f),
                 )
-                g.centeredText(smallFont, gui.styled(cat.name), px + catW / 2, cy + (rowH - 8) / 2, if (catSel) WHITE else GREY)
+                g.TextCentered(smallFont, gui.styled(cat.name), px + catW / 2, cy + (rowH - 8) / 2, if (catSel) WHITE else GREY)
                 cy += rowH + catPad
             }
         }
@@ -116,12 +118,12 @@ internal object SidebarMode {
                 if (gui.sidebarConfigScroll > gui.sidebarConfigScrollMax) gui.sidebarConfigScroll = gui.sidebarConfigScrollMax
                 if (gui.sidebarConfigScroll < 0f) gui.sidebarConfigScroll = 0f
                 var ey = headerY
-                g.text(smallFont, gui.styled("< Back"), bodyX + 8, ey + 3, gui.TEXT_DIM)
+                g.Text(smallFont, gui.styled("< Back"), bodyX + 8, ey + 3, gui.TEXT_DIM)
                 ey += backBtnH
-                g.text(smallFont, gui.styled(detailMod.name), bodyX + 8, ey, WHITE)
+                g.Text(smallFont, gui.styled(detailMod.name), bodyX + 8, ey, WHITE)
                 ey += nameH
                 descLines.forEachIndexed { i, line ->
-                    g.text(smallFont, gui.styled(line), bodyX + 8, ey + i * descLineH, GREY)
+                    g.Text(smallFont, gui.styled(line), bodyX + 8, ey + i * descLineH, GREY)
                 }
                 ey += descH + 8
                 val tgX = bodyX + 8
@@ -129,14 +131,14 @@ internal object SidebarMode {
                 val tgLabel = if (detailMod.isEnabled()) "ON" else "OFF"
                 val tgCol = if (detailMod.isEnabled()) gui.BTN_ON else gui.BTN_OFF
                 g.fill(tgX, tgY, tgX + 60, tgY + tgH, tgCol)
-                g.centeredText(smallFont, gui.styled(tgLabel), tgX + 30, tgY + (tgH - 8) / 2, gui.TEXT)
+                g.TextCentered(smallFont, gui.styled(tgLabel), tgX + 30, tgY + (tgH - 8) / 2, gui.TEXT)
                 ey += toggleH
 
                 val configRegionTop = ey
                 val configRegionBottom = bodyY + 6 + bodyH
                 var entryY = configRegionTop - gui.sidebarConfigScroll.toInt()
                 if (entries.isEmpty()) {
-                    g.text(smallFont, gui.styled("No settings."), bodyX + 6, entryY, GREY)
+                    g.Text(smallFont, gui.styled("No settings."), bodyX + 6, entryY, GREY)
                 } else {
                     for (entry in entries) {
                         if (entryY + gui.ENT_H > configRegionBottom) break
@@ -180,7 +182,7 @@ internal object SidebarMode {
             } else {
                 val mods = gui.selectedCategory?.let { me.ghluka.medved.module.ModuleManager.getByCategory(it) } ?: emptyList()
                 if (mods.isEmpty()) {
-                    g.centeredText(smallFont, gui.styled("Select a category"), bodyX + bodyW / 2, bodyY + 6 + bodyH / 2 - 4, GREY)
+                    g.TextCentered(smallFont, gui.styled("Select a category"), bodyX + bodyW / 2, bodyY + 6 + bodyH / 2 - 4, GREY)
                     gui.sidebarScroll = 0f
                     gui.sidebarScrollMax = 0f
                 } else {
@@ -228,16 +230,16 @@ internal object SidebarMode {
                         val nameTopPad = 8
                         val nameBottomPad = 8
                         val descLineSpacing = (lineH * 1.3).toInt()
-                        g.text(smallFont, gui.styled(mod.name), bodyX + 12, my2 + nameTopPad, WHITE)
+                        g.Text(smallFont, gui.styled(mod.name), bodyX + 12, my2 + nameTopPad, WHITE)
                         descLines.forEachIndexed { i, line ->
-                            g.text(smallFont, gui.styled(line), bodyX + 12, my2 + nameTopPad + lineH + nameBottomPad + i * descLineSpacing, GREY)
+                            g.Text(smallFont, gui.styled(line), bodyX + 12, my2 + nameTopPad + lineH + nameBottomPad + i * descLineSpacing, GREY)
                         }
                         val tgX = bodyX + bodyW - 44
                         val tgY = my2 + cardH / 2 - 6
                         g.fill(tgX, tgY, tgX + 32, tgY + 12, if (mod.isEnabled()) gui.BTN_ON else gui.BTN_OFF)
-                        g.centeredText(smallFont, gui.styled(if (mod.isEnabled()) "ON" else "OFF"), tgX + 16, tgY + 2, gui.TEXT)
+                        g.TextCentered(smallFont, gui.styled(if (mod.isEnabled()) "ON" else "OFF"), tgX + 16, tgY + 2, gui.TEXT)
                         if (gui.configEntries(mod).isNotEmpty()) {
-                            g.text(smallFont, gui.plain("⋮"), tgX - 12, my2 + cardH / 2 - 4, gui.TEXT_DIM)
+                            g.Text(smallFont, gui.plain("⋮"), tgX - 12, my2 + cardH / 2 - 4, gui.TEXT_DIM)
                         }
                         my2 += cardH + cardPad
                     }
@@ -255,8 +257,8 @@ internal object SidebarMode {
                 val ex2 = textX2 - gui.presetField.scrollPx + gui.guiFont.width(gui.styled(gui.presetField.text.substring(0, gui.presetField.selMax)))
                 g.fill(sx2, ey + 1, ex2, ey + gui.ENT_H - 1, gui.argb(170, 60, 110, 210))
             }
-            if (gui.presetField.text.isEmpty() && !gui.presetFieldActive) g.text(gui.guiFont, gui.styled("preset name..."), textX2, ey + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
-            else g.text(gui.guiFont, gui.styled(gui.presetField.text), textX2 - gui.presetField.scrollPx, ey + (gui.ENT_H - 8) / 2, gui.TEXT)
+            if (gui.presetField.text.isEmpty() && !gui.presetFieldActive) g.Text(gui.guiFont, gui.styled("preset name..."), textX2, ey + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
+            else g.Text(gui.guiFont, gui.styled(gui.presetField.text), textX2 - gui.presetField.scrollPx, ey + (gui.ENT_H - 8) / 2, gui.TEXT)
             if (gui.presetFieldActive && gui.cursorVisible) {
                 val cx2 = textX2 - gui.presetField.scrollPx + gui.guiFont.width(gui.styled(gui.presetField.text.substring(0, gui.presetField.cursor)))
                 g.fill(cx2, ey + 1, cx2 + 1, ey + gui.ENT_H - 1, gui.argb(230, 220, 220, 255))
@@ -269,13 +271,13 @@ internal object SidebarMode {
                 val bHov = mx in bx2 until bx2 + btnW2 && my in ey until ey + gui.MOD_H
                 g.fill(bx2, ey, bx2 + btnW2, ey + gui.MOD_H, if (bHov) gui.shade(50, 0.20f) else gui.BTN_BG)
                 if (i < 2) g.fill(bx2 + btnW2 - 1, ey, bx2 + btnW2, ey + gui.MOD_H, gui.shade(10, 0.05f))
-                g.centeredText(gui.guiFont, gui.styled(label2), bx2 + btnW2 / 2, ey + (gui.MOD_H - 8) / 2, gui.TEXT)
+                g.TextCentered(gui.guiFont, gui.styled(label2), bx2 + btnW2 / 2, ey + (gui.MOD_H - 8) / 2, gui.TEXT)
             }
             ey += gui.MOD_H
             val presets = me.ghluka.medved.config.ConfigManager.listPresets()
             if (presets.isEmpty()) {
                 g.fill(bodyX, ey, bodyX + bodyW, ey + gui.ENT_H, gui.ENT_BG)
-                g.text(gui.guiFont, gui.styled("(no presets saved)"), bodyX + 5, ey + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
+                g.Text(gui.guiFont, gui.styled("(no presets saved)"), bodyX + 5, ey + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
             } else {
                 for (preset in presets) {
                     if (ey + gui.ENT_H > bodyY + bodyH) break
@@ -283,7 +285,7 @@ internal object SidebarMode {
                     val pSel = preset == gui.presetField.text
                     g.fill(bodyX, ey, bodyX + bodyW, ey + gui.ENT_H, if (pHov) gui.MOD_HOV else gui.ENT_BG)
                     if (pSel) g.fill(bodyX, ey, bodyX + 3, ey + gui.ENT_H, gui.ACCENT)
-                    g.text(gui.guiFont, gui.styled(preset), bodyX + 7, ey + (gui.ENT_H - 8) / 2, if (pSel) gui.TEXT else gui.TEXT_DIM)
+                    g.Text(gui.guiFont, gui.styled(preset), bodyX + 7, ey + (gui.ENT_H - 8) / 2, if (pSel) gui.TEXT else gui.TEXT_DIM)
                     ey += gui.ENT_H
                 }
             }

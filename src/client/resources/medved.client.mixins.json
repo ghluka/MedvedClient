@@ -18,8 +18,8 @@
 		"LocalPlayerAccessor",
 		"LocalPlayerMixin",
 		"MinecraftAccessor",
-		"MinecraftMixin",
 		"MinecraftUserAccessor",
+		"MinecraftMixin",
 		"MultiPlayerGameModeMixin",
 		"PlayerMixin",
 		"TitleScreenMixin"

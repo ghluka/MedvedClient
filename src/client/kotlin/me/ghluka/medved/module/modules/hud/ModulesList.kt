@@ -7,6 +7,7 @@ import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
 import me.ghluka.medved.module.modules.player.ClientBrand
+import me.ghluka.medved.util.Text
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -137,26 +138,26 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
                 if (leftBorder.value) g.fill(rightEdge - borderW, ry, rightEdge, ry + ROW_H, accentColor)
                 if (infoComp != null) {
                     val infoX = rightEdge - borderW - padX.value - font.width(infoComp)
-                    if (textShadow.value) g.text(font, infoComp, infoX + 1, textY + 1, argb(160, 0, 0, 0))
-                    g.text(font, infoComp, infoX, textY, mod.hudInfoColor())
+                    if (textShadow.value) g.Text(font, infoComp, infoX + 1, textY + 1, argb(160, 0, 0, 0))
+                    g.Text(font, infoComp, infoX, textY, mod.hudInfoColor())
                     val nameX = infoX - 4 - nameW
-                    if (textShadow.value) g.text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
-                    g.text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
+                    if (textShadow.value) g.Text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
+                    g.Text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 } else {
                     val nameX = rightEdge - borderW - padX.value - nameW
-                    if (textShadow.value) g.text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
-                    g.text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
+                    if (textShadow.value) g.Text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
+                    g.Text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 }
             } else {
                 if (background.value) g.fill(0, ry, rowW, ry + ROW_H, bgColor.liveColor(bgColor.value).argb)
                 if (leftBorder.value) g.fill(0, ry, borderW, ry + ROW_H, accentColor)
                 val nameX = borderW + padX.value
-                if (textShadow.value) g.text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
-                g.text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
+                if (textShadow.value) g.Text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
+                g.Text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 if (infoComp != null) {
                     val infoX = nameX + nameW + 4
-                    if (textShadow.value) g.text(font, infoComp, infoX + 1, textY + 1, argb(160, 0, 0, 0))
-                    g.text(font, infoComp, infoX, textY, mod.hudInfoColor())
+                    if (textShadow.value) g.Text(font, infoComp, infoX + 1, textY + 1, argb(160, 0, 0, 0))
+                    g.Text(font, infoComp, infoX, textY, mod.hudInfoColor())
                 }
             }
 

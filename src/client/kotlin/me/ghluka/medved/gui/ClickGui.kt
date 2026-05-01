@@ -2,13 +2,14 @@ package me.ghluka.medved.gui
 
 import me.ghluka.medved.config.ConfigManager
 import me.ghluka.medved.config.entry.*
-import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.other.ClickGui
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
 import me.ghluka.medved.util.*
+import me.ghluka.medved.util.Text
+import me.ghluka.medved.util.TextCentered
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -20,7 +21,6 @@ import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
 import com.mojang.blaze3d.platform.InputConstants
-import me.ghluka.medved.MedvedClient
 import me.ghluka.medved.gui.components.*
 import me.ghluka.medved.gui.helpers.InputHelper
 import me.ghluka.medved.gui.modes.DropdownMode
@@ -370,7 +370,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val comp  = styled(mod.name)
         val textW = guiFont.width(comp)
         if (textW <= availW) {
-            g.text(guiFont, comp, x, textY, textColor)
+            g.Text(guiFont, comp, x, textY, textColor)
             scrollTimes.remove(mod)
             return
         }
@@ -387,44 +387,44 @@ class ClickGui : Screen(Component.literal("Medved")) {
             ((elapsed - pauseStart) * scrollSpeed) % slotW
         }.toInt()
         g.enableScissor(x, rowY, x + availW, rowY + MOD_H)
-        g.text(guiFont, comp, x - offsetX,        textY, textColor)  // primary copy
-        g.text(guiFont, comp, x - offsetX + slotW, textY, textColor) // trailing copy
+        g.Text(guiFont, comp, x - offsetX,        textY, textColor)  // primary copy
+        g.Text(guiFont, comp, x - offsetX + slotW, textY, textColor) // trailing copy
         g.disableScissor()
     }
 
     internal fun drawEntry(g: GuiGraphicsExtractor, entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int) {
         if (entry is HudEditEntry) {
             g.fill(x, y, x + w, y + ENT_H, BTN_BG)
-            g.centeredText(guiFont, styled("Edit Position"), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
+            g.TextCentered(guiFont, styled("Edit Position"), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
             return
         }
         if (entry is ButtonEntry) {
             g.fill(x, y, x + w, y + ENT_H, BTN_BG)
-            g.centeredText(guiFont, styled(entry.label), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
+            g.TextCentered(guiFont, styled(entry.label), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
             return
         }
         g.fill(x, y, x + w, y + ENT_H, ENT_BG)
-        g.text(guiFont, styled(fmtLabel(entry.name)), x + 2, y + (ENT_H - 8) / 2, TEXT_DIM)
+        g.Text(guiFont, styled(fmtLabel(entry.name)), x + 2, y + (ENT_H - 8) / 2, TEXT_DIM)
 
         when (entry) {
             is BooleanEntry -> {
                 val bx = x + w - 28
                 g.fill(bx, y + 1, bx + 26, y + ENT_H - 1, if (entry.value) BTN_ON else BTN_OFF)
-                g.centeredText(guiFont, styled(if (entry.value) "ON" else "OFF"), bx + 13, y + (ENT_H - 8) / 2, TEXT)
+                g.TextCentered(guiFont, styled(if (entry.value) "ON" else "OFF"), bx + 13, y + (ENT_H - 8) / 2, TEXT)
             }
             is IntEntry -> {
                 val txt = "${entry.value}"
-                g.text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+                g.Text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
             }
             is FloatEntry -> {
                 val v = entry.value
                 val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
-                g.text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+                g.Text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
             }
             is DoubleEntry -> {
                 val v = entry.value.toFloat()
                 val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
-                g.text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+                g.Text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
             }
             is StringEntry -> {
                 val fx = x + w - 66
@@ -438,7 +438,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     g.fill(sx, y + 2, ex, y + ENT_H - 2, argb(170, 60, 110, 210))
                 }
                 val displayText = if (active) entryField.text else entry.value
-                g.text(guiFont, styled(displayText), textX - (if (active) entryField.scrollPx else 0), y + (ENT_H - 8) / 2, TEXT)
+                g.Text(guiFont, styled(displayText), textX - (if (active) entryField.scrollPx else 0), y + (ENT_H - 8) / 2, TEXT)
                 if (active && cursorVisible) {
                     val cx = textX - entryField.scrollPx + guiFont.width(styled(entryField.text.substring(0, entryField.cursor)))
                     g.fill(cx, y + 2, cx + 1, y + ENT_H - 2, TEXT)
@@ -451,13 +451,13 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 g.fill(sx, y + 1, sx + 14, y + ENT_H - 1, swatch.argb)
                 g.outline(sx, y + 1, 14, ENT_H - 2, TEXT_DIM)
                 if (entry == expandedColorEntry)
-                    g.text(guiFont, jbMono("\u25bc"), sx - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
+                    g.Text(guiFont, jbMono("\u25bc"), sx - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
             }
             is KeybindEntry -> {
                 val kx = x + w - 50
                 val listening = entry == listeningKeybind
                 g.fill(kx, y + 1, kx + 48, y + ENT_H - 1, if (listening) ACCENT else BTN_BG)
-                g.centeredText(guiFont, styled(if (listening) "..." else keyName(entry.value)), kx + 24, y + (ENT_H - 8) / 2, TEXT)
+                g.TextCentered(guiFont, styled(if (listening) "..." else keyName(entry.value)), kx + 24, y + (ENT_H - 8) / 2, TEXT)
             }
             is EnumEntry<*> -> {
                 val ew = enumButtonWidth(entry)
@@ -465,21 +465,21 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 g.fill(ex, y + 1, ex + ew, y + ENT_H - 1, BTN_BG)
                 val isOpen = entry == expandedEnum
                 val label = fmtLabel(entry.value.name)
-                g.text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
-                g.text(guiFont, jbMono(if (isOpen) "\u25bc" else "\u25b2"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
+                g.Text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
+                g.Text(guiFont, jbMono(if (isOpen) "\u25bc" else "\u25b2"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
             }
             is IntRangeEntry -> {
                 val txt = "${entry.value.first} - ${entry.value.second}"
                 val styledTxt = styled(txt)
                 val tw = guiFont.width(styledTxt)
-                g.text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
+                g.Text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
             }
             is FloatRangeEntry -> {
                 val fmt = "%.${entry.decimals}f"
                 val txt = "$fmt - $fmt".format(entry.value.first, entry.value.second)
                 val styledTxt = styled(txt)
                 val tw = guiFont.width(styledTxt)
-                g.text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
+                g.Text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
             }
         }
     }
@@ -766,7 +766,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (ty < 2) ty = my + 10
         g.fill(tx, ty, tx + bw, ty + bh, argb(230, 10, 10, 20))
         g.fill(tx, ty, tx + 1, ty + bh, ACCENT)
-        g.text(guiFont, styledTooltip, tx + pad, ty + pad, TEXT)
+        g.Text(guiFont, styledTooltip, tx + pad, ty + pad, TEXT)
     }
 
     internal fun fmtLabel(name: String) =

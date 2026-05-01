@@ -8,11 +8,14 @@ import me.ghluka.medved.gui.components.*
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.ModuleManager
+import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.util.CORNERS_BOT
 import me.ghluka.medved.util.CORNERS_TOP
 import me.ghluka.medved.util.NotificationManager
 import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
+import me.ghluka.medved.util.Text
+import me.ghluka.medved.util.TextCentered
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.Minecraft
 
@@ -63,8 +66,8 @@ internal object DropdownMode {
         } else {
             g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, radius, gui.HDR_BG)
         }
-        g.centeredText(gui.guiFont, gui.styled("CONFIGS"), px + gui.PNL_W / 2, py + (gui.HDR_H - 8) / 2, -1)
-        g.text(gui.guiFont, gui.jbMono(if (expanded) "-" else "+"), px + gui.PNL_W - 12, py + (gui.HDR_H - 8) / 2, gui.TEXT_DIM)
+        g.TextCentered(gui.guiFont, gui.styled("CONFIGS"), px + gui.PNL_W / 2, py + (gui.HDR_H - 8) / 2, -1)
+        g.Text(gui.guiFont, gui.jbMono(if (expanded) "-" else "+"), px + gui.PNL_W - 12, py + (gui.HDR_H - 8) / 2, gui.TEXT_DIM)
         if (!expanded) return
 
         var y = py + gui.HDR_H
@@ -80,9 +83,9 @@ internal object DropdownMode {
             g.fill(sx, y + 1, ex, y + gui.ENT_H - 1, gui.argb(170, 60, 110, 210))
         }
         if (gui.presetField.text.isEmpty() && !gui.presetFieldActive) {
-            g.text(gui.guiFont, gui.styled("preset name..."), textX, y + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
+            g.Text(gui.guiFont, gui.styled("preset name..."), textX, y + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
         } else {
-            g.text(gui.guiFont, gui.styled(gui.presetField.text), textX - gui.presetField.scrollPx, y + (gui.ENT_H - 8) / 2, gui.TEXT)
+            g.Text(gui.guiFont, gui.styled(gui.presetField.text), textX - gui.presetField.scrollPx, y + (gui.ENT_H - 8) / 2, gui.TEXT)
         }
         if (gui.presetFieldActive && gui.cursorVisible) {
             val cx = textX - gui.presetField.scrollPx + gui.guiFont.width(gui.styled(gui.presetField.text.substring(0, gui.presetField.cursor)))
@@ -100,15 +103,15 @@ internal object DropdownMode {
         g.fill(px + btnW * 2, y, px + gui.PNL_W,   y + gui.MOD_H, if (foldHov) gui.shade(50, 0.20f) else gui.BTN_BG)
         g.fill(px + btnW - 1,     y, px + btnW,     y + gui.MOD_H, gui.shade(10, 0.05f))
         g.fill(px + btnW * 2 - 1, y, px + btnW * 2, y + gui.MOD_H, gui.shade(10, 0.05f))
-        g.centeredText(gui.guiFont, gui.styled("Save"),   px + btnW / 2,            y + (gui.MOD_H - 8) / 2, gui.TEXT)
-        g.centeredText(gui.guiFont, gui.styled("Load"),   px + btnW + btnW / 2,     y + (gui.MOD_H - 8) / 2, gui.TEXT)
-        g.centeredText(gui.guiFont, gui.styled("Folder"), px + btnW * 2 + btnW / 2, y + (gui.MOD_H - 8) / 2, gui.TEXT)
+        g.TextCentered(gui.guiFont, gui.styled("Save"),   px + btnW / 2,            y + (gui.MOD_H - 8) / 2, gui.TEXT)
+        g.TextCentered(gui.guiFont, gui.styled("Load"),   px + btnW + btnW / 2,     y + (gui.MOD_H - 8) / 2, gui.TEXT)
+        g.TextCentered(gui.guiFont, gui.styled("Folder"), px + btnW * 2 + btnW / 2, y + (gui.MOD_H - 8) / 2, gui.TEXT)
         y += gui.MOD_H
 
         val presets = ConfigManager.listPresets()
         if (presets.isEmpty()) {
             g.fill(px, y, px + gui.PNL_W, y + gui.ENT_H, gui.ENT_BG)
-            g.text(gui.guiFont, gui.styled("(no presets saved)"), px + 5, y + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
+            g.Text(gui.guiFont, gui.styled("(no presets saved)"), px + 5, y + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
             y += gui.ENT_H
         } else {
             for (preset in presets) {
@@ -116,7 +119,7 @@ internal object DropdownMode {
                 val selected = preset == gui.presetField.text
                 g.fill(px, y, px + gui.PNL_W, y + gui.ENT_H, if (hov) gui.MOD_HOV else gui.ENT_BG)
                 if (selected) g.fill(px, y, px + 3, y + gui.ENT_H, gui.ACCENT)
-                g.text(gui.guiFont, gui.styled(preset), px + 7, y + (gui.ENT_H - 8) / 2, if (selected) gui.TEXT else gui.TEXT_DIM)
+                g.Text(gui.guiFont, gui.styled(preset), px + 7, y + (gui.ENT_H - 8) / 2, if (selected) gui.TEXT else gui.TEXT_DIM)
                 y += gui.ENT_H
             }
         }
@@ -136,13 +139,21 @@ internal object DropdownMode {
         } else {
             g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, radius, gui.HDR_BG)
         }
-        g.centeredText(gui.guiFont, gui.styled(cat.name), px + gui.PNL_W / 2, py + (gui.HDR_H - 8) / 2, -1)
-        g.text(gui.guiFont, gui.jbMono(if (expanded) "-" else "+"), px + gui.PNL_W - 12, py + (gui.HDR_H - 8) / 2, gui.TEXT_DIM)
+        g.TextCentered(gui.guiFont, gui.styled(cat.name), px + gui.PNL_W / 2, py + (gui.HDR_H - 8) / 2, -1)
+        g.Text(gui.guiFont, gui.jbMono(if (expanded) "-" else "+"), px + gui.PNL_W - 12, py + (gui.HDR_H - 8) / 2, gui.TEXT_DIM)
 
         if (!expanded) return
 
         g.enableScissor(px, py + gui.HDR_H, px + gui.PNL_W, py + panelH)
         var y = py + gui.HDR_H
+
+        fun shade(base: Int, mix: Float, alpha: Int = 255): Int {
+            val c = Colour.accent.liveColor(Colour.accent.value)
+            val r = (base + (c.r - base) * mix).toInt().coerceIn(0, 255)
+            val g = (base + (c.g - base) * mix).toInt().coerceIn(0, 255)
+            val b = (base + (c.b - base) * mix).toInt().coerceIn(0, 255)
+            return gui.argb(alpha, r, g, b)
+        }
 
         for (mod in ModuleManager.getByCategory(cat)) {
             val hovMod = mx in px until px + gui.PNL_W && my in y until y + gui.MOD_H
@@ -153,19 +164,20 @@ internal object DropdownMode {
                 val r = (accentColor ushr 16) and 0xFF
                 val g2 = (accentColor ushr 8) and 0xFF
                 val b = accentColor and 0xFF
-                val rowTint = gui.argb(30, r, g2, b)
+                val rowTint = gui.argb(20, r, g2, b)
+                g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, gui.HDR_BG)
                 g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, rowTint)
                 g.fill(px, y, px + 2, y + gui.MOD_H, accentColor)
 
                 val gx = (px + 2).toFloat()
                 val gy = y.toFloat()
-                val gw = 60f
+                val gw = 120f
                 val gh = gui.MOD_H.toFloat()
                 g.pose().pushMatrix()
                 g.pose().translate(gx + gw / 2f, gy + gh / 2f)
                 g.pose().rotate((-Math.PI / 2).toFloat())
                 g.pose().translate(-gh / 2f, -gw / 2f)
-                g.fillGradient(0, 0, gh.toInt(), gw.toInt(), gui.argb(60, r, g2, b), 0x00000000)
+                g.fillGradient(0, 0, gh.toInt(), gw.toInt(), gui.argb(30, r, g2, b), 0x00000000)
                 g.pose().popMatrix()
             } else {
                 g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, if (hovMod) gui.MOD_HOV else gui.MOD_NORM)
@@ -175,7 +187,7 @@ internal object DropdownMode {
             val nameAvailW = gui.PNL_W - 7 - (if (entries.isNotEmpty()) 14 else 4)
             gui.drawModuleName(g, mod, px + 7, y, nameAvailW, if (mod.isEnabled()) gui.TEXT else gui.TEXT_DIM)
             if (entries.isNotEmpty()) {
-                g.text(gui.guiFont, gui.jbMono(if (mod in gui.expandedModules) "-" else "+"), px + gui.PNL_W - 11, y + (gui.MOD_H - 8) / 2, gui.TEXT_DIM)
+                g.Text(gui.guiFont, gui.jbMono(if (mod in gui.expandedModules) "-" else "+"), px + gui.PNL_W - 11, y + (gui.MOD_H - 8) / 2, gui.TEXT_DIM)
             }
             y += gui.MOD_H
 

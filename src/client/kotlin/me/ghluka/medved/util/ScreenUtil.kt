@@ -1,6 +1,14 @@
 package me.ghluka.medved.util
 
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.locale.Language
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.FormattedText
+import net.minecraft.util.ARGB
+import net.minecraft.util.FormattedCharSequence
 
 const val radius = 5
 
@@ -12,6 +20,10 @@ const val CORNERS_ALL  = 15
 const val CORNERS_TOP  = CORNER_TL or CORNER_TR   // only top corners rounded
 const val CORNERS_BOT  = CORNER_BL or CORNER_BR   // only bottom corners rounded
 const val CORNERS_LEFT = CORNER_TL or CORNER_BL   // only left corners rounded
+
+fun GuiGraphicsExtractor.Text(font: Font, str: FormattedCharSequence, x: Int, y: Int, color: Int, dropShadow: Boolean) {
+    text(font, str, x, y, color, dropShadow)
+}
 
 fun GuiGraphicsExtractor.roundedFill(
     x: Int, y: Int, w: Int, h: Int,
@@ -93,4 +105,69 @@ fun GuiGraphicsExtractor.roundedFill(
             }
         }
     }
+}
+
+fun GuiGraphicsExtractor.TextHighlight(x0: Int, y0: Int, x1: Int, y1: Int, invertText: Boolean) {
+    if (invertText) {
+        fill(RenderPipelines.GUI_INVERT, x0, y0, x1, y1, -1)
+    }
+
+    fill(RenderPipelines.GUI_TEXT_HIGHLIGHT, x0, y0, x1, y1, -16776961)
+}
+
+fun GuiGraphicsExtractor.Text(font: Font, str: String?, x: Int, y: Int, color: Int) {
+    Text(font, str, x, y, color, true)
+}
+
+fun GuiGraphicsExtractor.Text(font: Font, str: String?, x: Int, y: Int, color: Int, dropShadow: Boolean) {
+    if (str != null) {
+        Text(font, Language.getInstance().getVisualOrder(FormattedText.of(str)), x, y, color, dropShadow)
+    }
+}
+
+fun GuiGraphicsExtractor.Text(font: Font, str: FormattedCharSequence, x: Int, y: Int, color: Int) {
+    Text(font, str, x, y, color, true)
+}
+
+fun GuiGraphicsExtractor.Text(font: Font, str: Component, x: Int, y: Int, color: Int) {
+    Text(font, str, x, y, color, true)
+}
+
+fun GuiGraphicsExtractor.Text(font: Font, str: Component, x: Int, y: Int, color: Int, dropShadow: Boolean) {
+    Text(font, str.getVisualOrderText(), x, y, color, dropShadow)
+}
+
+fun GuiGraphicsExtractor.TextCentered(font: Font, str: String, x: Int, y: Int, color: Int) {
+    Text(font, str, x - font.width(str) / 2, y, color)
+}
+
+fun GuiGraphicsExtractor.TextCentered(font: Font, text: Component, x: Int, y: Int, color: Int) {
+    val toRender = text.getVisualOrderText()
+    Text(font, toRender, x - font.width(toRender) / 2, y, color)
+}
+
+fun GuiGraphicsExtractor.TextCentered(font: Font, text: FormattedCharSequence, x: Int, y: Int, color: Int) {
+    Text(font, text, x - font.width(text) / 2, y, color)
+}
+
+fun GuiGraphicsExtractor.TextWithWordWrap(font: Font, string: FormattedText, x: Int, y: Int, width: Int, col: Int) {
+    TextWithWordWrap(font, string, x, y, width, col, true)
+}
+
+fun GuiGraphicsExtractor.TextWithWordWrap(font: Font, string: FormattedText, x: Int, y: Int, width: Int, col: Int, dropShadow: Boolean) {
+    var y = y
+    for (line in font.split(string, width)) {
+        Text(font, line, x, y, col, dropShadow)
+        y += 9
+    }
+}
+
+fun GuiGraphicsExtractor.TextWithBackdrop(font: Font, str: Component, textX: Int, textY: Int, textWidth: Int, textColor: Int) {
+    val backgroundColor: Int = Minecraft.getInstance().options.getBackgroundColor(0.0f)
+    if (backgroundColor != 0) {
+        val padding = 2
+        fill(textX - 2, textY - 2, textX + textWidth + 2, textY + 9 + 2, ARGB.multiply(backgroundColor, textColor))
+    }
+
+    Text(font, str, textX, textY, textColor, true)
 }

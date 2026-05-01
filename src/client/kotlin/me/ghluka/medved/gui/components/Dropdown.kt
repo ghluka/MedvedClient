@@ -4,6 +4,7 @@ import me.ghluka.medved.gui.ClickGui
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import me.ghluka.medved.config.entry.*
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.util.Text
 
 internal fun ClickGui.drawEnumDropdown(g: GuiGraphicsExtractor, entry: EnumEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int) {
     for ((i, c) in entry.constants.withIndex()) {
@@ -12,7 +13,7 @@ internal fun ClickGui.drawEnumDropdown(g: GuiGraphicsExtractor, entry: EnumEntry
         val selected = c == entry.value
         g.fill(x, ry, x + w, ry + ENT_H, if (hov) MOD_HOV else ENT_BG)
         if (selected) g.fill(x, ry, x + 2, ry + ENT_H, ACCENT)
-        g.text(guiFont, styled(fmtLabel(c.name)), x + 5, ry + (ENT_H - 8) / 2, if (selected) TEXT else TEXT_DIM)
+        g.Text(guiFont, styled(fmtLabel(c.name)), x + 5, ry + (ENT_H - 8) / 2, if (selected) TEXT else TEXT_DIM)
     }
 }
 

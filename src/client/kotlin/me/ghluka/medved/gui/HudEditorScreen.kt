@@ -10,6 +10,8 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
 import kotlin.math.abs
+import me.ghluka.medved.util.Text
+import me.ghluka.medved.util.TextCentered
 
 class HudEditorScreen(
     private val module: HudModule,
@@ -73,13 +75,13 @@ class HudEditorScreen(
         val guiFont = Font.getFont()
         val scaleStr = "Scale: ${"%.2f".format(sc)}"
         val scComp = Font.styledText(scaleStr)
-        g.text(guiFont, scComp,
+        g.Text(guiFont, scComp,
             width - guiFont.width(scComp) - BTN_PAD,
             height - BTN_PAD - BTN_H + (BTN_H - 8) / 2,
             argb(180, 180, 180, 180))
 
         val hint = Font.styledText("Drag element to move  •  Drag green square to scale  •  Scroll to fine-tune  •  ESC to go back")
-        g.centeredText(guiFont, hint, width / 2, BTN_PAD, argb(140, 200, 200, 200))
+        g.TextCentered(guiFont, hint, width / 2, BTN_PAD, argb(140, 200, 200, 200))
     }
 
     private fun drawGridLines(g: GuiGraphicsExtractor) {
@@ -103,7 +105,7 @@ class HudEditorScreen(
             argb(180, ac.r / 6, ac.g / 6, ac.b / 6)
         g.fill(x, y, x + BTN_W, y + BTN_H, bg)
         g.fill(x, y, x + 2, y + BTN_H, ACCENT)
-        g.centeredText(Font.getFont(), Font.styledText(label),
+        g.TextCentered(Font.getFont(), Font.styledText(label),
             x + BTN_W / 2, y + (BTN_H - 8) / 2,
             argb(255, 215, 215, 228))
     }

@@ -1,4 +1,5 @@
 ﻿package me.ghluka.medved.gui
+
 import me.ghluka.medved.alt.AltAccount
 import me.ghluka.medved.alt.AltManager
 import me.ghluka.medved.alt.AltType
@@ -15,6 +16,8 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
+import me.ghluka.medved.util.Text
+import me.ghluka.medved.util.TextCentered
 import org.lwjgl.glfw.GLFW
 
 class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("Alt Manager")) {
@@ -219,7 +222,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         g.fill(px, py, px + PNL_W, py + PNL_H, PNL_BG)
 
         g.fill(px, py, px + PNL_W, py + TITLE_H, HDR_BG)
-        g.centeredText(FONT, styled("ALT MANAGER"), px + PNL_W / 2, py + (TITLE_H - 8) / 2, argb(255, 220, 220, 235))
+        g.TextCentered(FONT, styled("ALT MANAGER"), px + PNL_W / 2, py + (TITLE_H - 8) / 2, argb(255, 220, 220, 235))
 
         when (state) {
             State.LIST          -> drawList(g, px, py, dmx, dmy)
@@ -269,7 +272,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         }
 
         if (total == 0) {
-            g.centeredText(FONT, styled(if (searchField.text.isNotBlank()) "No results" else "No accounts saved"),
+            g.TextCentered(FONT, styled(if (searchField.text.isNotBlank()) "No results" else "No accounts saved"),
                 px + PNL_W / 2, cy + LIST_OFFSET + (CONTENT_H - LIST_OFFSET) / 2 - 4, argb(160, 160, 160, 180))
         }
 
@@ -291,7 +294,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
         val msg = loginMsg
         if (msg != null && System.currentTimeMillis() < loginMsgTimer) {
-            g.centeredText(FONT, styled(msg), px + PNL_W / 2, bby + 3, loginMsgColor)
+            g.TextCentered(FONT, styled(msg), px + PNL_W / 2, bby + 3, loginMsgColor)
         } else if (msg != null) {
             loginMsg = null
         }
@@ -306,13 +309,13 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         g.fill(rx, ry, rx + rw, ry + ROW_H - 2, rowBg)
 
         val dispName = if (acc.username.isNotBlank()) acc.username else "(unnamed)"
-        g.text(FONT, styled(dispName), rx + 6, ry + 4, argb(255, 215, 215, 228))
+        g.Text(FONT, styled(dispName), rx + 6, ry + 4, argb(255, 215, 215, 228))
         val (typeLabel, typeColor) = when (acc.type) {
             AltType.CRACKED      -> "Cracked"   to argb(180, 150, 150, 160)
             AltType.ACCESS_TOKEN -> "Premium"   to argb(200, 80, 200, 120)
             AltType.MICROSOFT    -> "Microsoft" to argb(200, 80, 140, 220)
         }
-        g.text(FONT, styled(typeLabel), rx + 6, ry + 15, typeColor)
+        g.Text(FONT, styled(typeLabel), rx + 6, ry + 15, typeColor)
 
         val bby      = ry + (ROW_H - 2 - BTN_H) / 2
         val removeBx = rx + rw - BTN_SMALL - 2
@@ -329,7 +332,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
     private fun drawChooseType(g: GuiGraphicsExtractor, px: Int, py: Int, mx: Int, my: Int) {
         val cy  = py + TITLE_H + 20
         val cx  = px + PNL_W / 2
-        g.centeredText(FONT, styled("Select account type"), cx, cy, argb(200, 180, 180, 200))
+        g.TextCentered(FONT, styled("Select account type"), cx, cy, argb(200, 180, 180, 200))
 
         val btnW   = 180
         val btnGap = 6
@@ -353,7 +356,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             State.ADD_TOKEN   -> "Add MC Token Account"
             else              -> ""
         }
-        g.centeredText(FONT, styled(header), px + PNL_W / 2, fy, argb(220, 200, 200, 220))
+        g.TextCentered(FONT, styled(header), px + PNL_W / 2, fy, argb(220, 200, 200, 220))
         fy += 16
 
         val fieldDefs = when (state) {
@@ -362,14 +365,14 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             else              -> emptyList()
         }
         for ((idx, label) in fieldDefs.withIndex()) {
-            g.text(FONT, styled(label), cx, fy, argb(160, 160, 160, 180))
+            g.Text(FONT, styled(label), cx, fy, argb(160, 160, 160, 180))
             fy += 10
             drawField(g, cx, fy, fw, FIELD_H, fields[idx], activeInput == idx)
             fy += FIELD_H + 10
         }
 
         if (formError.isNotBlank()) {
-            g.centeredText(FONT, styled(formError), px + PNL_W / 2, fy, argb(255, 220, 80, 80))
+            g.TextCentered(FONT, styled(formError), px + PNL_W / 2, fy, argb(255, 220, 80, 80))
         }
 
         val bby = py + TITLE_H + CONTENT_H + (BOTTOM_H - BTN_H) / 2
@@ -383,48 +386,48 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
         when (msState) {
             MsState.REQUESTING -> {
-                g.centeredText(FONT, styled("Requesting device code..."), cx, fy, argb(180, 180, 180, 200))
+                g.TextCentered(FONT, styled("Requesting device code..."), cx, fy, argb(180, 180, 180, 200))
             }
             MsState.SHOWING_CODE, MsState.WAITING -> {
                 val info = msDeviceInfo
                 if (info != null) {
-                    g.centeredText(FONT, styled("1. Open your browser and go to:"), cx, fy, argb(180, 160, 160, 180)); fy += 14
+                    g.TextCentered(FONT, styled("1. Open your browser and go to:"), cx, fy, argb(180, 160, 160, 180)); fy += 14
                     val uriComp = Component.literal(info.verificationUri).withStyle(
                         Style.EMPTY.withUnderlined(true).withColor(0x6496FF))
                     val uriW2 = FONT.width(uriComp)
                     val uriHovered = isOver(mx, my, cx - uriW2 / 2, fy, uriW2, 9)
                     val uriColor = if (uriHovered) argb(255, 140, 210, 255) else argb(255, 100, 180, 255)
-                    g.centeredText(FONT, uriComp, cx, fy, uriColor); fy += 18
-                    g.centeredText(FONT, styled("2. Enter this code:"),             cx, fy, argb(180, 160, 160, 180)); fy += 14
+                    g.TextCentered(FONT, uriComp, cx, fy, uriColor); fy += 18
+                    g.TextCentered(FONT, styled("2. Enter this code:"),             cx, fy, argb(180, 160, 160, 180)); fy += 14
 
                     val codeFont = Font.getFont()
                     val codeW    = codeFont.width(styled(info.userCode))
                     val codeX    = cx - codeW / 2 - 10
                     g.fill(codeX, fy - 4, codeX + codeW + 20, fy + 18, argb(200, 28, 28, 38))
-                    g.text(codeFont, styled(info.userCode), codeX + 10, fy + 4, argb(255, 100, 230, 130))
+                    g.Text(codeFont, styled(info.userCode), codeX + 10, fy + 4, argb(255, 100, 230, 130))
                     fy += 26
 
                     drawBtn(g, cx - BTN_WIDE / 2, fy, BTN_WIDE, BTN_H, "Copy Code", mx, my); fy += BTN_H + 12
                     if (msState == MsState.WAITING) {
-                        g.centeredText(FONT, styled("Waiting for login..."), cx, fy, argb(180, 160, 160, 180))
+                        g.TextCentered(FONT, styled("Waiting for login..."), cx, fy, argb(180, 160, 160, 180))
                     }
                 }
             }
             MsState.SUCCESS -> {
                 val prof = msProfile
                 if (prof != null) {
-                    g.centeredText(FONT, styled("Logged in as ${prof.username}!"),
+                    g.TextCentered(FONT, styled("Logged in as ${prof.username}!"),
                         cx, py + TITLE_H + CONTENT_H / 2 - 16, argb(255, 100, 220, 100))
                 }
             }
             MsState.FAILED -> {
                 var errY = py + TITLE_H + 20
-                g.centeredText(FONT, styled("Auth failed."), cx, errY, argb(255, 220, 80, 80))
+                g.TextCentered(FONT, styled("Auth failed."), cx, errY, argb(255, 220, 80, 80))
                 errY += 14
                 val err = msErrorMsg
                 if (err.isNotBlank()) {
                     for (line in wrapText(err, PNL_W - 40)) {
-                        g.centeredText(FONT, styled(line), cx, errY, argb(180, 180, 100, 100))
+                        g.TextCentered(FONT, styled(line), cx, errY, argb(180, 180, 100, 100))
                         errY += 11
                     }
                 }
@@ -454,7 +457,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         val hovered = mx in x until x + w && my in y until y + h
         if (ghost) {
             val textColor = if (hovered) ACCENT else argb(160, 160, 160, 180)
-            g.centeredText(FONT, labelComp ?: styled(label), x + w / 2, y + (h - 8) / 2, textColor)
+            g.TextCentered(FONT, labelComp ?: styled(label), x + w / 2, y + (h - 8) / 2, textColor)
             return
         }
         val bg = when {
@@ -465,7 +468,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         }
         val textColor = if (danger) argb(255, 220, 120, 120) else argb(255, 215, 215, 228)
         g.fill(x, y, x + w, y + h, bg)
-        g.centeredText(FONT, labelComp ?: styled(label), x + w / 2, y + (h - 8) / 2, textColor)
+        g.TextCentered(FONT, labelComp ?: styled(label), x + w / 2, y + (h - 8) / 2, textColor)
     }
 
     private fun drawField(
@@ -488,9 +491,9 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         }
 
         if (field.text.isEmpty() && placeholder.isNotEmpty() && !active) {
-            g.text(FONT, styled(placeholder), textX, textY, argb(100, 160, 160, 170))
+            g.Text(FONT, styled(placeholder), textX, textY, argb(100, 160, 160, 170))
         } else {
-            g.text(FONT, styled(field.text), textX - field.scrollPx, textY, argb(255, 220, 220, 235))
+            g.Text(FONT, styled(field.text), textX - field.scrollPx, textY, argb(255, 220, 220, 235))
         }
 
         if (active && cursorVisible) {

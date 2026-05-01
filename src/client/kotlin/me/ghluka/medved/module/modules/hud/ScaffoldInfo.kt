@@ -7,6 +7,7 @@ import me.ghluka.medved.module.modules.world.Clutch
 import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
+import me.ghluka.medved.util.Text
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.item.BlockItem
@@ -58,7 +59,7 @@ object ScaffoldInfo : HudModule("Block Counter", "Displays hotbar block count fo
 
         val textX = padding + iconSize + iconGap
         val textY = padding
-        g.text(font, textComp, textX, textY, textColor.liveColor(textColor.value).argb)
+        g.Text(font, textComp, textX, textY, textColor.liveColor(textColor.value).argb)
 
         g.pose().popMatrix()
     }

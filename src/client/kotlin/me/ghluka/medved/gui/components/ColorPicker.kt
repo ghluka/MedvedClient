@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import me.ghluka.medved.config.entry.*
 import kotlin.math.roundToInt
 import me.ghluka.medved.util.roundedFill
+import me.ghluka.medved.util.Text
 
 internal fun ClickGui.drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry, x: Int, y: Int, w: Int, mx: Int, my: Int) {
     val themeAllowed = supportsThemeMode(entry)
@@ -65,12 +66,12 @@ internal fun ClickGui.drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry
     val modeHover = mx in modeX until modeX + modeBtnW && my in modeY until modeY + modeH
     g.fill(modeX, modeY, modeX + modeBtnW, modeY + modeH, if (modeHover) shade(50, 0.24f) else BTN_BG)
     val modeTextY = modeY + (modeH - guiFont.lineHeight) / 2
-    g.text(guiFont, styled(entry.pickerMode.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, modeTextY, TEXT)
-    g.text(guiFont, jbMono(if (colorPickerModeExpanded) "▲" else "▼"), modeX + modeBtnW - 12, modeTextY, TEXT_DIM)
+    g.Text(guiFont, styled(entry.pickerMode.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, modeTextY, TEXT)
+    g.Text(guiFont, jbMono(if (colorPickerModeExpanded) "▲" else "▼"), modeX + modeBtnW - 12, modeTextY, TEXT_DIM)
 
     if (entry.pickerMode == ColorEntry.PickerMode.THEME) {
         val previewTop = y + padding + modeH + 10
-        g.text(guiFont, styled("Using theme color"), x0 + padding, previewTop, TEXT_DIM)
+        g.Text(guiFont, styled("Using theme color"), x0 + padding, previewTop, TEXT_DIM)
         val pY = previewTop + guiFont.lineHeight + 4
         g.roundedFill(x0 + padding, pY, actualW - padding * 2, 16, 2, argb(liveColor.a, liveColor.r, liveColor.g, liveColor.b))
 
@@ -80,7 +81,7 @@ internal fun ClickGui.drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry
                 val ry = optionY + i * modeH
                 val selected = entry.pickerMode == option
                 g.fill(modeX, ry, modeX + modeBtnW, ry + modeH, if (selected) shade(30, 0.18f) else ENT_BG)
-                g.text(guiFont, styled(option.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, ry + (modeH - guiFont.lineHeight) / 2, if (selected) TEXT else TEXT_DIM)
+                g.Text(guiFont, styled(option.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, ry + (modeH - guiFont.lineHeight) / 2, if (selected) TEXT else TEXT_DIM)
             }
         }
         return
@@ -140,9 +141,9 @@ internal fun ClickGui.drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry
             val fx = x0 + padding + i * (fieldW + fieldGap)
             g.fill(fx, fieldY, fx + fieldW, fieldY + fieldH, ENT_BG)
             val lblW = guiFont.width(styled(channel.first))
-            g.text(guiFont, styled(channel.first), fx + 2, fieldY + (fieldH - guiFont.lineHeight) / 2, TEXT_DIM)
+            g.Text(guiFont, styled(channel.first), fx + 2, fieldY + (fieldH - guiFont.lineHeight) / 2, TEXT_DIM)
             val valueText = if (editingColorEntry == entry && editingColorChannel == i && !editingColorHex) entryField.text else channel.second.toString()
-            g.text(guiFont, styled(valueText), fx + 2 + lblW + 2, fieldY + (fieldH - guiFont.lineHeight) / 2, TEXT)
+            g.Text(guiFont, styled(valueText), fx + 2 + lblW + 2, fieldY + (fieldH - guiFont.lineHeight) / 2, TEXT)
         }
 
         val hexY = fieldY + fieldH + fieldGap
@@ -150,9 +151,9 @@ internal fun ClickGui.drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry
         val hexX = x0 + padding
         g.fill(hexX, hexY, hexX + hexW, hexY + fieldH, ENT_BG)
         val hexLblW = guiFont.width(styled("HEX"))
-        g.text(guiFont, styled("HEX"), hexX + 2, hexY + (fieldH - guiFont.lineHeight) / 2, TEXT_DIM)
+        g.Text(guiFont, styled("HEX"), hexX + 2, hexY + (fieldH - guiFont.lineHeight) / 2, TEXT_DIM)
         val hexText = if (editingColorEntry == entry && editingColorHex) entryField.text else String.format("#%02X%02X%02X%02X", liveColor.a, liveColor.r, liveColor.g, liveColor.b)
-        g.text(guiFont, styled(hexText), hexX + 2 + hexLblW + 2, hexY + (fieldH - guiFont.lineHeight) / 2, TEXT)
+        g.Text(guiFont, styled(hexText), hexX + 2 + hexLblW + 2, hexY + (fieldH - guiFont.lineHeight) / 2, TEXT)
 
         val previewX = hexX + hexW + fieldGap
         drawAlphaCheckerboard(g, previewX, hexY, previewW, fieldH)
@@ -163,7 +164,7 @@ internal fun ClickGui.drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry
         val speedX = x0 + padding
         val speedW = actualW - padding * 2
         val speedT = ((entry.chromaSpeed - 0.05f) / (8f - 0.05f)).coerceIn(0f, 1f)
-        g.text(guiFont, styled("Speed ${"%.2f".format(entry.chromaSpeed)}"), speedX + 2, speedLabelY, TEXT_DIM)
+        g.Text(guiFont, styled("Speed ${"%.2f".format(entry.chromaSpeed)}"), speedX + 2, speedLabelY, TEXT_DIM)
         g.fill(speedX, speedY, speedX + speedW, speedY + fieldH, ENT_BG)
         g.fill(speedX, speedY, speedX + (speedT * speedW).roundToInt(), speedY + fieldH, ACCENT)
         val kx = speedX + (speedT * (speedW - 1)).roundToInt()
@@ -176,7 +177,7 @@ internal fun ClickGui.drawColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry
             val ry = optionY + i * modeH
             val selected = entry.pickerMode == option
             g.fill(modeX, ry, modeX + modeBtnW, ry + modeH + 2, if (selected) shade(30, 0.18f) else ENT_BG)
-            g.text(guiFont, styled(option.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, ry + 3, if (selected) TEXT else TEXT_DIM)
+            g.Text(guiFont, styled(option.name.lowercase().replaceFirstChar { it.uppercase() }), modeX + 6, ry + 3, if (selected) TEXT else TEXT_DIM)
         }
     }
 }

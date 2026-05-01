@@ -4,14 +4,13 @@ import me.ghluka.medved.config.entry.Color
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
-import me.ghluka.medved.util.CORNERS_LEFT
 import me.ghluka.medved.util.CORNERS_TOP
 import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
+import me.ghluka.medved.util.Text
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 
@@ -333,8 +332,8 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         comp: net.minecraft.network.chat.Component,
         x: Int, y: Int, color: Int
     ) {
-        if (textShadow.value) g.text(font, comp, x + 1, y + 1, (color and 0x00FFFFFF) or (0xA0 shl 24))
-        g.text(font, comp, x, y, color)
+        if (textShadow.value) g.Text(font, comp, x + 1, y + 1, (color and 0x00FFFFFF) or (0xA0 shl 24))
+        g.Text(font, comp, x, y, color)
     }
 
     private fun hpColor(entity: LivingEntity): Int {

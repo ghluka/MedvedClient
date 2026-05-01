@@ -93,10 +93,10 @@ object NotificationManager {
 
                 g.roundedFill(x, y, 3, h, 3, (fgA shl 24) or accentRgb, CORNERS_LEFT)
 
-                g.text(font, Font.styledText(notif.title), x + PAD_X, y + PAD_Y, (fgA shl 24) or 0x00D7D7E4)
+                g.Text(font, Font.styledText(notif.title), x + PAD_X, y + PAD_Y, (fgA shl 24) or 0x00D7D7E4)
 
                 if (notif.hasMessage) {
-                    g.text(font, Font.styledText(notif.message), x + PAD_X, y + titleH + 1, (fgA shl 24) or 0x00767688)
+                    g.Text(font, Font.styledText(notif.message), x + PAD_X, y + titleH + 1, (fgA shl 24) or 0x00767688)
                 }
             }
         }
