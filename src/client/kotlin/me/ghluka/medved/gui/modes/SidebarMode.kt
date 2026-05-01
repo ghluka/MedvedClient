@@ -7,6 +7,7 @@ import me.ghluka.medved.config.entry.IntEntry
 import me.ghluka.medved.config.entry.IntRangeEntry
 import me.ghluka.medved.gui.ClickGui
 import me.ghluka.medved.gui.components.*
+import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -27,7 +28,7 @@ internal object SidebarMode {
         val GREY = gui.argb(255, 130, 130, 150)
 
         val logoH = 24
-        g.roundedFill(px, py, pw, ph, 4, gui.PNL_BG)
+        g.roundedFill(px, py, pw, ph, radius, gui.PNL_BG)
 
         g.fill(px, py, px + pw, py + logoH, gui.shade(20, 0.15f))
         g.centeredText(smallFont, gui.styled("GRIZZLY"), px + pw / 2, py + (logoH - 8) / 2, gui.TEXT_DIM)
@@ -222,8 +223,8 @@ internal object SidebarMode {
                         if (my2 > bodyY + 6 + bodyH) break
                         val mHov = mx in bodyX until bodyX + bodyW && my in my2 until my2 + cardH
                         if (mHov) gui.hoveredMod = mod
-                        g.roundedFill(bodyX + 4, my2, bodyW - 8, cardH, 3, if (mHov) gui.shade(38, 0.14f) else gui.shade(32, 0.09f))
-                        if (mod.isEnabled()) g.roundedFill(bodyX + 4, my2, 3, cardH, 3, gui.ACCENT, me.ghluka.medved.util.CORNERS_LEFT)
+                        g.roundedFill(bodyX + 4, my2, bodyW - 8, cardH, radius, if (mHov) gui.shade(38, 0.14f) else gui.shade(32, 0.09f))
+                        if (mod.isEnabled()) g.roundedFill(bodyX + 4, my2, 3, cardH, radius, gui.ACCENT, me.ghluka.medved.util.CORNERS_LEFT)
                         val nameTopPad = 8
                         val nameBottomPad = 8
                         val descLineSpacing = (lineH * 1.3).toInt()

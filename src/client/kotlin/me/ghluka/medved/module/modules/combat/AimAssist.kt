@@ -5,13 +5,17 @@ import me.ghluka.medved.module.modules.combat.KnockbackDisplacement
 import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RotationManager
+import net.minecraft.client.DeltaTracker
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.round
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 object AimAssist : Module(
@@ -25,6 +29,7 @@ object AimAssist : Module(
     private val strength     = float("strength", 0.06f, 0.01f, 0.15f)
     private val onlyAttacking = boolean("only when attacking", true)
     private val players      = boolean("players only", true)
+    private val showFovCircle = boolean("show fov circle", false)
 
     private var lastClientYaw = 0f
     private var lastClientPitch = 0f
@@ -165,6 +170,49 @@ object AimAssist : Module(
         RotationManager.setTargetRotation(player.yRot + nudgeYaw, player.xRot + nudgePitch)
         RotationManager.tick()
         isAssisting = true
+    }
+
+    override fun onHudRender(extractor: GuiGraphicsExtractor, delta: DeltaTracker) {
+        if (!showFovCircle.value) return
+
+        val mc = Minecraft.getInstance()
+        if (mc.player == null || mc.level == null) return
+
+        val screenW = mc.window.guiScaledWidth
+        val screenH = mc.window.guiScaledHeight
+        val centerX = screenW / 2
+        val centerY = screenH / 2
+        val cameraFovRad = Math.toRadians(mc.options.fov().get().toDouble())
+        val aimFovRad = Math.toRadians(fov.value.toDouble())
+        val radius = ((screenW * 0.5f) / kotlin.math.tan(cameraFovRad / 2.0) * kotlin.math.tan(aimFovRad / 2.0)).toFloat()
+        drawCircleOutline(extractor, centerX, centerY, radius.coerceAtLeast(2f), 0xAAFFFFFF.toInt())
+    }
+
+    private fun drawCircleOutline(g: GuiGraphicsExtractor, centerX: Int, centerY: Int, radius: Float, color: Int) {
+        val segments = (radius * 8f).toInt().coerceIn(48, 160)
+        var previousX = centerX.toFloat() + radius
+        var previousY = centerY.toFloat()
+
+        for (i in 1..segments) {
+            val angle = (i.toFloat() / segments.toFloat()) * (Math.PI.toFloat() * 2f)
+            val nextX = centerX + cos(angle) * radius
+            val nextY = centerY + sin(angle) * radius
+            drawSegment(g, previousX, previousY, nextX, nextY, color)
+            previousX = nextX
+            previousY = nextY
+        }
+    }
+
+    private fun drawSegment(g: GuiGraphicsExtractor, x0: Float, y0: Float, x1: Float, y1: Float, color: Int) {
+        val dx = x1 - x0
+        val dy = y1 - y0
+        val steps = maxOf(kotlin.math.abs(dx), kotlin.math.abs(dy)).toInt().coerceAtLeast(1)
+        for (step in 0..steps) {
+            val t = step.toFloat() / steps.toFloat()
+            val x = (x0 + dx * t).toInt()
+            val y = (y0 + dy * t).toInt()
+            g.fill(x - 1, y - 1, x + 1, y + 1, color)
+        }
     }
 
     private fun hitboxPitchRange(player: Player, target: LivingEntity): Pair<Float, Float> {

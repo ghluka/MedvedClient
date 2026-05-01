@@ -2,6 +2,8 @@ package me.ghluka.medved.util
 
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
+const val radius = 5
+
 const val CORNER_TL   = 1
 const val CORNER_TR   = 2
 const val CORNER_BL   = 4

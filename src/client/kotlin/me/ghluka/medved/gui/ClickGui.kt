@@ -359,7 +359,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 val enumExp = entries.firstOrNull { it == expandedEnum } as? EnumEntry<*>
             }
         }
-        return h
+        return h + 3
     }
 
     internal fun drawModuleName(

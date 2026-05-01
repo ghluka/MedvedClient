@@ -11,6 +11,7 @@ import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.util.CORNERS_BOT
 import me.ghluka.medved.util.CORNERS_TOP
 import me.ghluka.medved.util.NotificationManager
+import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.Minecraft
@@ -57,10 +58,10 @@ internal object DropdownMode {
     private fun drawConfigBar(gui: ClickGui, g: GuiGraphicsExtractor, mx: Int, my: Int, px: Int, py: Int) {
         val expanded = !gui.cfgPanelCollapsed
         if (expanded) {
-            g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, 3, gui.HDR_BG, CORNERS_TOP)
-            g.roundedFill(px, py + gui.HDR_H, gui.PNL_W, cfgPanelBodyH(gui), 3, gui.PNL_BG, CORNERS_BOT)
+            g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, radius, gui.HDR_BG, CORNERS_TOP)
+            g.roundedFill(px, py + gui.HDR_H, gui.PNL_W, cfgPanelBodyH(gui), radius, gui.PNL_BG, CORNERS_BOT)
         } else {
-            g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, 3, gui.HDR_BG)
+            g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, radius, gui.HDR_BG)
         }
         g.centeredText(gui.guiFont, gui.styled("CONFIGS"), px + gui.PNL_W / 2, py + (gui.HDR_H - 8) / 2, -1)
         g.text(gui.guiFont, gui.jbMono(if (expanded) "-" else "+"), px + gui.PNL_W - 12, py + (gui.HDR_H - 8) / 2, gui.TEXT_DIM)
@@ -130,10 +131,10 @@ internal object DropdownMode {
         val panelH = if (expanded) gui.fullPanelHeight(cat) else gui.HDR_H
 
         if (expanded) {
-            g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, 3, gui.HDR_BG, CORNERS_TOP)
-            g.roundedFill(px, py + gui.HDR_H, gui.PNL_W, panelH - gui.HDR_H, 3, gui.PNL_BG, CORNERS_BOT)
+            g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, radius, gui.HDR_BG, CORNERS_TOP)
+            g.roundedFill(px, py + gui.HDR_H, gui.PNL_W, panelH - gui.HDR_H + radius - 3, radius, gui.PNL_BG, CORNERS_BOT)
         } else {
-            g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, 3, gui.HDR_BG)
+            g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, radius, gui.HDR_BG)
         }
         g.centeredText(gui.guiFont, gui.styled(cat.name), px + gui.PNL_W / 2, py + (gui.HDR_H - 8) / 2, -1)
         g.text(gui.guiFont, gui.jbMono(if (expanded) "-" else "+"), px + gui.PNL_W - 12, py + (gui.HDR_H - 8) / 2, gui.TEXT_DIM)
@@ -146,8 +147,30 @@ internal object DropdownMode {
         for (mod in ModuleManager.getByCategory(cat)) {
             val hovMod = mx in px until px + gui.PNL_W && my in y until y + gui.MOD_H
             if (hovMod) gui.hoveredMod = mod
-            g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, if (hovMod) gui.MOD_HOV else gui.MOD_NORM)
-            if (mod.isEnabled()) g.fill(px, y, px + 3, y + gui.MOD_H, gui.ACCENT)
+            if (mod.isEnabled()) {
+                val accentColor = gui.ACCENT
+                val a = (accentColor ushr 24) and 0xFF
+                val r = (accentColor ushr 16) and 0xFF
+                val g2 = (accentColor ushr 8) and 0xFF
+                val b = accentColor and 0xFF
+                val rowTint = gui.argb(30, r, g2, b)
+                g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, rowTint)
+                g.fill(px, y, px + 2, y + gui.MOD_H, accentColor)
+
+                val gx = (px + 2).toFloat()
+                val gy = y.toFloat()
+                val gw = 60f
+                val gh = gui.MOD_H.toFloat()
+                g.pose().pushMatrix()
+                g.pose().translate(gx + gw / 2f, gy + gh / 2f)
+                g.pose().rotate((-Math.PI / 2).toFloat())
+                g.pose().translate(-gh / 2f, -gw / 2f)
+                g.fillGradient(0, 0, gh.toInt(), gw.toInt(), gui.argb(60, r, g2, b), 0x00000000)
+                g.pose().popMatrix()
+            } else {
+                g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, if (hovMod) gui.MOD_HOV else gui.MOD_NORM)
+            }
+
             val entries = gui.configEntries(mod)
             val nameAvailW = gui.PNL_W - 7 - (if (entries.isNotEmpty()) 14 else 4)
             gui.drawModuleName(g, mod, px + 7, y, nameAvailW, if (mod.isEnabled()) gui.TEXT else gui.TEXT_DIM)

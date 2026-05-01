@@ -3,6 +3,7 @@ package me.ghluka.medved.module.modules.hud
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
+import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -105,8 +106,7 @@ object BedPlates : HudModule(
         val x = (projected.first  - width  / 2f).toInt()
         val y = (projected.second - height - 4f).toInt()
 
-        extractor.roundedFill(x, y, width, height, 4, 0xD0_0D0D16.toInt())
-        extractor.fill(x, y, x + width, y + 2, accent)
+        extractor.roundedFill(x, y, width, height, radius, 0xD0_0D0D16.toInt())
 
         var iconX = x + padding
         for (stack in stacks) {

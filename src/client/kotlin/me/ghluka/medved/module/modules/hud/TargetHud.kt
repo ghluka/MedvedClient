@@ -6,6 +6,7 @@ import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
 import me.ghluka.medved.util.CORNERS_LEFT
 import me.ghluka.medved.util.CORNERS_TOP
+import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
@@ -216,8 +217,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         minimalWidth = (font.width(nameComp) + 14).coerceAtLeast(60).coerceAtMost(150)
 
         val bgC = bgColor.liveColor(bgColor.value).argb
-        g.roundedFill(0, 0, w, h, 3, bgC)
-        g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
+        g.roundedFill(0, 0, w, h, radius, bgC)
 
         val lh = font.lineHeight
         textWithShadow(g, font, nameComp, 5, PAD, 0xFFD7D7E4.toInt())
@@ -229,8 +229,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         font: net.minecraft.client.gui.Font, w: Int, h: Int, accent: Int
     ) {
         val bgC = bgColor.liveColor(bgColor.value).argb
-        g.roundedFill(0, 0, w, h, 3, bgC)
-        g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
+        g.roundedFill(0, 0, w, h, radius, bgC)
 
         val lh     = font.lineHeight
         val barY   = PAD + lh + 2          // typically 14 when lh=9
@@ -269,9 +268,8 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         val rowStep = lh + 1          // typically 10  (consistent row-to-row spacing)
 
         val bgC = bgColor.liveColor(bgColor.value).argb
-        g.roundedFill(0, 0, w, h, 3, bgC)
-        g.roundedFill(0, 0, w, headerH, 3, darken(bgC, 0.6f), CORNERS_TOP)
-        g.roundedFill(0, 0, 2, h, 3, accent, CORNERS_LEFT)
+        g.roundedFill(0, 0, w, h, radius, bgC)
+        g.roundedFill(0, 0, w, headerH, radius, darken(bgC, 0.6f), CORNERS_TOP)
 
         textWithShadow(g, font, Font.styledText(tgt.name.string), 5, PAD, 0xFFD7D7E4.toInt())
 
