@@ -51,6 +51,17 @@ object RenderUtil {
         )
     }
 
+    inline fun worldContext(
+        ctx: LevelRenderContext,
+        block: (pose: PoseStack.Pose, stack: PoseStack, buf: MultiBufferSource.BufferSource) -> Unit
+    ) {
+        val camera = Minecraft.getInstance().gameRenderer.mainCamera.position()
+        ctx.poseStack().pushPose()
+        ctx.poseStack().translate(-camera.x, -camera.y, -camera.z)
+        block(ctx.poseStack().last(), ctx.poseStack(), ctx.bufferSource())
+        ctx.poseStack().popPose()
+    }
+
     inline fun worldContext(ctx: LevelRenderContext, block: (pose: PoseStack.Pose, buf: MultiBufferSource.BufferSource) -> Unit) {
         val camera = Minecraft.getInstance().gameRenderer.mainCamera.position()
         ctx.poseStack().pushPose()

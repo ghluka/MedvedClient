@@ -36,6 +36,8 @@ object PlayerESP : Module(
         it.visibleWhen = { colorMode.value == ColorMode.STATIC || colorMode.value == ColorMode.TEAM }
     }
 
+    private val rotate = boolean("rotate", false)
+
     private val teamOnly    = boolean("team only", false).also {
         it.visibleWhen = { colorMode.value == ColorMode.TEAM }
     }
@@ -60,7 +62,7 @@ object PlayerESP : Module(
 
         val partialTick = mc.deltaTracker.getGameTimeDeltaPartialTick(true)
 
-        RenderUtil.worldContext(ctx) { ctxPose, bufferSource ->
+        RenderUtil.worldContext(ctx) { ctxPose, stack, bufferSource ->
             for (entity in level.players()) {
                 if (entity == player) continue
                 if (!TargetFilter.isValidTarget(player, entity)) continue
@@ -72,11 +74,6 @@ object PlayerESP : Module(
                 val ez = entity.zOld + (entity.z - entity.zOld) * partialTick
                 val e  = expand.value
 
-                val box = AABB(
-                    ex - entity.bbWidth  / 2 - e, ey - e,                   ez - entity.bbWidth  / 2 - e,
-                    ex + entity.bbWidth  / 2 + e, ey + entity.bbHeight + e, ez + entity.bbWidth  / 2 + e
-                )
-
                 val r = color.r / 255f
                 val g = color.g / 255f
                 val b = color.b / 255f
@@ -84,32 +81,49 @@ object PlayerESP : Module(
                 val oa = outlineAlpha.value.toFloat()
                 val lw = lineWidth.value.toFloat()
 
+                val box: AABB
+                val pose: PoseStack.Pose
+
+                if (rotate.value) {
+                    val yaw = entity.yBodyRotO + (entity.yBodyRot - entity.yBodyRotO) * partialTick
+                    stack.pushPose()
+                    stack.translate(ex, ey + entity.bbHeight / 2, ez)
+                    stack.mulPose(Axis.YN.rotationDegrees(yaw))
+                    stack.translate(-ex, -(ey + entity.bbHeight / 2), -ez)
+                    pose = stack.last()
+                    box = AABB(
+                        ex - entity.bbWidth  / 2 - e, ey - e,                   ez - entity.bbWidth  / 2 - e,
+                        ex + entity.bbWidth  / 2 + e, ey + entity.bbHeight + e, ez + entity.bbWidth  / 2 + e
+                    )
+                } else {
+                    pose = ctxPose
+                    box = AABB(
+                        ex - entity.bbWidth  / 2 - e, ey - e,                   ez - entity.bbWidth  / 2 - e,
+                        ex + entity.bbWidth  / 2 + e, ey + entity.bbHeight + e, ez + entity.bbWidth  / 2 + e
+                    )
+                }
+
                 val fillRT = RenderUtil.ESP_FILLED
                 val lineRT = RenderUtil.ESP_LINES
 
                 when (renderMode.value) {
                     RenderMode.BOX -> {
                         val fillVC = bufferSource.getBuffer(fillRT)
-                        RenderUtil.boxFilledBothSides(fillVC, ctxPose, box, r, g, b, fa)
+                        RenderUtil.boxFilledBothSides(fillVC, pose, box, r, g, b, fa)
                         bufferSource.endBatch(fillRT)
 
                         val lineVC = bufferSource.getBuffer(lineRT)
-                        RenderUtil.boxOutline(lineVC, ctxPose, box, r, g, b, oa, lw)
+                        RenderUtil.boxOutline(lineVC, pose, box, r, g, b, oa, lw)
                         bufferSource.endBatch(lineRT)
                     }
-
                     RenderMode.CORNERS -> {
                         val lineVC = bufferSource.getBuffer(lineRT)
-                        drawCorners(lineVC, ctxPose, box, r, g, b, oa, lw)
+                        drawCorners(lineVC, pose, box, r, g, b, oa, lw)
                         bufferSource.endBatch(lineRT)
                     }
-
-                    //RenderMode.OUTLINE -> {
-                    //    val lineVC = bufferSource.getBuffer(lineRT)
-                    //    RenderUtil.boxOutline(lineVC, ctxPose, box, r, g, b, oa, lw)
-                    //    bufferSource.endBatch(lineRT)
-                    //}
                 }
+
+                if (rotate.value) stack.popPose()
             }
         }
     }
