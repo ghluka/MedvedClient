@@ -42,13 +42,14 @@ object BedBreaker : Module(
     @JvmField var pendingHitFace: Direction  = Direction.UP
 
     private var savedSlot = -1
-    private var wasBreaking = false
+    private var breakingPos: BlockPos? = null
+    private var breakingFace: Direction = Direction.UP
 
     override fun onEnabled() {
         RotationManager.clearRotation()
         pendingHitPos = null
-        savedSlot = -1
-        wasBreaking = false
+        breakingPos   = null
+        savedSlot     = -1
     }
 
     override fun onDisabled() {
@@ -81,7 +82,6 @@ object BedBreaker : Module(
 
             pendingHitPos  = targetPos
             pendingHitFace = targetFace
-            wasBreaking    = true
 
             when (rotationMode.value) {
                 RotationMode.CLIENT -> {
@@ -112,9 +112,12 @@ object BedBreaker : Module(
                 }
             }
 
-            if (pendingHitPos != targetPos || !wasBreaking) {
+            val needsRestart = pendingHitPos != breakingPos || pendingHitFace != breakingFace
+            if (needsRestart) {
+                client.gameMode?.stopDestroyBlock()
                 client.gameMode?.startDestroyBlock(targetPos, targetFace)
-                wasBreaking = true
+                breakingPos  = targetPos
+                breakingFace = targetFace
             } else {
                 client.gameMode?.continueDestroyBlock(targetPos, targetFace)
             }
@@ -124,15 +127,13 @@ object BedBreaker : Module(
 
     private fun stopAndClean() {
         val mc = Minecraft.getInstance()
-        if (wasBreaking) {
+        if (breakingPos != null) {
             mc.gameMode?.stopDestroyBlock()
-            wasBreaking = false
+            breakingPos = null
         }
-        if (pendingHitPos != null) {
-            pendingHitPos = null
-            restoreTool()
-            RotationManager.clearRotation()
-        }
+        pendingHitPos = null
+        restoreTool()
+        RotationManager.clearRotation()
     }
 
     override fun onLevelRender(ctx: LevelRenderContext) {
@@ -187,7 +188,8 @@ object BedBreaker : Module(
             )
             if (pos == prevPos) continue
             prevPos = pos
-            if (level.getBlockState(pos).isAir) continue
+            val state = level.getBlockState(pos)
+            if (state.isAir) continue
             return pos to faceToward(eye, pos)
         }
         return bedPos to faceToward(eye, bedPos)

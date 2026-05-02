@@ -8,6 +8,7 @@ import me.ghluka.medved.module.modules.world.ChestAura
 import me.ghluka.medved.module.modules.world.Clutch
 import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.util.RotationManager
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
 import net.minecraft.tags.ItemTags
@@ -38,7 +39,7 @@ object KillAura : Module(
     private val aps = int("aps", 20, 1, 40).also {
         it.visibleWhen = { mode.value == Mode.APS }
     }
-    private val rotate = boolean("rotate", false)
+    private val rotate = boolean("rotate", true)
     private val playersOnly = boolean("players only", true)
     private val autoWeapon = boolean("auto weapon", false)
 
@@ -57,63 +58,68 @@ object KillAura : Module(
         target = null
     }
 
-    override fun onTick(client: Minecraft) {
-        val player = client.player ?: return
-        val level = client.level ?: return
-        if (client.screen != null) return
+    init {
+        ClientTickEvents.START_CLIENT_TICK.register {
+            if (!isEnabled()) return@register
+            val client = Minecraft.getInstance()
+            val player = client.player ?: return@register
+            val level = client.level ?: return@register
+            if (client.screen != null) return@register
 
-        val maxRange = range.value.toDouble()
+            val maxRange = range.value.toDouble()
 
-        val candidates = level.entitiesForRendering()
-            .filterIsInstance<LivingEntity>()
-            .filter { e ->
-                e !== player && !e.isDeadOrDying &&
-                !(playersOnly.value && e !is Player) &&
-                player.distanceTo(e) <= maxRange &&
-                TargetFilter.isValidTarget(player, e)
+            val candidates = level.entitiesForRendering()
+                .filterIsInstance<LivingEntity>()
+                .filter { e ->
+                    e !== player && !e.isDeadOrDying &&
+                            !(playersOnly.value && e !is Player) &&
+                            player.distanceTo(e) <= maxRange &&
+                            TargetFilter.isValidTarget(player, e)
+                }
+
+            val bestTarget = candidates.minByOrNull { player.distanceTo(it) }
+
+            if (targetMode.value == TargetMode.SINGLE && target != null && candidates.contains(target)) {
+                // Keep target
+            } else {
+                target = bestTarget
             }
 
-        val bestTarget = candidates.minByOrNull { player.distanceTo(it) }
-
-        if (targetMode.value == TargetMode.SINGLE && target != null && candidates.contains(target)) {
-            // Keep target
-        } else {
-            target = bestTarget
-        }
-
-        if (target == null) {
-            if (!KnockbackDisplacement.rotationHeld) {
-                RotationManager.clearRotation()
+            if (target == null) {
+                if (!KnockbackDisplacement.rotationHeld) {
+                    RotationManager.clearRotation()
+                }
+                return@register
             }
-            return
-        }
 
-        if (autoWeapon.value) {
-            val bestSlot = findBestWeapon(player)
-            if (bestSlot != -1 && player.inventory.selectedSlot != bestSlot) {
-                player.inventory.selectedSlot = bestSlot
-            }
-        }
-
-        when (mode.value) {
-            Mode.APS -> {
-                accumulator += aps.value / 20.0f
-                while (accumulator >= 1.0f) {
-                    accumulator -= 1.0f
-                    if (targetMode.value == TargetMode.MULTI) {
-                        for (c in candidates) {
-                            client.gameMode?.attack(player, c)
-                        }
-                    } else {
-                        client.gameMode?.attack(player, target!!)
-                    }
-                    player.swing(InteractionHand.MAIN_HAND)
+            if (autoWeapon.value) {
+                val bestSlot = findBestWeapon(player)
+                if (bestSlot != -1 && player.inventory.selectedSlot != bestSlot) {
+                    player.inventory.selectedSlot = bestSlot
                 }
             }
-            Mode.SEQUENTIAL -> {
-                if (player.getAttackStrengthScale(0.5f) >= 1.0f) {
-                    client.gameMode?.attack(player, target!!)
-                    player.swing(InteractionHand.MAIN_HAND)
+
+            when (mode.value) {
+                Mode.APS -> {
+                    accumulator += aps.value / 20.0f
+                    while (accumulator >= 1.0f) {
+                        accumulator -= 1.0f
+                        if (targetMode.value == TargetMode.MULTI) {
+                            for (c in candidates) {
+                                client.gameMode?.attack(player, c)
+                            }
+                        } else {
+                            client.gameMode?.attack(player, target!!)
+                        }
+                        player.swing(InteractionHand.MAIN_HAND)
+                    }
+                }
+
+                Mode.SEQUENTIAL -> {
+                    if (player.getAttackStrengthScale(0.5f) >= 1.0f) {
+                        client.gameMode?.attack(player, target!!)
+                        player.swing(InteractionHand.MAIN_HAND)
+                    }
                 }
             }
         }
@@ -159,7 +165,7 @@ object KillAura : Module(
             val itemStack = player.inventory.getItem(i)
             if (itemStack.isEmpty) continue
             if (itemStack.`is`(ItemTags.SWORDS) || itemStack.`is`(ItemTags.AXES) || itemStack.item is TridentItem) {
-                 return i
+                return i
             }
         }
         return -1
