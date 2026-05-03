@@ -61,6 +61,9 @@ abstract class Config(val name: String) {
     protected fun button(name: String, label: String, action: () -> Unit) =
         register(ButtonEntry(name, label, action))
 
+    protected fun itemList(name: String, default: List<String> = emptyList(), defaultMode: me.ghluka.medved.config.entry.ItemListEntry.Mode = me.ghluka.medved.config.entry.ItemListEntry.Mode.WHITELIST, filter: me.ghluka.medved.config.entry.ItemListEntry.Filter = me.ghluka.medved.config.entry.ItemListEntry.Filter.NONE) =
+        register(me.ghluka.medved.config.entry.ItemListEntry(name, default, defaultMode, filter))
+
     fun serialize(): JsonObject = JsonObject().also { obj ->
         _entries.forEach { obj.add(it.name, it.toJson()) }
     }

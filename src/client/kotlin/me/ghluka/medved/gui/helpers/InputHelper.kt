@@ -130,6 +130,34 @@ internal object InputHelper {
             return true
         }
 
+        if (gui.editingItemListSearch) {
+            val f = gui.itemListSearch
+            val ctrl = (event.modifiers() and GLFW.GLFW_MOD_CONTROL) != 0
+            val shift = (event.modifiers() and GLFW.GLFW_MOD_SHIFT) != 0
+            when {
+                key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER -> gui.editingItemListSearch = false
+                key == GLFW.GLFW_KEY_ESCAPE -> gui.editingItemListSearch = false
+                key == GLFW.GLFW_KEY_BACKSPACE -> if (ctrl) f.backspaceWord() else f.backspace()
+                key == GLFW.GLFW_KEY_DELETE -> f.deleteForward()
+                key == GLFW.GLFW_KEY_LEFT -> if (ctrl) f.wordMove(false, shift) else f.move(-1, shift)
+                key == GLFW.GLFW_KEY_RIGHT -> if (ctrl) f.wordMove(true, shift) else f.move(1, shift)
+                key == GLFW.GLFW_KEY_HOME -> f.home(shift)
+                key == GLFW.GLFW_KEY_END -> f.end(shift)
+                ctrl && key == GLFW.GLFW_KEY_A -> f.selectAll()
+                ctrl && key == GLFW.GLFW_KEY_C -> {
+                    val s = f.copy()
+                    if (s.isNotEmpty()) mc.keyboardHandler.clipboard = s
+                }
+                ctrl && key == GLFW.GLFW_KEY_X -> {
+                    val s = f.cut()
+                    if (s.isNotEmpty()) mc.keyboardHandler.clipboard = s
+                }
+                ctrl && key == GLFW.GLFW_KEY_V -> f.insert(mc.keyboardHandler.clipboard)
+            }
+            f.clampScroll(200)
+            return true
+        }
+
         return false
     }
 
@@ -160,6 +188,14 @@ internal object InputHelper {
         if (gui.editingString != null) {
             gui.entryField.insert(event.codepointAsString())
             gui.entryField.clampScroll(60)
+            return true
+        }
+        if (gui.editingItemListSearch) {
+            val ch = event.codepointAsString()
+            if (ch.matches(Regex("[^</*?\"\\>:|]+"))) {
+                gui.itemListSearch.insert(ch)
+                gui.itemListSearch.clampScroll(200)
+            }
             return true
         }
         return false

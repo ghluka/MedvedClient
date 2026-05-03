@@ -1,7 +1,9 @@
 ﻿package me.ghluka.medved.module.modules.world
 
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.config.entry.ItemListEntry
 import me.ghluka.medved.util.RotationManager
+import me.ghluka.medved.gui.components.itemCategories
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
@@ -40,8 +42,7 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
 
     private val rotSpeed = float("rotation speed", 60f, 10f, 120f)
 
-    enum class FilterMode { NONE, BLACKLIST, WHITELIST }
-    private val filterMode = enum("filter mode", FilterMode.NONE)
+    private val blockWhitelist = itemList("Block Whitelist", listOf("wool_category"), defaultMode = ItemListEntry.Mode.WHITELIST, filter = ItemListEntry.Filter.BLOCKS_ONLY)
 
     private var blocksPlaced    = 0
     private var savedSlot       = -1
@@ -58,7 +59,10 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             if (stack.isEmpty || stack.item !is BlockItem) continue
             val block = (stack.item as BlockItem).block
             if (!block.defaultBlockState().isCollisionShapeFullBlock(world, BlockPos.ZERO)) continue
-            // filterMode
+            if (blockWhitelist.value.isNotEmpty()) {
+                val blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).toString().lowercase()
+                if (!blockMatchesWhitelist(blockId, blockWhitelist.value)) continue
+            }
             return i
         }
         return -1
@@ -166,6 +170,13 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                 val slot = findBlockSlot(player)
                 if (slot == -1) return@register
                 player.inventory.setSelectedSlot(slot)
+            } else if (blockWhitelist.value.isNotEmpty()) {
+                val blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey((player.mainHandItem.item as BlockItem).block).toString().lowercase()
+                if (!blockMatchesWhitelist(blockId, blockWhitelist.value)) {
+                    val slot = findBlockSlot(player)
+                    if (slot == -1) return@register
+                    player.inventory.setSelectedSlot(slot)
+                }
             }
 
             val reach = if (player.isCreative) 5.0 else 4.5
@@ -289,5 +300,18 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
         }
         savedSlot = -1
         RotationManager.clearRotation()
+    }
+
+    private fun blockMatchesWhitelist(blockName: String, whitelist: List<String>): Boolean {
+        for (entry in whitelist) {
+            if (entry.endsWith("_category")) {
+                val categoryId = entry.removeSuffix("_category")
+                val category = itemCategories.firstOrNull { it.id == categoryId }
+                if (category != null && category.matches(blockName)) return true
+            } else {
+                if (blockName.contains(entry.lowercase())) return true
+            }
+        }
+        return false
     }
 }

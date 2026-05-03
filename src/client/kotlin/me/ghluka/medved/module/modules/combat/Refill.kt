@@ -7,6 +7,7 @@ import net.minecraft.world.item.Items
 import net.minecraft.world.item.ItemStack
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import java.util.Locale
+import me.ghluka.medved.gui.components.itemCategories
 
 object Refill : Module("Refill", "Automatically refills your hotbar with healing items", Category.COMBAT) {
     enum class Type { BOTH, POTS, SOUP }
@@ -15,7 +16,7 @@ object Refill : Module("Refill", "Automatically refills your hotbar with healing
     val vertical = boolean("Vertical", false)
     val scatter = boolean("Scatter", true)
     val hotbarClear = boolean("Hotbar Clear", false)
-    val nonJunkItems = string("Non Junk Items", "sword,pickaxe,axe,bow,arrow,pearl,apple,steak,porkchop,gold").also {
+    val nonJunkItems = itemList("Non Junk Items", listOf("swords_category", "pickaxes_category", "axes_category", "bow", "arrow", "pearl", "food_category")).also {
         it.visibleWhen = { hotbarClear.value }
     }
     val delayAmount = intRange("Delay (ms)", 50 to 100, 0, 1000)
@@ -50,10 +51,21 @@ object Refill : Module("Refill", "Automatically refills your hotbar with healing
         fun isJunk(stack: ItemStack): Boolean {
             if (stack.isEmpty) return false
             val name = stack.item.descriptionId.lowercase(Locale.ROOT)
-            val nonJunkList = nonJunkItems.value.lowercase(Locale.ROOT).split(",")
+            val nonJunkList = nonJunkItems.value.map { it.lowercase(Locale.ROOT).trim() }
+            
             for (non in nonJunkList) {
-                if (non.isNotBlank() && name.contains(non.trim())) {
-                    return false
+                if (non.isBlank()) continue
+                
+                if (non.endsWith("_category")) {
+                    val categoryId = non.removeSuffix("_category")
+                    val category = itemCategories.firstOrNull { it.id == categoryId }
+                    if (category != null && category.matches(name)) {
+                        return false
+                    }
+                } else {
+                    if (name.contains(non)) {
+                        return false
+                    }
                 }
             }
             if (isHealing(stack)) return false

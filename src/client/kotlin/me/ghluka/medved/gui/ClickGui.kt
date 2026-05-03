@@ -100,6 +100,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     internal var draggingStringEntry = false
     internal var entryFieldTextX = 0
     internal var listeningKeybind: KeybindEntry? = null
+    internal var itemListSearch = TextField()
     internal var draggingCat: Module.Category? = null
     internal var dragOffX = 0
     internal var dragOffY = 0
@@ -122,6 +123,14 @@ class ClickGui : Screen(Component.literal("Medved")) {
     internal var enumDropdownX = 0
     internal var enumDropdownY = 0
     internal var enumDropdownW = 0
+    internal var itemListDropdownX = 0
+    internal var itemListDropdownY = 0
+    internal var itemListDropdownW = 0
+    internal var expandedItemList: me.ghluka.medved.config.entry.ItemListEntry? = null
+    internal var editingItemListSearch = false
+    internal var itemListScroll = 0
+    internal var itemListAddedScroll = 0
+    internal var itemListCategory: String? = null
 
     enum class ColorPickerMode { CUSTOM, THEME, CHROMA }
 
@@ -250,10 +259,14 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (colorExp != null) {
             drawColorPicker(g, colorExp, colorPickerX, colorPickerY, colorPickerW, mx, my)
         }
+        val listExp = expandedItemList
+        if (listExp != null) {
+            drawItemListDropdown(g, listExp, itemListDropdownX, itemListDropdownY, itemListDropdownW, mx, my)
+        }
         val hov = hoveredMod
         if (hov != null && ClickGui.showDescriptions.value && hov.description.isNotBlank() &&
             ClickGui.currentMode.value == ClickGui.Mode.DROPDOWN &&
-            expandedEnum == null && expandedColorEntry == null) {
+            expandedEnum == null && expandedColorEntry == null && expandedItemList == null) {
             drawTooltip(g, hov.description, mx, my)
         }
     }
@@ -481,6 +494,15 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 val tw = guiFont.width(styledTxt)
                 g.Text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
             }
+            is me.ghluka.medved.config.entry.ItemListEntry -> {
+                val label = "${entry.value.size}"
+                val ew = guiFont.width(styled(label)) + 16
+                val ex = x + w - ew
+                g.fill(ex, y + 1, ex + ew, y + ENT_H - 1, BTN_BG)
+                g.Text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
+                val isOpen = expandedItemList == entry
+                g.Text(guiFont, jbMono(if (isOpen) "\u25bc" else "\u25b2"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
+            }
         }
     }
 
@@ -517,14 +539,60 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return true
         }
 
-        if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR) {
-            return SidebarMode.handleMouseClick(this, mx, my, btn)
+        val listExp = expandedItemList
+        if (listExp != null) {
+            val h = 220
+            if (mx in itemListDropdownX until itemListDropdownX + itemListDropdownW && my in itemListDropdownY until itemListDropdownY + h) {
+                if (handleItemListDropdownClick(listExp, itemListDropdownX, itemListDropdownY, itemListDropdownW, mx, my)) return true
+            }
+            expandedItemList = null
+            editingItemListSearch = false
+            itemListScroll = 0
+            itemListAddedScroll = 0
+            return true
         }
-        if (DropdownMode.handleMouseClick(this, mx, my, btn)) return true
+        if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR) {
+            if (SidebarMode.handleMouseClick(this, mx, my, btn)) return true
+        } else {
+            if (DropdownMode.handleMouseClick(this, mx, my, btn)) return true
+        }
         return super.mouseClicked(event, inBounds)
     }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
+        val mx = mouseX.toInt(); val my = mouseY.toInt()
+        val listExp = expandedItemList
+        if (listExp != null) {
+            val x = itemListDropdownX; val y = itemListDropdownY; val w = itemListDropdownW; val h = 220
+            if (mx in x until x + w && my in y until y + h) {
+                val searchY = y + 18
+                val searchH = 14
+                val topY = searchY + searchH + 6
+                val iconSize = 16
+                val topBarHeight = iconSize
+                
+                if (my in topY until topY + topBarHeight) {
+                    val totalAddedWidth = listExp.value.size * (iconSize + 6)
+                    val topBarW = w - 12
+                    val maxAddedScroll = (totalAddedWidth - topBarW).coerceAtLeast(0)
+                    val delta = (scrollY.toInt() * 3).coerceIn(-10, 10)
+                    itemListAddedScroll = (itemListAddedScroll - delta).coerceIn(0, maxAddedScroll)
+                    return true
+                }
+                
+                val rowH = 18
+                val listY = topY + topBarHeight + 8
+                val items = getAllItems()
+                val q = itemListSearch.text.lowercase(java.util.Locale.getDefault())
+                val filtered = items.filter { (fname, item) -> q.isBlank() || fname.contains(q) || fname.replace('_', ' ').contains(q) }
+                val maxRows = ((y + h - listY - 6) / rowH).coerceAtLeast(1)
+                val maxScroll = (filtered.size - maxRows).coerceAtLeast(0)
+
+                val delta = scrollY.toInt()
+                itemListScroll = (itemListScroll - delta).coerceIn(0, maxScroll)
+                return true
+            }
+        }
         if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR) {
             if (SidebarMode.handleScroll(this, mouseX, mouseY, scrollY)) return true
         } else {
@@ -566,6 +634,17 @@ class ClickGui : Screen(Component.literal("Medved")) {
             is KeybindEntry -> listeningKeybind   = if (listeningKeybind  == entry) null else entry
             is EnumEntry<*> -> expandedEnum = if (expandedEnum == entry) null else entry
             is ButtonEntry  -> entry.action()
+            is me.ghluka.medved.config.entry.ItemListEntry -> {
+                expandedItemList = if (expandedItemList == entry) null else entry
+                if (expandedItemList == entry) {
+                    itemListSearch.set("")
+                    editingItemListSearch = true
+                    itemListScroll = 0
+                    itemListCategory = null
+                } else {
+                    editingItemListSearch = false
+                }
+            }
         }
     }
 
@@ -588,7 +667,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
         if (key == GLFW.GLFW_KEY_ESCAPE || key == ClickGui.keybind.value) { onClose(); return true }
 
-        // route unhandled keys to game input
         val inputKey = InputConstants.getKey(event)
         KeyMapping.set(inputKey, true)
         KeyMapping.click(inputKey)

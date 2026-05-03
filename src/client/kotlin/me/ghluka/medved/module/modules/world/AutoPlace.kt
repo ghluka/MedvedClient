@@ -2,6 +2,8 @@ package me.ghluka.medved.module.modules.world
 
 import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.config.entry.ItemListEntry
+import me.ghluka.medved.gui.components.itemCategories
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.tags.ItemTags
@@ -16,7 +18,7 @@ object AutoPlace : Module(
     private val cps      = floatRange("cps", 12.0f to 14.0f, 1.0f, 20.0f)
     private val requireHolding = boolean("require holding", true)
     private val onlyAir  = boolean("only air", true)
-    private val woolOnly = boolean("wool only", false)
+    private val blockWhitelist = itemList("Block Whitelist", listOf("wool_category"), defaultMode = ItemListEntry.Mode.WHITELIST, filter = ItemListEntry.Filter.BLOCKS_ONLY)
 
     private var accumulator = 0.0f
     private var targetCps   = 13.0f
@@ -40,7 +42,10 @@ object AutoPlace : Module(
         if (client.screen != null) return
 
         if (requireHolding.value && !client.options.keyUse.isDown) return
-        if (woolOnly.value && !player.mainHandItem.`is`(ItemTags.WOOL)) return
+        if (blockWhitelist.value.isNotEmpty()) {
+            val itemName = player.mainHandItem.item.descriptionId.lowercase()
+            if (!itemMatchesWhitelist(itemName, blockWhitelist.value)) return
+        }
 
         val hr = client.hitResult
         if (hr !is BlockHitResult) return
@@ -61,5 +66,18 @@ object AutoPlace : Module(
     private fun pickCps(): Float {
         val (lo, hi) = cps.value
         return if (hi > lo) lo + Random.nextFloat() * (hi - lo) else lo
+    }
+
+    private fun itemMatchesWhitelist(itemName: String, whitelist: List<String>): Boolean {
+        for (entry in whitelist) {
+            if (entry.endsWith("_category")) {
+                val categoryId = entry.removeSuffix("_category")
+                val category = itemCategories.firstOrNull { it.id == categoryId }
+                if (category != null && category.matches(itemName)) return true
+            } else {
+                if (itemName.contains(entry.lowercase())) return true
+            }
+        }
+        return false
     }
 }

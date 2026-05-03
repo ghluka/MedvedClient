@@ -177,6 +177,13 @@ internal object SidebarMode {
                             gui.enumDropdownY = entryY
                             gui.enumDropdownW = ew
                         }
+                        if (entry == gui.expandedItemList && entry is me.ghluka.medved.config.entry.ItemListEntry) {
+                            val iw = 240
+                            val rawX = bodyX + 4
+                            gui.itemListDropdownX = rawX.coerceAtMost(gui.width - iw)
+                            gui.itemListDropdownY = entryY
+                            gui.itemListDropdownW = iw
+                        }
                     }
                 }
             } else {

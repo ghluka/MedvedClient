@@ -2,6 +2,8 @@ package me.ghluka.medved.module.modules.combat
 
 import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.config.entry.ItemListEntry
+import me.ghluka.medved.gui.components.itemCategories
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
@@ -22,11 +24,7 @@ object RightClicker : Module(
     private val cps        = floatRange("cps", 12.0f to 14.0f, 1.0f, 20.0f)
     private val jitter     = float("jitter", 0.0f, 0.0f, 2.0f)
 
-    private val blocksOnly = boolean("blocks only", true)
-
-    private val woolOnly = boolean("wool only", true).also {
-        it.visibleWhen = { blocksOnly.value }
-    }
+    private val blockWhitelist = itemList("Item Whitelist", listOf(), defaultMode = ItemListEntry.Mode.WHITELIST)
 
     private val allowBow = boolean("allow bow", false)
 
@@ -73,13 +71,12 @@ object RightClicker : Module(
             if (main.item is ShieldItem || off.item is ShieldItem) return
         }
 
-        if (blocksOnly.value) {
+        if (blockWhitelist.value.isNotEmpty()) {
             val hr = client.hitResult
             if (hr !is BlockHitResult || hr.type != HitResult.Type.BLOCK) return
-            if (woolOnly.value) {
-                val blockState = client.level?.getBlockState(hr.blockPos) ?: return
-                if (!blockState.`is`(BlockTags.WOOL)) return
-            }
+            val blockState = client.level?.getBlockState(hr.blockPos) ?: return
+            val blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(blockState.block).toString().lowercase()
+            if (!blockMatchesWhitelist(blockId, blockWhitelist.value)) return
         }
 
         accumulator += targetCps / 20.0f
@@ -102,5 +99,18 @@ object RightClicker : Module(
     private fun pickCps(): Float {
         val (lo, hi) = cps.value
         return if (hi > lo) lo + Random.nextFloat() * (hi - lo) else lo
+    }
+
+    private fun blockMatchesWhitelist(blockName: String, whitelist: List<String>): Boolean {
+        for (entry in whitelist) {
+            if (entry.endsWith("_category")) {
+                val categoryId = entry.removeSuffix("_category")
+                val category = itemCategories.firstOrNull { it.id == categoryId }
+                if (category != null && category.matches(blockName)) return true
+            } else {
+                if (blockName.contains(entry.lowercase())) return true
+            }
+        }
+        return false
     }
 }

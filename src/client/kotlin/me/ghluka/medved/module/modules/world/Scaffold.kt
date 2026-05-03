@@ -1,8 +1,10 @@
 package me.ghluka.medved.module.modules.world
 
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.config.entry.ItemListEntry
 import me.ghluka.medved.mixin.client.LocalPlayerAccessor
 import me.ghluka.medved.util.RotationManager
+import me.ghluka.medved.gui.components.itemCategories
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
@@ -23,6 +25,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
     private const val SCAFFOLD_PITCH_NINJA = 80f
 
+    private val blockWhitelist = itemList("Block Whitelist", listOf("wool_category"), defaultMode = ItemListEntry.Mode.WHITELIST, filter = ItemListEntry.Filter.BLOCKS_ONLY)
     private val bridgeMode = enum("mode", BridgeMode.NINJA)
     private val crouchDelay = intRange("crouch delay", 40 to 90, 0, 500).also {
         it.visibleWhen = { bridgeMode.value == BridgeMode.NINJA }
@@ -45,6 +48,10 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             if (stack.isEmpty || stack.item !is BlockItem) continue
             val block = (stack.item as BlockItem).block
             if (!block.defaultBlockState().isCollisionShapeFullBlock(world, BlockPos.ZERO)) continue
+            if (blockWhitelist.value.isNotEmpty()) {
+                val blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).toString().lowercase()
+                if (!blockMatchesWhitelist(blockId, blockWhitelist.value)) continue
+            }
             return i
         }
         return -1
@@ -151,6 +158,14 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 if (slot != -1) {
                     player.inventory.setSelectedSlot(slot)
                 }
+            } else if (blockWhitelist.value.isNotEmpty()) {
+                val blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey((stack.item as BlockItem).block).toString().lowercase()
+                if (!blockMatchesWhitelist(blockId, blockWhitelist.value)) {
+                    val slot = findBlockSlot(player)
+                    if (slot != -1) {
+                        player.inventory.setSelectedSlot(slot)
+                    }
+                }
             }
 
             if (player.onGround() && bridgeMode.value == BridgeMode.NINJA) {
@@ -227,5 +242,18 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         RotationManager.suppressJump = false
         autoclickAccum = 0.0f
         autoclickTargetCps = 0
+    }
+
+    private fun blockMatchesWhitelist(blockName: String, whitelist: List<String>): Boolean {
+        for (entry in whitelist) {
+            if (entry.endsWith("_category")) {
+                val categoryId = entry.removeSuffix("_category")
+                val category = itemCategories.firstOrNull { it.id == categoryId }
+                if (category != null && category.matches(blockName)) return true
+            } else {
+                if (blockName.contains(entry.lowercase())) return true
+            }
+        }
+        return false
     }
 }
