@@ -19,7 +19,7 @@ internal data class ItemCategory(
     val label: String,
     val matches: (String) -> Boolean,
 )
- 
+
 internal val itemCategories = listOf(
     ItemCategory("wool", "Wool") { name -> name.endsWith("wool") },
     ItemCategory("food", "Food") { name -> name in _edibleItemNames },
@@ -30,11 +30,13 @@ internal val itemCategories = listOf(
     ItemCategory("hoes", "Hoes") { name -> name.endsWith("hoe") },
     ItemCategory("armor", "Armor") { name ->
         name.endsWith("helmet") || name.endsWith("chestplate") ||
-        name.endsWith("leggings") || name.endsWith("boots")
+                name.endsWith("leggings") || name.endsWith("boots")
     },
+    ItemCategory("potions", "Potions") { name -> name.contains("potion") },
+    ItemCategory("blocks", "Blocks") { name -> _isBlockByName(name) },
 )
 
-private val BLOCK_CATEGORIES = setOf("wool")
+private val BLOCK_CATEGORIES = setOf("wool", "blocks")
  
 internal var _cachedItems: List<Pair<String, Item>>? = null
  
@@ -71,6 +73,10 @@ private fun _buildEdibleSet(items: List<Pair<String, Item>>) {
  
 private fun _isEdible(item: Item): Boolean {
     return item.components().has(DataComponents.FOOD)
+}
+
+private fun _isBlockByName(name: String): Boolean {
+    return findItemByName(name)?.second?.let { _isBlock(it) } == true
 }
 
 private fun _isBlock(item: Item): Boolean {

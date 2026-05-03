@@ -2,6 +2,7 @@ package me.ghluka.medved.module.modules.world
 
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.util.RotationManager
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
@@ -19,7 +20,7 @@ object ChestAura : Module(
     "Automatically opens nearby chests with legit rotations.",
     Category.WORLD
 ) {
-    private val rotationSpeed = float("rotation speed", 200f, 50f, 500f)
+    private val rotationSpeed = float("rotation speed", 40f, 1f, 120f)
     private val xray = boolean("click through walls", false)
     private val drillSwap = boolean("drill swap", false)
     private val drillName = string("drill name", "gemstone drill")
@@ -27,50 +28,59 @@ object ChestAura : Module(
     private var closestChest: BlockPos? = null
     private var lastOpenTime = 0L
     private val solved = mutableSetOf<BlockPos>()
+    private var clearRotationNextTick = false
 
-    override fun onTick(client: Minecraft) {
-        val player = client.player as? LocalPlayer ?: return
-        val world = client.level ?: return
-        if (!isEnabled()) return
-
-        val maxReach = 3.0 * 3.0
-        if (closestChest == null || player.distanceToSqr(Vec3(closestChest!!.x + 0.5, closestChest!!.y + 0.5, closestChest!!.z + 0.5)) > maxReach) {
-            closestChest = findClosestChestInRange(player, world, maxReach)
-            if (closestChest == null) {
-                RotationManager.clearRotation()
-                RotationManager.physicsYawOverride = Float.NaN
-                return
+    init {
+        ClientTickEvents.START_CLIENT_TICK.register {
+            val client = Minecraft.getInstance()
+            if (clearRotationNextTick) {
+                if (client.screen == null) {
+                    RotationManager.clearRotation()
+                    clearRotationNextTick = false
+                }
+                return@register
             }
-        }
-        val chest = closestChest ?: return
+            val player = client.player as? LocalPlayer ?: return@register
+            val world = client.level ?: return@register
+            if (!isEnabled()) return@register
 
-        if (player.distanceToSqr(Vec3(chest.x + 0.5, chest.y + 0.5, chest.z + 0.5)) > maxReach) {
-            closestChest = null
-            RotationManager.clearRotation()
-            RotationManager.physicsYawOverride = Float.NaN
-            return
-        }
+            val maxReach = 3.0 * 3.0
+            if (closestChest == null || player.distanceToSqr(
+                    Vec3(
+                        closestChest!!.x + 0.5,
+                        closestChest!!.y + 0.5,
+                        closestChest!!.z + 0.5
+                    )
+                ) > maxReach
+            ) {
+                closestChest = findClosestChestInRange(player, world, maxReach)
+                if (closestChest == null) {
+                    return@register
+                }
+            }
+            val chest = closestChest ?: return@register
 
-        if (!xray.value && !canSeeChest(player, chest)) {
-            closestChest = null
-            RotationManager.clearRotation()
-            RotationManager.physicsYawOverride = Float.NaN
-            return
-        }
+            if (player.distanceToSqr(Vec3(chest.x + 0.5, chest.y + 0.5, chest.z + 0.5)) > maxReach) {
+                closestChest = null
+                return@register
+            }
 
-        RotationManager.perspective = true
-        RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
-        RotationManager.movementMode = RotationManager.MovementMode.CLIENT
-        val (yaw, pitch) = getRotationTo(player, chest)
-        RotationManager.setTargetRotation(yaw, pitch)
-        RotationManager.quickTick(rotationSpeed.value)
-        RotationManager.physicsYawOverride = RotationManager.getCurrentYaw()
-        RotationManager.skipPositionSnap = true
+            if (!xray.value && !canSeeChest(player, chest)) {
+                closestChest = null
+                return@register
+            }
 
-        if (isLookingAtChest(player, chest)) {
-            clickChest(client, player, chest)
-            RotationManager.clearRotation()
-            RotationManager.physicsYawOverride = Float.NaN
+            RotationManager.perspective = true
+            RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
+            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+            val (yaw, pitch) = getRotationTo(player, chest)
+            RotationManager.setTargetRotation(yaw, pitch)
+            RotationManager.quickTick(rotationSpeed.value)
+
+            if (isLookingAtChest(player, chest)) {
+                clickChest(client, player, chest)
+                clearRotationNextTick = true
+            }
         }
     }
 
@@ -138,7 +148,14 @@ object ChestAura : Module(
         val (yaw, pitch) = getRotationTo(player, chest)
         val cyaw = RotationManager.getCurrentYaw()
         val cpitch = RotationManager.getCurrentPitch()
-        return abs(yaw - cyaw) < 2f && abs(pitch - cpitch) < 2f
+        return angleDiff(yaw, cyaw) < 2f && abs(pitch - cpitch) < 2f
+    }
+
+    private fun angleDiff(a: Float, b: Float): Float {
+        var diff = (a - b) % 360f
+        if (diff < -180f) diff += 360f
+        if (diff > 180f) diff -= 360f
+        return abs(diff)
     }
 
     private fun clickChest(client: Minecraft, player: LocalPlayer, chest: BlockPos) {
@@ -172,6 +189,5 @@ object ChestAura : Module(
         closestChest = null
         solved.clear()
         RotationManager.clearRotation()
-        RotationManager.physicsYawOverride = Float.NaN
     }
 }

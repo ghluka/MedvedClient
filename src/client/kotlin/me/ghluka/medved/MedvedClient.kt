@@ -72,6 +72,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Clutch)
         ModuleManager.register(FastPlace)
         ModuleManager.register(AutoPlace)
+        ModuleManager.register(ChestStealer)
         ModuleManager.register(BedBreaker)
         // other
         ModuleManager.register(ClickGui)
