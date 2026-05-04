@@ -1,0 +1,53 @@
+---
+sidebar_position: 3
+---
+
+# Inventory Manager
+
+Provides an auto hotbar, auto armour, and inventory cleaner. Calculates the best items and puts them in your specified slots, throws out junk.
+
+---
+
+### Mode
+
+- **INVENTORY**: Only sort when you manually open your inventory
+- **ALWAYS**: Automatically open inventory and sort when conditions are met
+
+### Activate On %
+
+(Only in ALWAYS mode) Open inventory and sort when the main inventory is at least this % full. At 0%, it triggers whenever there's any work to do.
+
+### Delay (ms)
+
+Delay between each automatic action (move, throw, equip).
+
+### Auto Hotbar
+
+Automatically moves items into designated hotbar slots based on item type. Set any slot to `-1` to disable it.
+
+#### Hotbar Assignment
+
+- **Sword Slot**: Hotbar position for your best sword (default: 0)
+- **Pickaxe Slot**: Hotbar position for your best pickaxe (default: 1)
+- **Axe Slot**: Hotbar position for your best axe (default: 2)
+- **Bow Slot**: Hotbar position for your best bow (default: 3)
+- **Pearl Slot**: Hotbar position for ender pearls (default: 4)
+- **Gapple Slot**: Hotbar position for golden apples (default: 5)
+- **Block Slot**: Hotbar position for building blocks (default: 6)
+- **Food Slot**: Hotbar position for food (default: 7)
+
+### Auto Armor
+
+Enable automatic armor equipping. Finds your best armor pieces and equips them.
+
+#### Prioritize Blast Resistance
+
+When scoring armor, treat Blast Protection as the most valuable enchantment instead of Protection.
+
+### Inventory Cleaner
+
+Automatically throw out unrecognized items that don't fit any hotbar role (not tools, weapons, armor, consumables, or blocks).
+
+#### Trash Extra Gear
+
+Throw out duplicate or worse versions of gear items you already have equipped or assigned to hotbar slots. Useful for preventing inventory clutter when looting.

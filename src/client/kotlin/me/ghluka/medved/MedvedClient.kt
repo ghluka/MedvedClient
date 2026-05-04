@@ -91,6 +91,7 @@ object MedvedClient : ClientModInitializer {
         // utility
         ModuleManager.register(AntiFireball)
         ModuleManager.register(AutoTotem)
+        ModuleManager.register(InventoryManager)
 
         ModuleManager.init()
         UpdateChecker.init()
