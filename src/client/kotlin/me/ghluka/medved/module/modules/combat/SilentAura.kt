@@ -55,6 +55,7 @@ object SilentAura : Module(
     private var wasBlocking = false
     private var unblockNextTick = false
     private var seqDelayTicks = 0
+    private var ownsRotation = false
 
     override fun onEnabled() {
         accumulator = 0.0f
@@ -63,6 +64,7 @@ object SilentAura : Module(
         wasBlocking = false
         unblockNextTick = false
         seqDelayTicks = 0
+        ownsRotation = false
     }
 
     override fun onDisabled() {
@@ -76,10 +78,11 @@ object SilentAura : Module(
     }
 
     private fun clearAura() {
-        if (!me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld) {
+        if (ownsRotation && !me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld) {
             RotationManager.clearRotation()
         }
         target = null
+        ownsRotation = false
     }
 
     override fun onTick(client: Minecraft) {
@@ -217,6 +220,7 @@ object SilentAura : Module(
         RotationManager.rotationMode  = RotationManager.RotationMode.CLIENT
 
         RotationManager.setTargetRotation(targetYaw, targetPitch)
+        ownsRotation = true
         RotationManager.quickTick(smoothSpeed.value)
     }
 
