@@ -109,7 +109,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
     private fun emx(mx: Int) = ssCx + ((mx - ssCx) / uiSf).toInt()
     private fun emy(my: Int) = ssCy + ((my - ssCy) / uiSf).toInt()
 
-    private val PNL_BG   get() = shade(8, 0.05f, 100)
+    private val PNL_BG   get() = shade(8, 0.05f)
     private val HDR_BG   get() = shade(20, 0.22f)
     private val ROW_BG   get() = shade(24, 0.07f, 200)
     private val BTN_BG   get() = shade(18, 0.10f, 255)
@@ -948,11 +948,8 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             CookieState.SUCCESS -> {
                 val prof = cookieProfile
                 if (prof != null) {
-                    g.TextCentered(FONT, styled("Success!"), cx, fy, argb(100, 220, 100, 255))
-                    fy += 20
-                    g.TextCentered(FONT, styled("Username: ${prof.username}"), cx, fy, argb(200, 200, 200, 220))
-                    //fy += 14
-                    //g.TextCentered(FONT, styled("UUID: ${prof.uuid}"), cx, fy - 4, argb(160, 160, 160, 200))
+                    g.TextCentered(FONT, styled("Logged in as ${prof.username}!"),
+                        cx, py + TITLE_H + CONTENT_H / 2 - 16, argb(100, 220, 100, 255))
                 }
             }
             CookieState.FAILED -> {
