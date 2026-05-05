@@ -3,6 +3,8 @@
 import me.ghluka.medved.alt.AltAccount
 import me.ghluka.medved.alt.AltManager
 import me.ghluka.medved.alt.AltType
+import me.ghluka.medved.alt.handlers.CookieAuth
+import me.ghluka.medved.alt.handlers.MicrosoftAuth
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
 import net.minecraft.client.Minecraft
@@ -19,10 +21,14 @@ import net.minecraft.resources.Identifier
 import me.ghluka.medved.util.Text
 import me.ghluka.medved.util.TextCentered
 import org.lwjgl.glfw.GLFW
+import java.io.File
+import org.lwjgl.PointerBuffer
+import org.lwjgl.system.MemoryStack
+import org.lwjgl.util.tinyfd.TinyFileDialogs
 
 class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("Alt Manager")) {
 
-    private enum class State { LIST, CHOOSE_TYPE, ADD_CRACKED, ADD_TOKEN, ADD_MICROSOFT }
+    private enum class State { LIST, CHOOSE_TYPE, ADD_CRACKED, ADD_TOKEN, ADD_MICROSOFT, ADD_COOKIE }
     private var state = State.LIST
 
     private var listScroll = 0
@@ -54,10 +60,16 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
     private enum class MsState { REQUESTING, SHOWING_CODE, WAITING, SUCCESS, FAILED }
     @Volatile private var msState: MsState? = null
-    @Volatile private var msDeviceInfo: AltManager.DeviceCodeInfo? = null
-    @Volatile private var msProfile: AltManager.McProfile? = null
+    @Volatile private var msDeviceInfo: MicrosoftAuth.DeviceCodeInfo? = null
+    @Volatile private var msProfile: MicrosoftAuth.McProfile? = null
     @Volatile private var msErrorMsg = ""
     private var msPollThread: Thread? = null
+
+    private enum class CookieState { IDLE, LOADING, SUCCESS, FAILED }
+    @Volatile private var cookieState: CookieState? = null
+    @Volatile private var cookieProfile: CookieAuth.McProfile? = null
+    @Volatile private var cookieErrorMsg = ""
+    private var cookieLoadThread: Thread? = null
 
     companion object {
         private const val PNL_W     = 400
@@ -195,6 +207,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
     override fun onClose() {
         cancelMsAuth()
+        cancelCookieAuth()
         minecraft.setScreen(parent)
     }
 
@@ -230,6 +243,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             State.ADD_CRACKED,
             State.ADD_TOKEN     -> drawAddForm(g, px, py, dmx, dmy)
             State.ADD_MICROSOFT -> drawMicrosoft(g, px, py, dmx, dmy)
+            State.ADD_COOKIE    -> drawCookie(g, px, py, dmx, dmy)
         }
 
         g.pose().popMatrix()
@@ -312,8 +326,9 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         g.Text(FONT, styled(dispName), rx + 6, ry + 4, argb(255, 215, 215, 228))
         val (typeLabel, typeColor) = when (acc.type) {
             AltType.CRACKED      -> "Cracked"   to argb(180, 150, 150, 160)
-            AltType.ACCESS_TOKEN -> "Premium"   to argb(200, 80, 200, 120)
+            AltType.ACCESS_TOKEN -> "Token"   to argb(200, 80, 200, 120)
             AltType.MICROSOFT    -> "Microsoft" to argb(200, 80, 140, 220)
+            AltType.COOKIE       -> "Cookie"    to argb(200, 140, 80, 180)
         }
         g.Text(FONT, styled(typeLabel), rx + 6, ry + 15, typeColor)
 
@@ -337,7 +352,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         val btnW   = 180
         val btnGap = 6
         var by     = cy + 18
-        for (label in listOf("Cracked (Offline)", "Access Token", "Microsoft")) {
+        for (label in listOf("Cracked (Offline)", "Access Token", "Microsoft", "Cookie")) {
             drawBtn(g, cx - btnW / 2, by, btnW, BTN_H + 4, label, mx, my)
             by += BTN_H + 4 + btnGap
         }
@@ -361,7 +376,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
         val fieldDefs = when (state) {
             State.ADD_CRACKED -> listOf("Username")
-            State.ADD_TOKEN   -> listOf("Username (optional)", "UUID (optional)", "MC Access Token (mctoken)")
+            State.ADD_TOKEN   -> listOf("MC Access Token (mctoken)")
             else              -> emptyList()
         }
         for ((idx, label) in fieldDefs.withIndex()) {
@@ -508,11 +523,13 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         AltType.CRACKED      -> argb(220, 60,  60,  70)
         AltType.ACCESS_TOKEN -> argb(220, 80,  70,  20)
         AltType.MICROSOFT    -> argb(220, 20,  80, 100)
+        AltType.COOKIE       -> argb(220, 100, 70, 20)
     }
     private fun badgeLetter(type: AltType) = when (type) {
         AltType.CRACKED      -> "C"
         AltType.ACCESS_TOKEN -> "T"
         AltType.MICROSOFT    -> "M"
+        AltType.COOKIE       -> "K"
     }
 
     private fun dragInsertIndex(): Int {
@@ -532,6 +549,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             State.ADD_CRACKED,
             State.ADD_TOKEN     -> handleFormClick(mx, my, px, py)
             State.ADD_MICROSOFT -> handleMicrosoftClick(mx, my, px, py)
+            State.ADD_COOKIE    -> handleCookieClick(mx, my, px, py)
         }
         return true
     }
@@ -623,10 +641,11 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         val btnH = BTN_H + 4
         val gap  = 6
         var by   = py + TITLE_H + 20 + 18
-        for (nextState in listOf(State.ADD_CRACKED, State.ADD_TOKEN, State.ADD_MICROSOFT)) {
+        for (nextState in listOf(State.ADD_CRACKED, State.ADD_TOKEN, State.ADD_MICROSOFT, State.ADD_COOKIE)) {
             if (isOver(mx, my, cx - btnW / 2, by, btnW, btnH)) {
                 state = nextState
                 if (nextState == State.ADD_MICROSOFT) startMicrosoftAuth()
+                else if (nextState == State.ADD_COOKIE) startCookieAuth()
                 return
             }
             by += btnH + gap
@@ -853,22 +872,21 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
                 clearForm(); state = State.LIST
             }
             State.ADD_TOKEN -> {
-                val token     = fields[2].get().trim()
-                val uuidInput = fields[1].get().trim()
+                val token     = fields[0].get().trim()
                 if (token.isBlank()) { formError = "Access token cannot be empty"; return }
                 formError = "Fetching profile\u2026"
                 Thread {
                     try {
                         val resolvedName: String
                         val resolvedUuid: String
-                        if (username.isBlank()) {
-                            val fetched = AltManager.fetchMcProfile(token)
+                        try {
+                            val fetched = MicrosoftAuth.fetchMcProfile(token)
                             if (fetched == null) { formError = "Cannot fetch profile \u2013 enter username manually"; return@Thread }
                             resolvedName = fetched.first
-                            resolvedUuid = if (uuidInput.isBlank()) fetched.second.toString() else uuidInput
-                        } else {
-                            resolvedName = username
-                            resolvedUuid = uuidInput
+                            resolvedUuid = fetched.second.toString()
+                        } catch (_:Exception) {
+                            formError = "Error: Failed to resolve username"
+                            return@Thread
                         }
                         val acc = AltAccount(type = AltType.ACCESS_TOKEN, username = resolvedName,
                             uuid = resolvedUuid, token = token)
@@ -914,6 +932,187 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         t.start()
     }
 
+    private fun drawCookie(g: GuiGraphicsExtractor, px: Int, py: Int, mx: Int, my: Int) {
+        val cx  = px + PNL_W / 2
+        var fy  = py + TITLE_H + 18
+
+        when (cookieState) {
+            CookieState.IDLE -> {
+                g.TextCentered(FONT, styled("Select a cookie file"), cx, fy, argb(180, 180, 180, 200))
+                //fy += 20
+                //g.TextCentered(FONT, styled("(from browser export)"), cx, fy, argb(140, 140, 140, 180))
+            }
+            CookieState.LOADING -> {
+                g.TextCentered(FONT, styled("Loading cookie file..."), cx, fy, argb(180, 180, 180, 200))
+            }
+            CookieState.SUCCESS -> {
+                val prof = cookieProfile
+                if (prof != null) {
+                    g.TextCentered(FONT, styled("Success!"), cx, fy, argb(100, 220, 100, 255))
+                    fy += 20
+                    g.TextCentered(FONT, styled("Username: ${prof.username}"), cx, fy, argb(200, 200, 200, 220))
+                    //fy += 14
+                    //g.TextCentered(FONT, styled("UUID: ${prof.uuid}"), cx, fy - 4, argb(160, 160, 160, 200))
+                }
+            }
+            CookieState.FAILED -> {
+                g.TextCentered(FONT, styled("Auth failed."), cx, fy, argb(255, 220, 80, 80))
+                fy += 14
+                val err = cookieErrorMsg
+                if (err.isNotBlank()) {
+                    val wrappedErr = wrapText(err, PNL_W - 40)
+                    for (line in wrappedErr.take(2)) {
+                        g.TextCentered(FONT, styled(line), cx, fy, argb(200, 160, 100, 140))
+                        fy += 12
+                    }
+                }
+            }
+            null -> {}
+        }
+
+        val bby = py + TITLE_H + CONTENT_H + (BOTTOM_H - BTN_H) / 2
+        when (cookieState) {
+            CookieState.SUCCESS -> {
+                drawBtn(g, px + 8,                  bby, BTN_W, BTN_H, "Back",   mx, my)
+                drawBtn(g, px + PNL_W - BTN_W - 8,  bby, BTN_W, BTN_H, "Save",   mx, my)
+            }
+            CookieState.FAILED -> {
+                drawBtn(g, px + 8,                  bby, BTN_W, BTN_H, "Back",   mx, my)
+                drawBtn(g, px + PNL_W - BTN_W - 8,  bby, BTN_W, BTN_H, "Retry",  mx, my)
+            }
+            else -> {
+                drawBtn(g, px + 8,                  bby, BTN_W, BTN_H, "Back",   mx, my)
+                drawBtn(g, px + PNL_W - BTN_W - 8,  bby, BTN_W, BTN_H, "Browse", mx, my)
+            }
+        }
+    }
+
+    private fun startCookieAuth() {
+        cancelCookieAuth()
+        cookieState = CookieState.IDLE
+        cookieProfile = null
+        cookieErrorMsg = ""
+        state = State.ADD_COOKIE
+    }
+
+    private fun cancelCookieAuth() {
+        cookieLoadThread?.interrupt()
+        cookieLoadThread = null
+    }
+
+    private fun handleCookieClick(mx: Int, my: Int, px: Int, py: Int) {
+        val bby = py + TITLE_H + CONTENT_H + (BOTTOM_H - BTN_H) / 2
+
+        if (isOver(mx, my, px + 8, bby, BTN_W, BTN_H)) { state = State.LIST; return }
+
+        when (cookieState) {
+            CookieState.SUCCESS -> {
+                if (isOver(mx, my, px + PNL_W - BTN_W - 8, bby, BTN_W, BTN_H)) {
+                    val prof = cookieProfile
+                    if (prof != null) {
+                        val account = AltAccount(
+                            type = AltType.COOKIE,
+                            username = prof.username,
+                            token = prof.accessToken,
+                            uuid = prof.uuid.toString()
+                        )
+                        AltManager.addAccount(account)
+                        loginMsg = "Added cookie account: ${prof.username}"
+                        loginMsgColor = argb(255, 100, 220, 100)
+                        loginMsgTimer = System.currentTimeMillis() + 2_500L
+                        state = State.LIST
+                    }
+                }
+            }
+            CookieState.FAILED -> {
+                if (isOver(mx, my, px + PNL_W - BTN_W - 8, bby, BTN_W, BTN_H)) {
+                    browseCookieFile()
+                }
+            }
+            CookieState.IDLE, CookieState.LOADING -> {
+                if (isOver(mx, my, px + PNL_W - BTN_W - 8, bby, BTN_W, BTN_H)) {
+                    browseCookieFile()
+                }
+            }
+
+            else -> {}
+        }
+    }
+
+    private fun browseCookieFile() {
+        cookieState = CookieState.LOADING
+
+        Thread {
+            try {
+                val selectedPath = openNativeFileDialog()
+
+                if (selectedPath == null) {
+                    Minecraft.getInstance().execute {
+                        cookieState = CookieState.IDLE
+                    }
+                    return@Thread
+                }
+
+                val file = File(selectedPath)
+
+                Minecraft.getInstance().execute {
+                    loadCookieFile(file)
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+
+                Minecraft.getInstance().execute {
+                    cookieErrorMsg = e.message ?: "Failed to open file dialog"
+                    cookieState = CookieState.FAILED
+                }
+            }
+        }.apply {
+            isDaemon = true
+            name = "medved-cookie-browser"
+            start()
+        }
+    }
+
+    private fun openNativeFileDialog(): String? {
+        MemoryStack.stackPush().use { stack ->
+
+            val patterns: PointerBuffer = stack.mallocPointer(1)
+            patterns.put(stack.UTF8("*.txt"))
+            patterns.flip()
+
+            return TinyFileDialogs.tinyfd_openFileDialog(
+                "Select Cookie File",
+                null,
+                patterns,
+                "Text Files",
+                false
+            )
+        }
+    }
+
+    private fun loadCookieFile(cookieFile: File) {
+        cancelCookieAuth()
+        cookieLoadThread = Thread {
+            try {
+                val profile = AltManager.authenticateFromCookieFile(cookieFile)
+                if (profile != null) {
+                    cookieProfile = profile
+                    cookieState = CookieState.SUCCESS
+                } else {
+                    cookieErrorMsg = "Failed to authenticate with cookies"
+                    cookieState = CookieState.FAILED
+                }
+            } catch (e: Exception) {
+                cookieErrorMsg = e.message ?: "Unknown error"
+                cookieState = CookieState.FAILED
+            }
+        }
+        cookieLoadThread!!.isDaemon = true
+        cookieLoadThread!!.name = "medved-cookie-auth"
+        cookieLoadThread!!.start()
+    }
+
     private fun isOver(mx: Int, my: Int, x: Int, y: Int, w: Int, h: Int) =
         mx in x until x + w && my in y until y + h
 
@@ -933,7 +1132,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
     private fun <T> MutableList<T>.swap(i: Int, j: Int) {
         val tmp = this[i]; this[i] = this[j]; this[j] = tmp
-           msState = MsState.FAILED
-                }
-            }
+        msState = MsState.FAILED
+    }
+}
 
