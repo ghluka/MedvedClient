@@ -4,5 +4,6 @@
   "link": {
     "type": "generated-index",
     "description": "Internal modules that affect how other modules will behave."
-  }
+  },
+  "customProps": {"boxicon": "bx-code-alt"}
 }

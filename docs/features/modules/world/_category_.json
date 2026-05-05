@@ -4,5 +4,6 @@
   "link": {
     "type": "generated-index",
     "description": "World modules interact with the Minecraft world you are in, such as opening chests, breaking beds, and more."
-  }
+  },
+  "customProps": {"boxicon": "bx-globe"}
 }

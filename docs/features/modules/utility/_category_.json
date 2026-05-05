@@ -4,5 +4,6 @@
   "link": {
     "type": "generated-index",
     "description": "Utility modules, designed for quality of life improvements. Usually made to automate simple yet tedious tasks."
-  }
+  },
+  "customProps": {"boxicon": "bxf bx-spanner"}
 }

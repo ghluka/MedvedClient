@@ -103,3 +103,12 @@ a > .MuiChip-label:hover {
   text-decoration: underline;
 }
 
+.theme-doc-card-heading {
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+}
+
+.bx {
+  font-size: large;
+}

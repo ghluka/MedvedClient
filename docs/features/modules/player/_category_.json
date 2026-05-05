@@ -4,5 +4,6 @@
   "link": {
     "type": "generated-index",
     "description": "Player modules designed to affect your gameplay, usually by altering your connection to the server such as fake lag."
-  }
+  },
+  "customProps": {"boxicon": "bxf bx-user"}
 }

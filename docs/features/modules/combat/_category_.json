@@ -4,5 +4,6 @@
   "link": {
     "type": "generated-index",
     "description": "Combat modules designed to provide an unfair advantage in PvP or PvE for any version of the game's combat style."
-  }
+  },
+  "customProps": {"boxicon": "bxf bx-sword"}
 }
