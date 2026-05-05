@@ -1014,7 +1014,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
                             uuid = prof.uuid.toString()
                         )
                         AltManager.addAccount(account)
-                        loginMsg = "Added cookie account: ${prof.username}"
+                        loginMsg = "Logged in as ${prof.username}"
                         loginMsgColor = argb(255, 100, 220, 100)
                         loginMsgTimer = System.currentTimeMillis() + 2_500L
                         state = State.LIST
