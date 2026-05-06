@@ -14,14 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(KeyboardInput.class)
 public abstract class KeyboardInputMixin extends ClientInput {
 
-    /**
-     * Fires right after KeyboardInput.tick() has built keyPresses + moveVector
-     * from KeyMapping.isDown(). If the scaffold movement-freeze flag is set,
-     * replace both with zeroed values so aiStep() computes no movement.
-     * If suppressJump is set, rebuild keyPresses with jump=false so the player
-     * doesn't jump until they reach the block edge during WASD+space bridging.
-     * Also applies ComboTap key overrides.
-     */
     @Inject(method = "tick", at = @At("RETURN"))
     private void medved$freezeMovement(CallbackInfo ci) {
         if (RotationManager.freezeMovement) {

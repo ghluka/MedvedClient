@@ -26,6 +26,8 @@ object ComboTap : Module(
         it.visibleWhen = { method.value == Method.W_TAP }
     }
 
+    val onGroundOnly = boolean("on ground only", true)
+
     @JvmField var suppressForward = false
     @JvmField var suppressSprint  = false
     @JvmField var forceBackward   = false
@@ -61,6 +63,10 @@ object ComboTap : Module(
     }
 
     fun onAttack() {
+        if (onGroundOnly.value) {
+            val player = Minecraft.getInstance().player ?: return
+            if (!player.onGround()) return
+        }
         val now = System.currentTimeMillis()
         if (now < cooldownDeadlineMs) return
         val (durLo, durHi) = tapDuration.value

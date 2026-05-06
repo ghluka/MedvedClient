@@ -20,6 +20,7 @@ object AntiFireball : Module("Anti Fireball", "Automatically aims and swings at 
 
     private var target: Projectile? = null
     private var stoppedMovement = false
+    private var ownsRotation = false
 
     override fun onDisabled() {
         clearAura()
@@ -29,10 +30,11 @@ object AntiFireball : Module("Anti Fireball", "Automatically aims and swings at 
     }
 
     private fun clearAura() {
-        if (!me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld) {
+        if (ownsRotation && !me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld) {
             RotationManager.clearRotation()
         }
         target = null
+        ownsRotation = false
     }
 
     override fun onTick(client: Minecraft) {
@@ -97,6 +99,7 @@ object AntiFireball : Module("Anti Fireball", "Automatically aims and swings at 
             RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
             RotationManager.setTargetRotation(targetYaw, targetPitch)
             RotationManager.quickTick(aimSpeed.value)
+            ownsRotation = true
         } else {
             player.yRot = targetYaw
             player.xRot = targetPitch
