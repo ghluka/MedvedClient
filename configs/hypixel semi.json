@@ -397,7 +397,7 @@
   },
   "Fake Lag": {
     "enabled": true,
-    "keybind": 66,
+    "keybind": -1,
     "mode": "DYNAMIC",
     "lag (ms)": [
       90,
@@ -568,7 +568,7 @@
     "keybind": -1,
     "ignore team": false,
     "ignore color": true,
-    "ignore invisible": true,
+    "ignore invisible": false,
     "anti-bot": true
   },
   "Modules List": {
@@ -678,7 +678,7 @@
   },
   "Inventory Manager": {
     "enabled": false,
-    "keybind": -1,
+    "keybind": 88,
     "Mode": "INVENTORY",
     "Activate On %": 39,
     "Delay (ms)": [

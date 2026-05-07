@@ -173,12 +173,12 @@
     "stop sprint": false,
     "on ground only": false
   },
-  "Knockback Delay": {
-    "enabled": false,
+  "Kb Delay": {
+    "enabled": true,
     "keybind": -1,
     "delay (ms)": [
-      1900,
-      2100
+      10,
+      50
     ],
     "chance %": 100
   },
@@ -334,6 +334,10 @@
     "enabled": true,
     "keybind": -1
   },
+  "Parkour": {
+    "enabled": false,
+    "keybind": -1
+  },
   "Box ESP": {
     "enabled": true,
     "keybind": -1,
@@ -393,7 +397,7 @@
   },
   "Fake Lag": {
     "enabled": true,
-    "keybind": 66,
+    "keybind": -1,
     "mode": "REPEL",
     "lag (ms)": [
       245,
@@ -427,14 +431,15 @@
         "wool_category"
       ]
     },
-    "mode": "NINJA",
+    "mode": "BREEZILY",
     "crouch delay": [
       75,
       115
     ],
+    "breezily strafe ticks": 2,
     "autoclick cps": [
-      7,
-      12
+      6,
+      6
     ],
     "disable on death": true,
     "disable on world change": true
@@ -460,7 +465,7 @@
     }
   },
   "Fast Place": {
-    "enabled": true,
+    "enabled": false,
     "keybind": -1,
     "delay ticks": 3,
     "Item Whitelist": {
@@ -472,16 +477,16 @@
   "Auto Place": {
     "enabled": true,
     "keybind": -1,
-    "cps": [
-      14.7,
-      16.2
-    ],
     "require holding": true,
     "only air": false,
     "Block Whitelist": {
       "mode": "WHITELIST",
       "filter": "BLOCKS_ONLY",
-      "items": []
+      "items": [
+        "blue_terracotta",
+        "red_terracotta",
+        "wool_category"
+      ]
     }
   },
   "Chest Stealer": {
@@ -561,8 +566,8 @@
     "keybind": -1,
     "ignore team": false,
     "ignore color": true,
-    "ignore invisible": true,
-    "anti-bot": false
+    "ignore invisible": false,
+    "anti-bot": true
   },
   "Modules List": {
     "enabled": true,

@@ -5,6 +5,7 @@ import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.other.TargetFilter
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import org.lwjgl.glfw.GLFW
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.EntityHitResult
@@ -33,6 +34,16 @@ object TriggerBot : Module(
         seqDelayTicks = 0
     }
 
+    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
+        if (mapping.isUnbound) return false
+        val window = Minecraft.getInstance().window.handle()
+        val key = InputConstants.getKey(mapping.saveString())
+        if (key.type == InputConstants.Type.MOUSE) {
+            return GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
+        }
+        return GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
+    }
+
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
         if (client.screen != null) return
@@ -49,7 +60,7 @@ object TriggerBot : Module(
         if (player.distanceTo(target) > range.value) return
         if (!TargetFilter.isValidTarget(player, target)) return
 
-        if (requireMouseDown.value && !client.options.keyAttack.isDown) return
+        if (requireMouseDown.value && !isPhysicalKeyDown(client.options.keyAttack)) return
         if (shieldCheck.value && target.isBlocking) return
         if (airCrits.value && player.onGround()) return
         
@@ -66,6 +77,7 @@ object TriggerBot : Module(
         if (player.getAttackStrengthScale(0.5f - seqDelayTicks.toFloat()) >= 1.0f) {
             val attackKey = InputConstants.getKey(client.options.keyAttack.saveString())
             KeyMapping.click(attackKey)
+            client.options.keyAttack.setDown(false)
             
             val (lo, hi) = extraDelay.value
             seqDelayTicks = if (hi > lo) (lo..hi).random() else lo

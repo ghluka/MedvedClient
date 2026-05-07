@@ -116,8 +116,12 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 var mx = 0.0; var mz = 0.0
                 if (W) { mx -= kotlin.math.sin(camRad); mz += kotlin.math.cos(camRad) }
                 if (S) { mx += kotlin.math.sin(camRad); mz -= kotlin.math.cos(camRad) }
-                if (D || ninjaAutoRight) { mx -= kotlin.math.cos(camRad); mz -= kotlin.math.sin(camRad) }
-                if (A) { mx += kotlin.math.cos(camRad); mz += kotlin.math.sin(camRad) }
+                if (bridgeMode.value == BridgeMode.NINJA) {
+                    if (ninjaAutoRight) { mx -= kotlin.math.cos(camRad); mz -= kotlin.math.sin(camRad) }
+                } //else {
+                    if (D || ninjaAutoRight) { mx -= kotlin.math.cos(camRad); mz -= kotlin.math.sin(camRad) }
+                    if (A) { mx += kotlin.math.cos(camRad); mz += kotlin.math.sin(camRad) }
+                //}
                 val rawMoveYaw = Math.toDegrees(atan2(-mx, mz)).toFloat()
                 targetCard = Math.round(rawMoveYaw / 45.0f) * 45.0f
             } else {
@@ -133,12 +137,21 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 BridgeMode.NINJA -> {
                     if (movingHoriz) {
                         if (W && !S) {
-                            pressRight = true
-                            pressLeft = false
-                            client.options.keyUp.setDown(false)
-                            client.options.keyDown.setDown(true)
-                            client.options.keyRight.setDown(true)
-                            client.options.keyLeft.setDown(false)
+                            if (D) {
+                                pressRight = false
+                                pressLeft = true
+                                client.options.keyUp.setDown(false)
+                                client.options.keyDown.setDown(true)
+                                client.options.keyRight.setDown(false)
+                                client.options.keyLeft.setDown(true)
+                            } else {
+                                pressRight = true
+                                pressLeft = false
+                                client.options.keyUp.setDown(false)
+                                client.options.keyDown.setDown(true)
+                                client.options.keyRight.setDown(true)
+                                client.options.keyLeft.setDown(false)
+                            }
                         } else {
                             pressRight = false
                             pressLeft = false
