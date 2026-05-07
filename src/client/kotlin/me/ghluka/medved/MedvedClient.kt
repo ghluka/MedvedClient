@@ -9,6 +9,7 @@ import me.ghluka.medved.module.modules.combat.*
 import me.ghluka.medved.module.modules.player.*
 import me.ghluka.medved.module.modules.hud.*
 import me.ghluka.medved.module.modules.movement.*
+import me.ghluka.medved.module.modules.movement.Parkour
 import me.ghluka.medved.module.modules.other.*
 import me.ghluka.medved.module.modules.render.*
 import me.ghluka.medved.module.modules.utility.*
@@ -60,6 +61,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Timer)
         ModuleManager.register(NoFall)
         ModuleManager.register(NoJumpDelay)
+        ModuleManager.register(Parkour)
         // render
         ModuleManager.register(PlayerESP)
         ModuleManager.register(RiceFarmer)

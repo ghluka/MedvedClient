@@ -28,15 +28,6 @@ public class ConnectionMixin {
         PacketListener listener = packetListener;
         if (!(listener instanceof ClientPacketListener)) return;
 
-        if (KnockbackDelay.INSTANCE.isEnabled() && !KnockbackDelay.INSTANCE.isHolding() && packet instanceof ClientboundSetEntityMotionPacket mp) {
-            if (KnockbackDelay.cachedPlayerId != -1 && mp.id() == KnockbackDelay.cachedPlayerId) {
-                int chance = KnockbackDelay.INSTANCE.getChance().getValue();
-                if (chance >= 100 || (int)(Math.random() * 100) < chance) {
-                    KnockbackDelay.INSTANCE.triggerDelay(KnockbackDelay.cachedOnGround);
-                }
-            }
-        }
-
         if (LagManager.INSTANCE.shouldBufferIncoming()) {
             Packet<PacketListener> p = (Packet<PacketListener>) packet;
             ci.cancel();

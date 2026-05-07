@@ -1,6 +1,7 @@
 package me.ghluka.medved.mixin.client;
 
 import me.ghluka.medved.module.modules.combat.Backtrack;
+import me.ghluka.medved.module.modules.combat.KnockbackDelay;
 import me.ghluka.medved.module.modules.combat.Velocity;
 import me.ghluka.medved.module.modules.world.Scaffold;
 import me.ghluka.medved.util.RotationManager;
@@ -125,6 +126,13 @@ public class ClientPacketListenerMixin {
             if (Math.abs(mx) < 0.1 && Math.abs(mz) < 0.1) return;
             Velocity.INSTANCE.startPacketDelay();
         }
+
+        if (KnockbackDelay.INSTANCE.isEnabled() && !KnockbackDelay.INSTANCE.isHolding()) {
+            int chance = KnockbackDelay.INSTANCE.getChance().getValue();
+            if (chance >= 100 || (int)(Math.random() * 100) < chance) {
+                KnockbackDelay.INSTANCE.triggerDelay(KnockbackDelay.cachedOnGround);
+            }
+        }
     }
 
     @Inject(method = "handleExplosion", at = @At("RETURN"), cancellable = true)
@@ -145,7 +153,7 @@ public class ClientPacketListenerMixin {
         Velocity.Mode mode = Velocity.INSTANCE.getMode().getValue();
         if (mode == Velocity.Mode.REDUCE) {
             float factorXZ = 1f - (Velocity.INSTANCE.getReducePercent().getValue() / 100f);
-            float factorY  = 1f - (Velocity.INSTANCE.getReduceYPercent().getValue() / 100f);
+            float factorY = 1f - (Velocity.INSTANCE.getReduceYPercent().getValue() / 100f);
             player.setDeltaMovement(player.getDeltaMovement().subtract(motion).add(mx * factorXZ, my * factorY, mz * factorXZ));
         } else if (mode == Velocity.Mode.CANCEL) {
             player.setDeltaMovement(player.getDeltaMovement().subtract(motion));
@@ -154,8 +162,13 @@ public class ClientPacketListenerMixin {
             player.setDeltaMovement(player.getDeltaMovement().subtract(motion).add(-mx * factor, my, -mz * factor));
         }
         // we wont jump reset because it might affect in games like bedwars with tnt jumps or fireball jumps
+
+
+        if (KnockbackDelay.INSTANCE.isEnabled() && !KnockbackDelay.INSTANCE.isHolding()) {
+            int chance = KnockbackDelay.INSTANCE.getChance().getValue();
+            if (chance >= 100 || (int) (Math.random() * 100) < chance) {
+                KnockbackDelay.INSTANCE.triggerDelay(KnockbackDelay.cachedOnGround);
+            }
+        }
     }
-
-
-
 }

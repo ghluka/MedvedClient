@@ -4,7 +4,7 @@ import me.ghluka.medved.module.Module
 import me.ghluka.medved.util.LagManager
 import net.minecraft.client.Minecraft
 
-object KnockbackDelay : Module("Knockback Delay", "Buffers all incoming packets when hit, freezing the world until the delay expires", Category.COMBAT) {
+object KnockbackDelay : Module("Kb Delay", "Buffers all incoming packets when hit, freezing the world until the delay expires", Category.COMBAT) {
 
     val airDelay    = intRange("delay (ms)",    1900 to 2100, 0, 5000)
     val chance      = int("chance %",               100,          0, 100)

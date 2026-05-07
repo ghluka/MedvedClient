@@ -1,8 +1,12 @@
 package me.ghluka.medved.module.modules.combat
 
 import me.ghluka.medved.module.Module
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
+import net.minecraft.client.KeyMapping
 import kotlin.random.Random
+import com.mojang.blaze3d.platform.InputConstants
+import org.lwjgl.glfw.GLFW
 
 object ComboTap : Module(
     name = "Combo Tap",
@@ -36,6 +40,19 @@ object ComboTap : Module(
 
     private var tapDeadlineMs      = 0L
     private var cooldownDeadlineMs  = 0L
+    private var wasSuppressForward = false
+    private var wasSuppressSprint   = false
+    private var wasForceBackward    = false
+    private var wasForceSneak       = false
+    private var wasForceJump        = false
+
+    init {
+        ClientTickEvents.START_CLIENT_TICK.register { client ->
+            if (isEnabled()) {
+                applyKeyStates(client)
+            }
+        }
+    }
 
     override fun onEnabled()  { resetState() }
     override fun onDisabled() { resetState() }
@@ -52,6 +69,15 @@ object ComboTap : Module(
         resetInputFlags()
         tapDeadlineMs      = 0L
         cooldownDeadlineMs = 0L
+        val client = Minecraft.getInstance()
+        val options = client.options
+        options.keyUp.setDown(isPhysicalKeyDown(options.keyUp))
+        options.keyDown.setDown(isPhysicalKeyDown(options.keyDown))
+        options.keyLeft.setDown(isPhysicalKeyDown(options.keyLeft))
+        options.keyRight.setDown(isPhysicalKeyDown(options.keyRight))
+        options.keyJump.setDown(isPhysicalKeyDown(options.keyJump))
+        options.keyShift.setDown(isPhysicalKeyDown(options.keyShift))
+        options.keySprint.setDown(isPhysicalKeyDown(options.keySprint))
     }
 
     override fun hudInfo(): String = when (method.value) {
@@ -96,5 +122,56 @@ object ComboTap : Module(
                 Method.JUMP_RESET   -> if (player.onGround()) forceJump = true
             }
         }
+    }
+
+    private fun applyKeyStates(client: Minecraft) {
+        if (client.screen != null) return
+        val options = client.options
+
+        if (suppressForward) {
+            options.keyUp.setDown(false)
+        } else if (wasSuppressForward) {
+            options.keyUp.setDown(isPhysicalKeyDown(options.keyUp))
+        }
+
+        if (forceBackward) {
+            options.keyDown.setDown(true)
+        } else if (wasForceBackward) {
+            options.keyDown.setDown(isPhysicalKeyDown(options.keyDown))
+        }
+
+        if (forceSneak) {
+            options.keyShift.setDown(true)
+        } else if (wasForceSneak) {
+            options.keyShift.setDown(isPhysicalKeyDown(options.keyShift))
+        }
+
+        if (forceJump) {
+            options.keyJump.setDown(true)
+        } else if (wasForceJump) {
+            options.keyJump.setDown(isPhysicalKeyDown(options.keyJump))
+        }
+
+        if (suppressSprint) {
+            options.keySprint.setDown(false)
+        } else if (wasSuppressSprint) {
+            options.keySprint.setDown(isPhysicalKeyDown(options.keySprint))
+        }
+
+        wasSuppressForward = suppressForward
+        wasSuppressSprint  = suppressSprint
+        wasForceBackward   = forceBackward
+        wasForceSneak      = forceSneak
+        wasForceJump       = forceJump
+    }
+
+    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
+        if (mapping.isUnbound) return false
+        val window = Minecraft.getInstance().window.handle()
+        val key = InputConstants.getKey(mapping.saveString())
+        if (key.type == InputConstants.Type.MOUSE) {
+            return GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
+        }
+        return GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
     }
 }

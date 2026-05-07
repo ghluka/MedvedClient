@@ -1,71 +1,115 @@
 package me.ghluka.medved.module.modules.world
 
 import com.mojang.blaze3d.platform.InputConstants
-import me.ghluka.medved.module.Module
 import me.ghluka.medved.config.entry.ItemListEntry
 import me.ghluka.medved.gui.components.itemCategories
+import me.ghluka.medved.module.Module
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
-import net.minecraft.tags.ItemTags
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.item.BlockItem
 import net.minecraft.world.phys.BlockHitResult
-import kotlin.random.Random
+import org.lwjgl.glfw.GLFW
 
 object AutoPlace : Module(
     name = "Auto Place",
     description = "Automatically places blocks when looking at a block surface",
     category = Category.WORLD,
 ) {
-    private val cps      = floatRange("cps", 12.0f to 14.0f, 1.0f, 20.0f)
     private val requireHolding = boolean("require holding", true)
     private val onlyAir  = boolean("only air", true)
     private val blockWhitelist = itemList("Block Whitelist", listOf("wool_category"), defaultMode = ItemListEntry.Mode.WHITELIST, filter = ItemListEntry.Filter.BLOCKS_ONLY)
 
-    private var accumulator = 0.0f
-    private var targetCps   = 13.0f
+    private var armUseNextTick = false
 
-    override fun onEnabled() {
-        accumulator = 0.0f
-        targetCps   = pickCps()
+    init {
+        ClientTickEvents.START_CLIENT_TICK.register { client ->
+            if (!isEnabled()) return@register
+            tickAutoPlace(client)
+        }
     }
 
     override fun onDisabled() {
-        accumulator = 0.0f
+        armUseNextTick = false
+        val opts = Minecraft.getInstance().options
+        opts.keyUse.setDown(isPhysicalKeyDown(opts.keyUse))
     }
 
-    override fun hudInfo(): String {
-        val (lo, hi) = cps.value
-        return if (hi > lo) "%.1f-%.1f cps".format(lo, hi) else "%.1f cps".format(lo)
-    }
+    private fun tickAutoPlace(client: Minecraft) {
+        val player = client.player ?: run {
+            armUseNextTick = false
+            return
+        }
+        if (client.screen != null) {
+            armUseNextTick = false
+            return
+        }
 
-    override fun onTick(client: Minecraft) {
-        val player = client.player ?: return
-        if (client.screen != null) return
+        val physicalUseDown = isPhysicalKeyDown(client.options.keyUse)
+        if (requireHolding.value && !physicalUseDown) {
+            armUseNextTick = false
+            return
+        }
 
-        if (requireHolding.value && !client.options.keyUse.isDown) return
+        val stack = player.mainHandItem
+        if (stack.isEmpty || stack.item !is BlockItem) {
+            armUseNextTick = false
+            return
+        }
+
         if (blockWhitelist.value.isNotEmpty()) {
-            val itemName = player.mainHandItem.item.descriptionId.lowercase()
-            if (!itemMatchesWhitelist(itemName, blockWhitelist.value)) return
+            val itemName = stack.item.descriptionId.lowercase()
+            if (!itemMatchesWhitelist(itemName, blockWhitelist.value)) {
+                armUseNextTick = false
+                return
+            }
         }
 
-        val hr = client.hitResult
-        if (hr !is BlockHitResult) return
-
-        if (onlyAir.value) {
-            val blockState = client.level?.getBlockState(hr.blockPos)
-            if (blockState == null || !blockState.isSolid) return
+        val level = client.level ?: run {
+            armUseNextTick = false
+            return
+        }
+        val hit = client.hitResult as? BlockHitResult ?: run {
+            armUseNextTick = false
+            return
         }
 
-        accumulator += targetCps / 20.0f
-        while (accumulator >= 1.0f) {
-            KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
-            accumulator -= 1.0f
-            targetCps = pickCps()
+        val hitPos = hit.blockPos
+        val hitState = level.getBlockState(hitPos)
+        if (!hitState.isSolid) {
+            armUseNextTick = false
+            return
+        }
+
+        val placePos = hitPos.relative(hit.direction)
+        if (onlyAir.value && !level.getBlockState(placePos).isAir) {
+            armUseNextTick = false
+            return
+        }
+
+        client.options.keyUse.setDown(false)
+
+        if (!armUseNextTick) {
+            armUseNextTick = true
+            return
+        }
+
+        val result = client.gameMode?.useItemOn(player, InteractionHand.MAIN_HAND, hit) ?: return
+        if (result.consumesAction()) {
+            player.swing(InteractionHand.MAIN_HAND)
         }
     }
 
-    private fun pickCps(): Float {
-        val (lo, hi) = cps.value
-        return if (hi > lo) lo + Random.nextFloat() * (hi - lo) else lo
+    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
+        if (mapping.isUnbound) return false
+        val window = Minecraft.getInstance().window.handle()
+        val key = InputConstants.getKey(mapping.saveString())
+        return if (key.type == InputConstants.Type.MOUSE) {
+            GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
+        } else {
+            GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
+        }
     }
 
     private fun itemMatchesWhitelist(itemName: String, whitelist: List<String>): Boolean {

@@ -44,7 +44,7 @@
     "players only": true,
     "fov circle": false,
     "color": {
-      "value": "#502B007C",
+      "value": "#509900FF",
       "mode": "THEME",
       "custom": "#50FF0000",
       "chromaSpeed": 0.5,
@@ -57,7 +57,7 @@
     "keybind": -1,
     "cps": [
       12.5,
-      15.4
+      14.5
     ],
     "jitter": 0.0,
     "only when targeting": false,
@@ -65,17 +65,20 @@
     "weapon only": false
   },
   "Right Clicker": {
-    "enabled": false,
+    "enabled": true,
     "keybind": -1,
     "cps": [
-      11.5,
-      14.5
+      13.0,
+      16.5
     ],
     "jitter": 0.0,
     "Item Whitelist": {
       "mode": "WHITELIST",
       "filter": "NONE",
       "items": [
+        "blue_terracotta",
+        "red_terracotta",
+        "wool_category",
         "end_crystal",
         "experience_bottle"
       ]
@@ -173,12 +176,12 @@
     "stop sprint": false,
     "on ground only": true
   },
-  "Knockback Delay": {
+  "Kb Delay": {
     "enabled": false,
     "keybind": -1,
     "delay (ms)": [
-      1900,
-      2100
+      10,
+      50
     ],
     "chance %": 100
   },
@@ -193,13 +196,13 @@
     "chance %": 100
   },
   "Hit Flick": {
-    "enabled": true,
-    "keybind": -1,
+    "enabled": false,
+    "keybind": 90,
     "flick angle": [
       85.0,
       93.8
     ],
-    "flick mode": "STRAFE",
+    "flick mode": "RIGHT",
     "require sprint": true,
     "cooldown (ms)": 248
   },
@@ -308,14 +311,14 @@
     "enabled": false,
     "keybind": -1,
     "mode": "BHOP",
-    "multiplier": 3.0
+    "multiplier": 1.0
   },
   "Flight": {
     "enabled": false,
     "keybind": -1,
     "mode": "VANILLA",
-    "speed": 5.0,
-    "anti-kick": true,
+    "speed": 0.9967321,
+    "anti-kick": false,
     "anti-kick mode": "LEGACY",
     "interval": 30,
     "distance": 0.035
@@ -334,13 +337,17 @@
     "enabled": true,
     "keybind": -1
   },
+  "Parkour": {
+    "enabled": false,
+    "keybind": -1
+  },
   "Box ESP": {
     "enabled": true,
     "keybind": -1,
     "color mode": "TEAM",
     "render mode": "BOX",
     "color": {
-      "value": "#FF2B007C",
+      "value": "#FF9900FF",
       "mode": "THEME",
       "custom": "#FFFF5050",
       "chromaSpeed": 0.5,
@@ -365,27 +372,27 @@
     "angles": 32,
     "first person": false,
     "shade": true,
-    "color mode": "RAINBOW",
+    "color mode": "SINGLE",
     "color": {
-      "value": "#FF090909",
-      "mode": "CUSTOM",
+      "value": "#FF9900FF",
+      "mode": "THEME",
       "custom": "#FF090909",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
     },
     "color start": {
-      "value": "#FFFF00FF",
-      "mode": "CUSTOM",
-      "custom": "#FFFF00FF",
+      "value": "#FF9900FF",
+      "mode": "THEME",
+      "custom": "#FF000000",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
     },
     "color end": {
-      "value": "#FF5A0AFF",
+      "value": "#FF000000",
       "mode": "CUSTOM",
-      "custom": "#FF5A0AFF",
+      "custom": "#FF000000",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
@@ -423,25 +430,27 @@
       "mode": "WHITELIST",
       "filter": "BLOCKS_ONLY",
       "items": [
-        "stone",
+        "red_terracotta",
+        "blue_terracotta",
         "wool_category"
       ]
     },
     "mode": "NINJA",
     "crouch delay": [
-      75,
-      115
+      45,
+      55
     ],
+    "breezily strafe ticks": 3,
     "autoclick cps": [
-      7,
-      12
+      4,
+      6
     ],
     "disable on death": true,
     "disable on world change": true
   },
   "Clutch": {
     "enabled": false,
-    "keybind": 72,
+    "keybind": -1,
     "trigger": "ALWAYS",
     "blocks": 4.522876,
     "silent aim": true,
@@ -453,15 +462,13 @@
     "Block Whitelist": {
       "mode": "WHITELIST",
       "filter": "BLOCKS_ONLY",
-      "items": [
-        "wool_category"
-      ]
+      "items": []
     }
   },
   "Fast Place": {
-    "enabled": true,
+    "enabled": false,
     "keybind": -1,
-    "delay ticks": 3,
+    "delay ticks": 0,
     "Item Whitelist": {
       "mode": "WHITELIST",
       "filter": "NONE",
@@ -473,12 +480,8 @@
     }
   },
   "Auto Place": {
-    "enabled": true,
+    "enabled": false,
     "keybind": -1,
-    "cps": [
-      14.7,
-      16.2
-    ],
     "require holding": true,
     "only air": false,
     "Block Whitelist": {
@@ -537,9 +540,9 @@
       "chromaBrightness": 1.0
     },
     "accent": {
-      "value": "#FD2B007C",
+      "value": "#FD9900FF",
       "mode": "CUSTOM",
-      "custom": "#FD2B007C",
+      "custom": "#FD9900FF",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0

@@ -48,7 +48,15 @@ object AntiFireball : Module("Anti Fireball", "Automatically aims and swings at 
             .filterIsInstance<Projectile>()
             .filter { e ->
                 val t = e.type.toString().lowercase()
-                (t.contains("fireball") || t.contains("ghast")) && player.distanceTo(e) <= range
+                if (!(t.contains("fireball") || t.contains("ghast"))) return@filter false
+                if (player.distanceTo(e) > range) return@filter false
+
+                val dx = e.x - player.x
+                val dy = e.y - player.eyeY
+                val dz = e.z - player.z
+
+                val dot = dx * e.deltaMovement.x + dy * e.deltaMovement.y + dz * e.deltaMovement.z
+                dot <= 0.0 // only keep fireballs heading toward us
             }
 
         val bestTarget = candidates.minByOrNull { e ->
