@@ -14,6 +14,7 @@ import me.ghluka.medved.module.modules.other.*
 import me.ghluka.medved.module.modules.render.*
 import me.ghluka.medved.module.modules.utility.*
 import me.ghluka.medved.module.modules.world.*
+import me.ghluka.medved.module.modules.minigames.*
 import me.ghluka.medved.update.UpdateChecker
 import me.ghluka.medved.util.LagManager
 import net.fabricmc.api.ClientModInitializer
@@ -76,6 +77,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(AutoPlace)
         ModuleManager.register(ChestStealer)
         ModuleManager.register(BedBreaker)
+        ModuleManager.register(ChestAura)
         // other
         ModuleManager.register(ClickGui)
         ModuleManager.register(Font)
@@ -88,12 +90,12 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(ScaffoldInfo)
         ModuleManager.register(BedPlates)
         // skyblock
-        ModuleManager.register(ChestAura)
-        
         // utility
         ModuleManager.register(AntiFireball)
         ModuleManager.register(AutoTotem)
         ModuleManager.register(InventoryManager)
+        // minigames
+        ModuleManager.register(PartyGames)
 
         ModuleManager.init()
         UpdateChecker.init()

@@ -1,0 +1,9 @@
+{
+  "label": "Minigames",
+  "position": 8,
+  "link": {
+    "type": "generated-index",
+    "description": "Niche modules designed to only work on specific minigames on networks. This doesn't include games like Bedwars that are popular across different servers, but rather, exclusive minigames for select networks."
+  },
+  "customProps": {"boxicon": "bxf bx-dice-roll"}
+}

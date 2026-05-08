@@ -112,6 +112,6 @@ abstract class Module(
     }
 
     enum class Category {
-        COMBAT, ANARCHY, MOVEMENT, RENDER, PLAYER, WORLD, UTILITY, HUD, OTHER
+        COMBAT, ANARCHY, MOVEMENT, RENDER, PLAYER, WORLD, UTILITY, MINIGAMES, HUD, OTHER
     }
 }
