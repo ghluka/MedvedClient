@@ -140,11 +140,14 @@ object AimAssist : Module(
             val radius = (screenH * 0.5f * (fov.value / Minecraft.getInstance().options.fov().get().toFloat()))
                 .coerceIn(2f, screenH)
 
-            fun worldToScreen(yawDeg: Float, pitchDeg: Float): Pair<Float, Float> {
+            fun worldToScreen(yawDeg: Float, pitchDeg: Float): Pair<Float, Float>? {
                 val relYaw   = Math.toRadians(Mth.wrapDegrees(yawDeg   - player.yRot).toDouble()).toFloat()
                 val relPitch = Math.toRadians((pitchDeg - player.xRot).toDouble()).toFloat()
-                val px = (-Math.tan(relYaw.toDouble())   * (screenH / (2.0 * Math.tan(gameFovRad / 2.0)))).toFloat() + screenW / 2f
-                val py = (-Math.tan(relPitch.toDouble()) * (screenH / (2.0 * Math.tan(gameFovRad / 2.0)))).toFloat() + screenH / 2f
+                if (kotlin.math.abs(relYaw)   >= (Math.PI / 2).toFloat()) return null
+                if (kotlin.math.abs(relPitch) >= (Math.PI / 2).toFloat()) return null
+                val scale = screenH / (2.0 * Math.tan(gameFovRad / 2.0))
+                val px = (-Math.tan(relYaw.toDouble())   * scale).toFloat() + screenW / 2f
+                val py = (-Math.tan(relPitch.toDouble()) * scale).toFloat() + screenH / 2f
                 return px to py
             }
 
@@ -158,12 +161,15 @@ object AimAssist : Module(
                 worldToScreen(yawMax, pitchMax)
             )
 
+            if (corners.any { it == null }) { clearAssist(); return }
+            val validCorners = corners.filterNotNull()
+
             val cx = screenW / 2f
             val cy = screenH / 2f
-            val minX = corners.minOf { it.first }
-            val maxX = corners.maxOf { it.first }
-            val minY = corners.minOf { it.second }
-            val maxY = corners.maxOf { it.second }
+            val minX = validCorners.minOf { it.first }
+            val maxX = validCorners.maxOf { it.first }
+            val minY = validCorners.minOf { it.second }
+            val maxY = validCorners.maxOf { it.second }
 
             val nearestX = cx.coerceIn(minX, maxX)
             val nearestY = cy.coerceIn(minY, maxY)

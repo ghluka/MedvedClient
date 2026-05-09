@@ -2,6 +2,8 @@ package me.ghluka.medved.module.modules.utility
 
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.util.SilentScreen
+import me.ghluka.medved.config.entry.ItemListEntry
+import me.ghluka.medved.gui.components.itemCategories
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.tags.ItemTags
@@ -13,6 +15,7 @@ import net.minecraft.world.item.Items
 import net.minecraft.world.item.enchantment.Enchantment
 import net.minecraft.world.item.enchantment.Enchantments
 import net.minecraft.resources.ResourceKey
+import java.util.Locale
 
 object InventoryManager : Module(
     "Inventory Manager",
@@ -60,6 +63,19 @@ object InventoryManager : Module(
 
     val trashJunk = boolean("Inventory Cleaner", true)
     val trashExtras = boolean("Trash Extra Gear", true)
+    private val trashBlacklist = itemList(
+        "Trash Blacklist",
+        listOf(
+            "totem_of_undying",
+            "water_bucket",
+            "lava_bucket",
+            "netherite_ingot",
+            "netherite_upgrade_smithing_template",
+            "experience_bottle",
+            "diamond",
+        ),
+        defaultMode = ItemListEntry.Mode.BLACKLIST,
+    )
 
     private var nextActionTime = 0L
     private var openedByModule = false
@@ -337,6 +353,15 @@ object InventoryManager : Module(
             }
         }
 
+        if (trashBlacklist.value.isNotEmpty()) {
+            for (slot in 0..39) {
+                val stack = player.inventory.getItem(slot)
+                if (isBlacklisted(stack)) {
+                    keep += slot
+                }
+            }
+        }
+
         return keep
     }
 
@@ -398,6 +423,23 @@ object InventoryManager : Module(
             return thisScore <= bestScore
         }
 
+        return false
+    }
+
+    private fun isBlacklisted(stack: ItemStack): Boolean {
+        if (stack.isEmpty) return false
+        val itemName = stack.item.descriptionId.lowercase(Locale.ROOT)
+        for (entry in trashBlacklist.value) {
+            val token = entry.lowercase(Locale.ROOT).trim()
+            if (token.isBlank()) continue
+            if (token.endsWith("_category")) {
+                val categoryId = token.removeSuffix("_category")
+                val category = itemCategories.firstOrNull { it.id == categoryId }
+                if (category != null && category.matches(itemName)) return true
+            } else if (itemName.contains(token)) {
+                return true
+            }
+        }
         return false
     }
 
@@ -597,7 +639,7 @@ object InventoryManager : Module(
         val sweepingEdge = enchantLevel(stack, Enchantments.SWEEPING_EDGE)
         val unbreaking = enchantLevel(stack, Enchantments.UNBREAKING)
         val mending = enchantLevel(stack, Enchantments.MENDING)
-        val enchantScore = sharpness * 3.0 + maxOf(smite, bane) * 0.75 + fireAspect * 0.4 + knockback * 0.2 + looting * 0.15 + sweepingEdge * 0.2 + unbreaking * 0.1 + mending * 0.2
+        val enchantScore = sharpness * 3.0 + maxOf(smite, bane) * 0.75 + fireAspect * 4.0 + knockback * 0.2 + looting * 0.15 + sweepingEdge * 0.2 + unbreaking * 0.1 + mending * 0.2
 
         return weaponTier(stack) * durabilityRatio(stack) + enchantScore
     }

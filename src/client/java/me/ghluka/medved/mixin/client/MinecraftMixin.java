@@ -2,6 +2,7 @@ package me.ghluka.medved.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import me.ghluka.medved.module.modules.combat.HitSelect;
 import me.ghluka.medved.module.modules.combat.NoHitDelay;
 import me.ghluka.medved.module.modules.combat.Reach;
 import me.ghluka.medved.module.modules.world.BedBreaker;
@@ -11,7 +12,9 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -31,8 +34,31 @@ public class MinecraftMixin {
 
     @Mutable @Shadow public HitResult hitResult;
 
-    @Inject(method = "startAttack", at = @At("HEAD"))
+    @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void medved$onStartAttack(CallbackInfoReturnable<Boolean> cir) {
+        Minecraft mc = (Minecraft) (Object) this;
+        Player player = mc.player;
+
+        if (player == null) {
+            return;
+        }
+
+        boolean isEntityHit = hitResult != null
+                && hitResult.getType() == HitResult.Type.ENTITY;
+
+        if (HitSelect.shouldCancelAttack()) {
+            if (HitSelect.shouldFakeSwing()) {
+                player.swing(InteractionHand.MAIN_HAND);
+            }
+
+            cir.setReturnValue(false);
+            return;
+        }
+
+        if (!isEntityHit) {
+            HitSelect.notifyMissedSwing();
+        }
+
         if (me.ghluka.medved.module.modules.combat.HitSwap.INSTANCE.isEnabled()) {
             me.ghluka.medved.module.modules.combat.HitSwap.INSTANCE.onStartAttack();
         }
@@ -51,8 +77,6 @@ public class MinecraftMixin {
             RotationManager.updateHitResult();
         }
 
-        // BedBreaker: after pick() sets hitResult from the player's real look direction,
-        // override it to the exact target block so continueAttack() breaks the right block.
         BlockPos bbPos = BedBreaker.INSTANCE.isEnabled() ? BedBreaker.pendingHitPos : null;
         if (bbPos != null) {
             Direction bbFace = BedBreaker.pendingHitFace;

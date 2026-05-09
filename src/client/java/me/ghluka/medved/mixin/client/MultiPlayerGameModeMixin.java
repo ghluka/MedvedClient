@@ -24,7 +24,7 @@ public class MultiPlayerGameModeMixin {
         if (!(target instanceof LivingEntity living)) return;
 
         if (KnockbackDisplacement.skipIntercept) {
-            HitSelect.notifyAttackFiring();
+            //HitSelect.notifyAttackFiring();
             FakeLag.notifyAttack();
             if (Criticals.INSTANCE.isEnabled()) {
                 Criticals.INSTANCE.onAttack(target);
@@ -45,7 +45,7 @@ public class MultiPlayerGameModeMixin {
         }
 
         try {
-            HitSelect.notifyAttackFiring();
+            //HitSelect.notifyAttackFiring();
             FakeLag.notifyAttack();
             if (Criticals.INSTANCE.isEnabled()) {
                 Criticals.INSTANCE.onAttack(target);
