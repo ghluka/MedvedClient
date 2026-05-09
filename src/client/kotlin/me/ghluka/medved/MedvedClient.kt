@@ -62,6 +62,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Timer)
         ModuleManager.register(NoFall)
         ModuleManager.register(NoJumpDelay)
+        ModuleManager.register(NoPush)
         ModuleManager.register(Parkour)
         // render
         ModuleManager.register(PlayerESP)

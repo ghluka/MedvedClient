@@ -1,7 +1,9 @@
 package me.ghluka.medved.mixin.client;
 
+import me.ghluka.medved.module.modules.combat.NoPush;
 import me.ghluka.medved.util.RotationManager;
 import me.ghluka.medved.util.CameraOverriddenEntity;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.util.Mth;
@@ -44,6 +46,15 @@ public class EntityMixin implements CameraOverriddenEntity {
         }
         if ((Object) this instanceof LocalPlayer) {
             RotationManager.onTurn((LocalPlayer)(Object) this);
+        }
+    }
+
+
+    @Inject(method = "push", at = @At("HEAD"), cancellable = true)
+    private void noPush(Entity other, CallbackInfo ci) {
+        Minecraft mc = Minecraft.getInstance();
+        if ((Object) this == mc.player && NoPush.INSTANCE.isEnabled()) {
+            ci.cancel();
         }
     }
 
