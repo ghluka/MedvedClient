@@ -71,7 +71,7 @@ abstract class Module(
     protected open fun onLevelRender(ctx: LevelRenderContext) {}
     protected open fun onHudRender(extractor: GuiGraphicsExtractor, delta: DeltaTracker) {}
 
-    fun isEnabled(): Boolean = enabled.value
+    open fun isEnabled(): Boolean = enabled.value
 
     open fun hudInfo(): String = ""
 

@@ -1,5 +1,6 @@
 package me.ghluka.medved.util
 
+import me.ghluka.medved.module.modules.combat.AutoBlock
 import me.ghluka.medved.module.modules.combat.Backtrack
 import me.ghluka.medved.module.modules.combat.KnockbackDelay
 import me.ghluka.medved.module.modules.combat.KnockbackDisplacement
@@ -33,8 +34,8 @@ object LagManager {
         val fakeLag = FakeLag.enabled.value && FakeLag.isCurrentlyLagging
         val velocity = Velocity.enabled.value && Velocity.mode.value == Velocity.Mode.DELAY && Velocity.isDelayWindowActive()
         //val kbDisplaceBlink = KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive
-
-        if (!blink && !fakeLag && !velocity){// && !kbDisplaceBlink) {
+        val autoBlockLag = AutoBlock.isEnabled() && AutoBlock.isLagging
+        if (!blink && !fakeLag && !velocity && !autoBlockLag) {
             if (!outgoingQueue.isEmpty()) flushAllOutgoing()
             return false
         }
@@ -67,7 +68,8 @@ object LagManager {
 
         val now = System.currentTimeMillis()
 
-        if ((Blink.enabled.value && Blink.holding)){// || (KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive)) {
+        if ((AutoBlock.isEnabled() && AutoBlock.isLagging) ||
+            (Blink.enabled.value && Blink.holding)){// || (KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive)) {
             outgoingQueue.add(Long.MAX_VALUE to action)
             return
         }

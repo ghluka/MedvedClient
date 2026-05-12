@@ -1,7 +1,6 @@
 package me.ghluka.medved.mixin.client;
 
 import me.ghluka.medved.module.modules.combat.*;
-import me.ghluka.medved.module.modules.movement.NoSlow;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;

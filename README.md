@@ -19,3 +19,7 @@ View the [installation guide](https://ghluka.github.io/MedvedClient/intro/instal
 ## :scroll: Modules
 
 Visit our [documentation](https://ghluka.github.io/MedvedClient/category/modules) for a comprehensive list of all the modules and their configuration options!
+
+## :1234: Stats
+
+![Alt](https://repobeats.axiom.co/api/embed/2276b9982c59fafbb376300902f6dd4464a779c6.svg "Repobeats analytics image")

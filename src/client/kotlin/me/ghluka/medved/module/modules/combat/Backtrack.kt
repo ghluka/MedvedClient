@@ -1,5 +1,7 @@
 package me.ghluka.medved.module.modules.combat
 
+import me.ghluka.medved.config.entry.Color
+import me.ghluka.medved.config.entry.ColorEntry
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.util.RenderUtil
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
@@ -10,7 +12,7 @@ import net.minecraft.world.phys.Vec3
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
-object Backtrack : Module("Backtrack", "Delays enemy position updates to hit players at their previosu position", Category.COMBAT) {
+object Backtrack : Module("Backtrack", "Delays enemy position updates to hit players at their previous position", Category.COMBAT) {
 
     enum class Mode {
         MANUAL,
@@ -25,7 +27,14 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
         it.visibleWhen = { mode.value == Mode.LAG }
     }
     val onlyPlayers = boolean("only players", true)
+
     val showESP     = boolean("show esp", true)
+    private val espColor = color("esp color", Color(255, 0, 80, 10)).also {
+        it.visibleWhen = { showESP.value }
+    }
+    private val tracerColor = color("line color", Color(255, 255, 80), allowAlpha = false).also {
+        it.visibleWhen = { showESP.value }
+    }
 
     @Volatile var flushing = false
         private set
@@ -36,9 +45,10 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
 
     @Volatile var lagActive = false
         private set
-    @Volatile
-    var lagUntilMs = 0L
+    @Volatile var lagUntilMs = 0L
+        private set
     @Volatile private var lagDurationMs = 0L
+    @Volatile private var lagHitCount = 0
 
     @Volatile private var incomingFlushing = false
     @Volatile private var incomingLastDeliveryMs = 0L
@@ -53,33 +63,30 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
         }
     }
 
-    fun shouldDelayIncomingPackets(): Boolean {
-        if (mode.value != Mode.LAG || incomingFlushing) return false
-        return lagActive || incomingQueue.isNotEmpty()
+    fun updateRealPosition(entityId: Int, realPos: Vec3) {
+        if (!lagActive) return
+        realPositions[entityId] = realPos
     }
 
-    fun bufferIncomingPacket(action: Runnable) {
-        val now = System.currentTimeMillis()
-        if (!lagActive && incomingQueue.isEmpty()) {
-            incomingLastDeliveryMs = now
-        }
-        val deliverAt = if (lagActive) {
-            maxOf(now + lagDurationMs, incomingLastDeliveryMs + 1L)
-        } else {
-            maxOf(now, incomingLastDeliveryMs + 1L)
-        }
-        incomingLastDeliveryMs = deliverAt
-        incomingQueue.offer(deliverAt to action)
+    @JvmStatic
+    fun onHit(entityId: Int) {
+        if (mode.value != Mode.LAG) return
+        triggerLag()
     }
 
     private fun getLagWindowMs(): Long {
         val (lo, hi) = lagWindow.value
-        return if (hi > lo) (lo + (Math.random() * (hi - lo + 1)).toInt()).toLong() else lo.toLong()
+        if (hi <= lo) return lo.toLong()
+        val step = 50L // increase by 50ms per consecutive hit
+        val extra = maxOf(0, lagHitCount - 1) * step
+        return minOf(hi.toLong(), lo.toLong() + extra)
     }
 
     fun triggerLag() {
-        if (mode.value != Mode.LAG) return
         val now = System.currentTimeMillis()
+        if (!lagActive) lagHitCount = 0
+        lagHitCount++
+        
         val newDuration = getLagWindowMs()
         lagDurationMs = maxOf(lagDurationMs, newDuration)
         lagActive = true
@@ -88,7 +95,7 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
 
     fun shouldDelay(): Boolean = when (mode.value) {
         Mode.MANUAL -> true
-        Mode.LAG   -> false
+        Mode.LAG    -> false
     }
 
     fun clearBuffer() {
@@ -102,12 +109,26 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
             clearIncomingQueue()
             return
         }
+
         val now = System.currentTimeMillis()
+
         if (mode.value == Mode.LAG && lagActive && now >= lagUntilMs) {
             lagActive = false
+            lagDurationMs = 0L
+            lagHitCount = 0
+            realPositions.clear()
         }
+
+        if (mode.value == Mode.LAG && realPositions.isNotEmpty()) {
+            val level = client.level
+            if (level != null) {
+                realPositions.keys.removeIf { level.getEntity(it) == null }
+            }
+        }
+
         flushExpired(false)
         flushIncomingQueue()
+
         if (!lagActive && incomingQueue.isEmpty()) {
             lagDurationMs = 0L
         }
@@ -115,7 +136,7 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
 
     override fun hudInfo(): String = when (mode.value) {
         Mode.MANUAL -> "${delay.value}ms"
-        Mode.LAG   -> {
+        Mode.LAG    -> {
             val (lo, hi) = lagWindow.value
             if (hi > lo) "Lag ${lo}-${hi}ms" else "Lag ${lo}ms"
         }
@@ -125,6 +146,8 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
         lagActive = false
         lagUntilMs = 0L
         lagDurationMs = 0L
+        lagHitCount = 0
+        realPositions.clear()
         flushIncomingQueue()
         if (Minecraft.getInstance().level != null) flushExpired(true) else clearBuffer()
     }
@@ -140,28 +163,46 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
                 val entity = level.getEntity(entityId) ?: continue
                 val frozenBox = entity.getBoundingBox()
                 val hw = entity.bbWidth / 2.0
-                val realBox = AABB(realPos.x - hw, realPos.y, realPos.z - hw,
-                                   realPos.x + hw, realPos.y + entity.bbHeight, realPos.z + hw)
+                val realBox = AABB(
+                    realPos.x - hw, realPos.y, realPos.z - hw,
+                    realPos.x + hw, realPos.y + entity.bbHeight, realPos.z + hw
+                )
                 entries += EspEntry(frozenBox, realBox)
             }
 
-            val vcLines = buf.getBuffer(RenderTypes.LINES)
+            val rEsp = espColor.value.r / 255f
+            val gEsp = espColor.value.g / 255f
+            val bEsp = espColor.value.b / 255f
+            val aEsp = espColor.value.a / 255f
+
+            val rLine = tracerColor.value.r / 255f
+            val gLine = tracerColor.value.g / 255f
+            val bLine = tracerColor.value.b / 255f
+            val aLine = tracerColor.value.a / 255f
+
+            // Fill
+            val fillRT = RenderUtil.ESP_FILLED
+            val vcFill = buf.getBuffer(fillRT)
+            for ((_, realBox) in entries) {
+                RenderUtil.boxFilledBothSides(vcFill, pose, realBox, rEsp, gEsp, bEsp, aEsp)
+            }
+            buf.endBatch(fillRT)
+
+            // Outline & Tracer
+            val lineRT = RenderUtil.ESP_LINES
+            val vcLines = buf.getBuffer(lineRT)
             for ((frozenBox, realBox) in entries) {
-                RenderUtil.boxOutline(vcLines, pose, frozenBox, 1f, 1f, 1f, 0.8f)
+                RenderUtil.boxOutline(vcLines, pose, realBox, rEsp, gEsp, bEsp, aEsp, 1.0f)
                 val fc = frozenBox.center
                 val rc = realBox.center
-                RenderUtil.line(vcLines, pose,
+                RenderUtil.line(
+                    vcLines, pose,
                     fc.x.toFloat(), fc.y.toFloat(), fc.z.toFloat(),
                     rc.x.toFloat(), rc.y.toFloat(), rc.z.toFloat(),
-                    1f, 1f, 0f, 1f)
+                    rLine, gLine, bLine, aLine, 1.0f
+                )
             }
-            buf.endBatch(RenderTypes.LINES)
-
-            val vcFill = buf.getBuffer(RenderTypes.debugFilledBox())
-            for ((_, realBox) in entries) {
-                RenderUtil.boxFilled(vcFill, pose, realBox, 1f, 0.15f, 0.15f, 0.45f)
-            }
-            buf.endBatch(RenderTypes.debugFilledBox())
+            buf.endBatch(lineRT)
         }
     }
 
@@ -172,7 +213,7 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
         } else {
             delay.value.toLong()
         }
-        val toRun = mutableListOf<Int>()  // entity IDs being flushed
+        val toRun = mutableListOf<Int>()
         val runnables = mutableListOf<Runnable>()
         synchronized(buffer) {
             val iter = buffer.iterator()
@@ -200,7 +241,6 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
             clearIncomingQueue()
             return
         }
-
         val now = System.currentTimeMillis()
         incomingFlushing = true
         try {

@@ -19,6 +19,9 @@ object ClickGui : Module("Click Gui", "The click GUI", Category.OTHER) {
         it.visibleWhen = { currentMode.value == Mode.DROPDOWN }
     }
     val showBackground   = boolean("show_background", true)
+    val blurBackground   = boolean("blur_background", true).also {
+        it.visibleWhen = { showBackground.value }
+    }
     val resetLayout      = button("reset_layout", "Reset Layout") { ClickGui.resetPositions() }
 
     init {

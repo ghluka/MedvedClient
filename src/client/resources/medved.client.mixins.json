@@ -11,6 +11,7 @@
 		"EntityMixin",
 		"GameRendererMixin",
 		"ItemCooldownsMixin",
+		"ItemInHandRendererMixin",
 		"JoinMultiplayerScreenMixin",
 		"KeyboardInputMixin",
 		"LivingEntityAccessor",

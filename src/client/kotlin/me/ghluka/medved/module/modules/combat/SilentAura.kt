@@ -5,17 +5,15 @@ import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RotationManager
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
-import net.minecraft.core.component.DataComponents.BLOCKS_ATTACKS
+import net.minecraft.tags.ItemTags
 import net.minecraft.util.Mth
-import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
-import net.minecraft.tags.ItemTags
 import net.minecraft.world.item.TridentItem
-import net.minecraft.world.item.ShieldItem
 import kotlin.math.atan2
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -45,36 +43,30 @@ object SilentAura : Module(
         it.visibleWhen = { mode.value == Mode.SEQUENTIAL }
     }
     private val smoothSpeed = float("smoothness", 30.0f, 1.0f, 100.0f)
+    private val visibilityCheck = boolean("visibility check", true)
     private val playersOnly = boolean("players only", true)
-    private val autoBlock   = boolean("auto block", true)
+    val autoBlock   = boolean("auto block", true)
     private val autoWeapon  = boolean("auto weapon", false)
 
-    private var target: LivingEntity? = null
+    var target: LivingEntity? = null
     private var accumulator = 0.0f
     private var targetCps   = 12.0f
-    private var wasBlocking = false
-    private var unblockNextTick = false
     private var seqDelayTicks = 0
     private var ownsRotation = false
+
+    @JvmField var attackedThisTick = false
 
     override fun onEnabled() {
         accumulator = 0.0f
         targetCps = pickCps()
         target = null
-        wasBlocking = false
-        unblockNextTick = false
         seqDelayTicks = 0
         ownsRotation = false
+        attackedThisTick = false
     }
 
     override fun onDisabled() {
         clearAura()
-        val client = Minecraft.getInstance()
-        if (wasBlocking || unblockNextTick) {
-            client.options.keyUse.setDown(false)
-            wasBlocking = false
-            unblockNextTick = false
-        }
     }
 
     private fun clearAura() {
@@ -83,129 +75,94 @@ object SilentAura : Module(
         }
         target = null
         ownsRotation = false
+        attackedThisTick = false
     }
 
-    override fun onTick(client: Minecraft) {
-        val player = client.player ?: return
-        val level = client.level ?: return
-        if (client.screen != null) return
+    init {
+        ClientTickEvents.START_CLIENT_TICK.register { client ->
+            if (!isEnabled()) return@register
+            val player = client.player ?: return@register
+            val level = client.level ?: return@register
+            if (client.screen != null) return@register
 
-        val maxRange = range.value.toDouble()
-        val halfFov = fov.value / 2f
+            val maxRange = range.value.toDouble()
+            val halfFov = fov.value / 2f
 
-        val candidates = level.entitiesForRendering()
-            .filterIsInstance<LivingEntity>()
-            .filter { e ->
-                e !== player &&
-                !e.isDeadOrDying &&
-                !(playersOnly.value && e !is Player) &&
-                player.distanceTo(e) <= maxRange &&
-                TargetFilter.isValidTarget(player, e)
+            val candidates = level.entitiesForRendering()
+                .filterIsInstance<LivingEntity>()
+                .filter { e ->
+                    e !== player &&
+                            !e.isDeadOrDying &&
+                            !(playersOnly.value && e !is Player) &&
+                            player.distanceTo(e) <= maxRange &&
+                            TargetFilter.isValidTarget(player, e) &&
+                            (!visibilityCheck.value || player.hasLineOfSight(e))
+                }
+
+            val bestTarget = candidates.minByOrNull { e ->
+                val (yaw, pitch) = calcRotation(player, e)
+                val dy = Mth.wrapDegrees(yaw - player.yRot)
+                val dp = Mth.wrapDegrees(pitch - player.xRot)
+                if (Mth.abs(dy) > halfFov || Mth.abs(dp) > halfFov) 1000f
+                else sqrt((dy * dy + dp * dp).toDouble()).toFloat()
             }
 
-        val bestTarget = candidates.minByOrNull { e ->
-            val (yaw, pitch) = calcRotation(player, e)
-            val dy = Mth.wrapDegrees(yaw - player.yRot)
-            val dp = Mth.wrapDegrees(pitch - player.xRot)
-            if (Mth.abs(dy) > halfFov || Mth.abs(dp) > halfFov) 1000f
-            else sqrt((dy * dy + dp * dp).toDouble()).toFloat()
-        }
-
-        if (targetMode.value == TargetMode.SINGLE && target != null && candidates.contains(target)) {
-        } else {
-            target = bestTarget
-        }
-
-        if (target == null) {
-            clearAura()
-            if (wasBlocking || unblockNextTick) {
-                client.options.keyUse.setDown(false)
-                wasBlocking = false
-                unblockNextTick = false
+            if (targetMode.value == TargetMode.SINGLE && target != null && candidates.contains(target)) {
+            } else {
+                target = bestTarget
             }
-            return
-        }
 
-        if (autoWeapon.value) {
-            val bestSlot = findBestWeapon(player)
-            if (bestSlot != -1 && player.inventory.selectedSlot != bestSlot) {
-                player.inventory.selectedSlot = bestSlot
+            if (target == null) {
+                clearAura()
+                return@register
             }
-        }
 
-        val mainHandItem = player.mainHandItem.item
-        val offHandItem = player.offhandItem.item
-        val isShield = mainHandItem is ShieldItem || offHandItem is ShieldItem
-        val isSwordBlock = !isShield && player.mainHandItem.components.has(BLOCKS_ATTACKS)
-
-        if (unblockNextTick) {
-            client.options.keyUse.setDown(false)
-            unblockNextTick = false
-            wasBlocking = false
-        }
-
-        if (autoBlock.value && isShield) {
-            if (!wasBlocking) {
-                client.options.keyUse.setDown(true)
-                wasBlocking = true
-            }
-        } else if (wasBlocking && !unblockNextTick && !isShield) {
-            client.options.keyUse.setDown(false)
-            wasBlocking = false
-        }
-
-        when (mode.value) {
-            Mode.CPS -> {
-                accumulator += targetCps / 20.0f
-                while (accumulator >= 1.0f) {
-                    accumulator -= 1.0f
-                    performNormalAttack(client, isShield, isSwordBlock)
-                    targetCps = pickCps()
+            if (autoWeapon.value) {
+                val bestSlot = findBestWeapon(player)
+                if (bestSlot != -1 && player.inventory.selectedSlot != bestSlot) {
+                    player.inventory.selectedSlot = bestSlot
                 }
             }
-            Mode.SEQUENTIAL -> {
-                if (player.getAttackStrengthScale(0.5f - seqDelayTicks.toFloat()) >= 1.0f) {
-                    performNormalAttack(client, isShield, isSwordBlock)
-                    val (lo, hi) = extraDelay.value
-                    seqDelayTicks = if (hi > lo) (lo..hi).random() else lo
+
+            when (mode.value) {
+                Mode.CPS -> {
+                    accumulator += targetCps / 20.0f
+                    while (accumulator >= 1.0f) {
+                        accumulator -= 1.0f
+                        performNormalAttack(client)
+                        targetCps = pickCps()
+                    }
+                }
+
+                Mode.SEQUENTIAL -> {
+                    if (player.getAttackStrengthScale(0.5f - seqDelayTicks.toFloat()) >= 1.0f) {
+                        performNormalAttack(client)
+                        val (lo, hi) = extraDelay.value
+                        seqDelayTicks = if (hi > lo) (lo..hi).random() else lo
+                    }
                 }
             }
         }
     }
 
-    private fun performNormalAttack(client: Minecraft, isShield: Boolean, isSwordBlock: Boolean) {
-        if (wasBlocking && isShield) {
-            client.options.keyUse.setDown(false)
-            wasBlocking = false
+    private fun performNormalAttack(client: Minecraft) {
+        if (autoBlock.value) {
+            AutoBlock.prepareAuraSwing(client)
         }
-            
         val attackKey = InputConstants.getKey(client.options.keyAttack.saveString())
         KeyMapping.click(attackKey)
-
-        if (autoBlock.value) {
-            val useKey = InputConstants.getKey(client.options.keyUse.saveString())
-            if (isShield) {
-                KeyMapping.click(useKey)
-                client.options.keyUse.setDown(true)
-                wasBlocking = true
-            } else if (isSwordBlock) {
-                KeyMapping.click(useKey)
-                client.options.keyUse.setDown(true)
-                wasBlocking = true
-                unblockNextTick = true
-            }
-        }
+        attackedThisTick = true
     }
 
     override fun onLevelRender(ctx: LevelRenderContext) {
         val player = Minecraft.getInstance().player ?: return
         val currentTarget = target ?: return
 
-        if (Scaffold.isEnabled() ||
+        if ((Scaffold.isEnabled() && RotationManager.isActive()) ||
             me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld ||
             (me.ghluka.medved.module.modules.world.BedBreaker.isEnabled() && me.ghluka.medved.module.modules.world.BedBreaker.pendingHitPos != null) ||
             (me.ghluka.medved.module.modules.world.ChestAura.isEnabled() && RotationManager.isActive()) ||
-            (me.ghluka.medved.module.modules.world.Clutch.isEnabled() && RotationManager.isActive())) {
+            me.ghluka.medved.module.modules.world.Clutch.isActivelyPlacing) {
             return
         }
 
@@ -241,7 +198,7 @@ object SilentAura : Module(
         for (i in 0..8) {
             val itemStack = player.inventory.getItem(i)
             if (itemStack.isEmpty) continue
-            val isWeapon = itemStack.`is`(ItemTags.SWORDS) || itemStack.`is`(ItemTags.AXES) || 
+            val isWeapon = itemStack.`is`(ItemTags.SWORDS) || itemStack.`is`(ItemTags.AXES) ||
                            itemStack.item is TridentItem
             
             if (isWeapon) {

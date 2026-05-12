@@ -28,6 +28,12 @@ internal object DropdownMode {
     )
 
     fun render(gui: ClickGui, g: GuiGraphicsExtractor, mx: Int, my: Int) {
+        if (me.ghluka.medved.module.modules.other.ClickGui.blurBackground.value && me.ghluka.medved.module.modules.other.ClickGui.showBackground.value) {
+            try {
+                g.javaClass.getMethod("blurBeforeThisStratum").invoke(g)
+                g.javaClass.getMethod("nextStratum").invoke(g)
+            } catch (ignored: Exception) {}
+        }
         if (me.ghluka.medved.module.modules.other.ClickGui.showBackground.value) {
             g.fill(0, 0, gui.width, gui.height, gui.BG)
         }

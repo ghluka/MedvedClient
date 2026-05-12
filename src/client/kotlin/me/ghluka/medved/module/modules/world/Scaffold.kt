@@ -49,6 +49,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
     private var autoclickAccum = 0.0f
     private var autoclickTargetCps = 0
+    private var ownsRotation = false
 
     private fun findBlockSlot(player: LocalPlayer): Int {
         val world = Minecraft.getInstance().level ?: return -1
@@ -87,8 +88,11 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             if (!isEnabled()) return@register
             val player = client.player ?: return@register
             if (!hasBlocks(player)) {
-                RotationManager.clearRotation()
-                RotationManager.perspective = false
+                if (ownsRotation) {
+                    RotationManager.clearRotation()
+                    RotationManager.perspective = false
+                    ownsRotation = false
+                }
                 return@register
             }
 
@@ -209,6 +213,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             }
 
             RotationManager.setTargetRotation(aimYaw, aimPitch)
+            ownsRotation = true
             RotationManager.quickTick(60f)
 
             val level = client.level
@@ -373,8 +378,11 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         opts.keyRight.setDown(isPhysicalKeyDown(opts.keyRight))
         opts.keyShift.setDown(isPhysicalKeyDown(opts.keyShift))
 
-        RotationManager.clearRotation()
-        RotationManager.perspective = false
+        if (ownsRotation) {
+            RotationManager.clearRotation()
+            RotationManager.perspective = false
+            ownsRotation = false
+        }
         RotationManager.allowStrafe = false
         RotationManager.allowForward = false
         RotationManager.freezeMovement = false

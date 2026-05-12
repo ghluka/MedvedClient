@@ -20,6 +20,7 @@ const val CORNERS_ALL  = 15
 const val CORNERS_TOP  = CORNER_TL or CORNER_TR   // only top corners rounded
 const val CORNERS_BOT  = CORNER_BL or CORNER_BR   // only bottom corners rounded
 const val CORNERS_LEFT = CORNER_TL or CORNER_BL   // only left corners rounded
+const val CORNERS_RIGHT = CORNER_TR or CORNER_BR   // only right corners rounded
 
 fun GuiGraphicsExtractor.Text(font: Font, str: FormattedCharSequence, x: Int, y: Int, color: Int, dropShadow: Boolean) {
     text(font, str, x, y, color, dropShadow)
@@ -46,21 +47,15 @@ fun GuiGraphicsExtractor.roundedFill(
         val lTop = if (doTL) y + rr else y
         val lBot = if (doBL) y + h - rr else y + h
         if (lBot > lTop) fill(x, lTop, x + rr, lBot, color)
-        if (!doTL) fill(x, y, x + rr, y + rr, color)
-        if (!doBL) fill(x, y + h - rr, x + rr, y + h, color)
 
         val rTop = if (doTR) y + rr else y
         val rBot = if (doBR) y + h - rr else y + h
         if (rBot > rTop) fill(x + w - rr, rTop, x + w, rBot, color)
-        if (!doTR) fill(x + w - rr, y, x + w, y + rr, color)
-        if (!doBR) fill(x + w - rr, y + h - rr, x + w, y + h, color)
     } else {
         // Only fill the rows that are NOT inside a corner arc zone.
         val topY = if (doTL || doTR) y + rr else y
         val botY = if (doBL || doBR) y + h - rr else y + h
         if (botY > topY) fill(x, topY, x + w, botY, color)
-        if (!(doTL || doTR)) fill(x, y, x + w, y + rr, color)
-        if (!(doBL || doBR)) fill(x, y + h - rr, x + w, y + h, color)
     }
 
     if (!doTL && !doTR && !doBL && !doBR) return

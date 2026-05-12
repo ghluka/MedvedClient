@@ -1,0 +1,96 @@
+---
+sidebar_position: 7
+---
+
+# Auto Block
+
+Holds block with your sword to reduce incoming damage. Works as a standalone module when autoclicking or manual clicking, but also the configuration for other modules that auto block
+such as [Silent Aura](/features/modules/combat/SilentAura)
+
+:::warning
+This module has either been added or heavily updated in the experimental version,
+do not expect configuration options or this module to be available if you use the
+latest release.
+:::
+
+---
+
+### Mode
+
+Choose the pacing method used for the sword blocking.
+
+- **AUTOMATIC**: Automatically pulses the block state at a set target CPS.
+- **MANUAL**: Only blocks when a swing is registered, based on a probability chance.
+
+### Block Chance (%)
+
+The probability to successfully block a hit when in **MANUAL** mode. 
+
+### Block CPS
+
+The rate at which the module will try to auto block in **AUTOMATIC** mode.
+
+### Range
+
+The maximum distance an enemy must be within to trigger the block.
+
+### Max Hold (ms)
+
+The maximum amount of time in milliseconds the block state can be held before it forces a block release.
+
+## Conditions
+
+Defines what is required to trigger the start of the block.
+
+### Check Left Click
+
+Only trigger blocking when the attack key is held.
+
+### Check Right Click
+
+Only trigger blocking when the use key is held.
+
+### Check Took Damage
+
+Trigger blocking if you recently took damage.
+
+### Damage Window (ms)
+
+How long to consider yourself "in combat" and allow blocking after taking a hit.
+
+## Release
+
+### Release (ms)
+
+The random delay window in milliseconds to stop blocking after a swing is performed, ensuring attacks aren't suppressed by the server.
+
+## Lag
+
+Allows suspending outgoing packets to spoof prolonged blocking states.
+
+:::note
+Do not use the lag option if you are trying to closet cheat, this should only
+be used for blatant configurations. Learn more about avoiding bans in our
+[anticheat safety article](/guides/anticheat-safety).
+:::
+
+### Lag Chance (%)
+
+Probability of initiating a lag window upon unblocking.
+
+### Lag Duration (ms)
+
+How long to withhold outgoing packets when simulating a prolonged block.
+
+### Prevent Delaying Attacks
+
+Immediately flushes lag packets if you swing your weapon, ensuring hits process accurately.
+
+### Block Again Immediately
+
+Automatically re-initiates the block state when the lag window flushes.
+
+## Slow Down
+
+Whether or not the auto block should slow the player down, if you seem to be
+getting lagged back each time you block, make sure this is enabled.

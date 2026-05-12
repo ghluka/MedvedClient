@@ -3,6 +3,7 @@ package me.ghluka.medved.module.modules.hud
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
+import me.ghluka.medved.util.Text
 import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
 import net.minecraft.client.Minecraft
@@ -17,6 +18,7 @@ import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix4f
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 object BedPlates : HudModule(
     "Bed Plates",
@@ -30,6 +32,7 @@ object BedPlates : HudModule(
         val pos: BlockPos,
         val shell: List<BlockPos>,
         val stacks: List<ItemStack>,
+        val distance: Float,
     )
 
     private var trackedBeds: List<BedEntry> = emptyList()
@@ -48,7 +51,8 @@ object BedPlates : HudModule(
         val player = client.player ?: return clear()
         val level  = client.level  ?: return clear()
 
-        val allBeds = findAllBeds(player.position(), level, searchRange.value)
+        val playerPos = player.position()
+        val allBeds = findAllBeds(playerPos, level, searchRange.value)
         trackedBeds = allBeds.map { bedPos ->
             val shell = getSurroundingBlocks(level, bedPos, shellRadius.value)
             val stacks = shell
@@ -58,22 +62,22 @@ object BedPlates : HudModule(
                 .distinctBy { it.item }
                 .sortedBy { it.hoverName.string.lowercase() }
                 .toList()
-            BedEntry(bedPos, shell, stacks)
+            val dist = sqrt(playerPos.distanceToSqr(
+                bedPos.x + 0.5, bedPos.y + 0.5, bedPos.z + 0.5
+            )).toFloat()
+            BedEntry(bedPos, shell, stacks, dist)
         }
     }
 
     override fun renderHudElement(g: GuiGraphicsExtractor) {
-        val mc   = Minecraft.getInstance()
-        val font = Font.getFont()
+        val mc     = Minecraft.getInstance()
         val accent = Colour.accent.liveColor(Colour.accent.value).argb
 
         for (entry in trackedBeds) {
             val bedTop    = Vec3(entry.pos.x + 0.5, entry.pos.y + 1.2, entry.pos.z + 0.5)
             val projected = projectToScreen(bedTop, mc) ?: continue
 
-            if (entry.stacks.isNotEmpty()) {
-                renderIconStrip(g, projected, font, accent, entry.stacks)
-            }
+            renderIconStrip(g, projected, accent, entry.stacks, entry.distance)
         }
     }
 
@@ -86,32 +90,48 @@ object BedPlates : HudModule(
     }
 
     override fun hudHeight(): Int {
-        val padding = 3
+        val padding  = 3
         val iconSize = 16
-        return padding * 2 + iconSize
+        val distBarH = 10
+        return padding * 2 + distBarH + iconSize
     }
 
     private fun renderIconStrip(
         extractor: GuiGraphicsExtractor,
         projected: Pair<Float, Float>,
-        font:      net.minecraft.client.gui.Font,
         accent:    Int,
         stacks:    List<ItemStack>,
+        distance:  Float,
     ) {
-        val iconSize = 16
-        val gap      = 2
-        val padding  = 3
-        val width    = padding * 2 + stacks.size * iconSize + (stacks.size - 1) * gap
-        val height   = padding * 2 + iconSize
+
+        val iconSize  = 16
+        val gap       = 2
+        val padding   = 3
+        val distLabel = "%.1fm".format(distance)
+        val font = Font.getFont()
+        val comp = Font.styledText(distLabel)
+        val distBarH  = font.lineHeight + 2
+        val iconsW    = if (stacks.isEmpty()) iconSize
+        else stacks.size * iconSize + (stacks.size - 1) * gap
+        val distW     = font.width(comp)
+        val width     = padding * 2 + maxOf(iconsW, distW)
+        val height    = padding * 2 + distBarH + iconSize
         val x = (projected.first  - width  / 2f).toInt()
         val y = (projected.second - height - 4f).toInt()
 
+        // Background
         extractor.roundedFill(x, y, width, height, radius, 0xD0_0D0D16.toInt())
 
-        var iconX = x + padding
+        // Distance text
+        val distX = x + (width - distW) / 2
+        extractor.Text(font, comp, distX, y + padding, accent)
+
+        // Icon strip
+        val iconY = y + padding + distBarH
+        var iconX = x + (width - iconsW) / 2
         for (stack in stacks) {
-            extractor.item(stack, iconX, y + padding)
-            extractor.itemDecorations(font, stack, iconX, y + padding)
+            extractor.item(stack, iconX, iconY)
+            extractor.itemDecorations(font, stack, iconX, iconY)
             iconX += iconSize + gap
         }
     }
@@ -166,7 +186,7 @@ object BedPlates : HudModule(
         }
 
         val visited = mutableSetOf<BlockPos>()
-        val groups = mutableListOf<List<BlockPos>>()
+        val groups  = mutableListOf<List<BlockPos>>()
         for (p in rawBeds) {
             if (p in visited) continue
             val queue = ArrayDeque<BlockPos>()
@@ -204,7 +224,7 @@ object BedPlates : HudModule(
 
     private fun getSurroundingBlocks(
         level:       ClientLevel,
-        origin: BlockPos,
+        origin:      BlockPos,
         maxDistance: Int,
     ): List<BlockPos> {
         val result     = linkedSetOf<BlockPos>()
@@ -239,22 +259,22 @@ object BedPlates : HudModule(
         val block = state.block
         val name  = block.descriptionId.lowercase()
         return when {
-            state.`is`(BlockTags.WOOL)      -> true
-            state.`is`(BlockTags.PLANKS)    -> true
-            state.`is`(BlockTags.LOGS)      -> true
-            state.`is`(BlockTags.LEAVES)    -> true
-            state.`is`(BlockTags.STAIRS)    -> true
-            state.`is`(BlockTags.SLABS)     -> true
-            state.`is`(BlockTags.TERRACOTTA)-> true
-            name.contains("glass")          -> true
-            name.contains("carpet")         -> true
-            block == Blocks.LADDER          -> true
-            block == Blocks.OBSIDIAN        -> true
-            block == Blocks.CRYING_OBSIDIAN -> true
-            block == Blocks.END_STONE       -> true
-            block == Blocks.WATER           -> true
-            block == Blocks.TNT             -> true
-            else                            -> false
+            state.`is`(BlockTags.WOOL)       -> true
+            state.`is`(BlockTags.PLANKS)     -> true
+            state.`is`(BlockTags.LOGS)       -> true
+            state.`is`(BlockTags.LEAVES)     -> true
+            state.`is`(BlockTags.STAIRS)     -> true
+            state.`is`(BlockTags.SLABS)      -> true
+            state.`is`(BlockTags.TERRACOTTA) -> true
+            name.contains("glass")           -> true
+            name.contains("carpet")          -> true
+            block == Blocks.LADDER           -> true
+            block == Blocks.OBSIDIAN         -> true
+            block == Blocks.CRYING_OBSIDIAN  -> true
+            block == Blocks.END_STONE        -> true
+            block == Blocks.WATER            -> true
+            block == Blocks.TNT              -> true
+            else                             -> false
         }
     }
 

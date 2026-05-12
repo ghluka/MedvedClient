@@ -19,9 +19,9 @@ How the module selects and engages targets.
 - **Targeting**: choose single target or switch targets
 - **Range**: maximum reach in blocks
 - **FOV**: field of view for automatic targeting
+- **Visibility**: Checks to make sure targets arent behind walls.
 - **Players only**: restrict attacks to players
 - **Auto weapon**: automatically switch to the best weapon when a target is found
-- **Auto block**: automatically hold block or sword block after attacking
 
 ### Mode
 
@@ -41,3 +41,8 @@ Additional tick delay when using SEQUENTIAL mode.
 ### Smoothness
 
 How quickly the aim rotates toward the target in non-APS modes.
+
+### Auto Block
+
+Uses the [Block Hit](/features/modules/combat/BlockHit) module's configuration to
+auto block while engaging.

@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.item.BlockItem
 import net.minecraft.world.phys.BlockHitResult
 import com.mojang.blaze3d.platform.InputConstants
@@ -51,6 +52,8 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
     private var returningToCamera = false
     private var savedCamYaw   = 0f
     private var savedCamPitch = 0f
+    private var ownsRotation = false
+    @JvmField var isActivelyPlacing = false
 
     private fun findBlockSlot(player: LocalPlayer): Int {
         val world  = Minecraft.getInstance().level ?: return -1
@@ -118,6 +121,7 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             if (moveFreezeTicks > 0) { moveFreezeTicks--; return@register }
 
             if (player.onGround()) {
+                isActivelyPlacing = false
                 if (clutching) {
                     if (savedSlot != -1 && returnToSlot.value) {
                         player.inventory.setSelectedSlot(savedSlot)
@@ -132,8 +136,12 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                         RotationManager.movementMode = RotationManager.MovementMode.CLIENT
                         RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
                         RotationManager.setTargetRotation(savedCamYaw, savedCamPitch)
+                        ownsRotation = true
                     } else {
-                        RotationManager.clearRotation()
+                        if (ownsRotation) {
+                            RotationManager.clearRotation()
+                            ownsRotation = false
+                        }
                     }
                 }
                 // Keep advancing toward saved camera until converged
@@ -142,7 +150,10 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                     RotationManager.physicsYawOverride = RotationManager.getCurrentYaw()
                     RotationManager.skipPositionSnap = true
                     if (RotationManager.hasReachedTarget(2f)) {
-                        RotationManager.clearRotation()
+                        if (ownsRotation) {
+                            RotationManager.clearRotation()
+                            ownsRotation = false
+                        }
                         returningToCamera = false
                     }
                 }
@@ -162,6 +173,8 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                 savedCamYaw   = RotationManager.getClientYaw()
                 savedCamPitch = player.getXRot()
             }
+
+            isActivelyPlacing = true
 
             if (blocksPlaced >= maxBlocks.value) return@register
 
@@ -227,7 +240,7 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                             val yDev  = Math.abs(airPos.y - targetY).toDouble()
                             val hDist = Math.sqrt(
                                 (airPos.x + 0.5 - player.x) * (airPos.x + 0.5 - player.x) +
-                                (airPos.z + 0.5 - player.z) * (airPos.z + 0.5 - player.z)
+                                        (airPos.z + 0.5 - player.z) * (airPos.z + 0.5 - player.z)
                             )
                             val score = yDev * 20.0 + hDist
                             if (best == null || score < best.score) {
@@ -242,13 +255,14 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
 
             val (aimYaw, aimPitch) = faceAim(player, placement.neighbor, placement.face)
 
-            // server's known look vector and the placed block face always agree.
-                RotationManager.movementMode = RotationManager.MovementMode.CLIENT
-                RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
+            // Only set rotation when we have a valid placement
+            RotationManager.movementMode = RotationManager.MovementMode.CLIENT
+            RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
             if (silent.value) {
                 RotationManager.perspective = true
             }
             RotationManager.setTargetRotation(aimYaw, aimPitch)
+            ownsRotation = true
             RotationManager.quickTick(rotSpeed.value)
             RotationManager.physicsYawOverride = RotationManager.getCurrentYaw()
             RotationManager.skipPositionSnap = true
@@ -266,8 +280,15 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             val bhr = hitResult as? BlockHitResult ?: return@register
             if (bhr.blockPos != placement.neighbor || bhr.direction != placement.face) return@register
 
-            client.hitResult = bhr
-            KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
+            val result = client.gameMode?.useItemOn(
+                player,
+                InteractionHand.MAIN_HAND,
+                bhr
+            )
+
+            if (result?.consumesAction() == true) {
+                player.swing(InteractionHand.MAIN_HAND)
+            }
             blocksPlaced++
         }
     }
@@ -294,12 +315,16 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
         returningToCamera  = false
         blocksPlaced       = 0
         moveFreezeTicks    = 0
+        isActivelyPlacing  = false
         val player = Minecraft.getInstance().player
         if (savedSlot != -1 && player != null && returnToSlot.value) {
             player.inventory.setSelectedSlot(savedSlot)
         }
         savedSlot = -1
-        RotationManager.clearRotation()
+        if (ownsRotation) {
+            RotationManager.clearRotation()
+            ownsRotation = false
+        }
     }
 
     private fun blockMatchesWhitelist(blockName: String, whitelist: List<String>): Boolean {

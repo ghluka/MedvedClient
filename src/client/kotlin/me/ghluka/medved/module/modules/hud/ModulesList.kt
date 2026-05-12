@@ -7,7 +7,14 @@ import me.ghluka.medved.module.ModuleManager
 import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
 import me.ghluka.medved.module.modules.player.ClientBrand
+import me.ghluka.medved.util.CORNER_BL
+import me.ghluka.medved.util.CORNER_BR
+import me.ghluka.medved.util.CORNER_TL
+import me.ghluka.medved.util.CORNER_TR
+import me.ghluka.medved.util.CORNERS_LEFT
+import me.ghluka.medved.util.CORNERS_RIGHT
 import me.ghluka.medved.util.Text
+import me.ghluka.medved.util.roundedFill
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -20,6 +27,8 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
     val showVisuals    = boolean("show visuals", false)
     val leftBorder     = boolean("left border", true)
     val background     = boolean("background", true)
+    val rounded        = boolean("rounded", false).also { it.visibleWhen = { background.value } }
+    val roundRadius    = int("round radius", 3, 1, 5).also { it.visibleWhen = { rounded.value && background.value } }
     val bgColor        = color("bg color", Color(0, 0, 0, 160), allowAlpha = true)
     val textShadow     = boolean("text shadow", false)
     val sort           = enum("sort", Sort.SIZE)
@@ -119,8 +128,32 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
         val accentColor = Colour.accent.liveColor(Colour.accent.value).argb
         val onRight = hudX.value > 0.5f
 
+        val rawWidths = mods.map { mod ->
+            val nameW = font.width(Font.styledText(applyCase(mod.name)))
+            val info = if (showConfig.value) applyCase(mod.hudInfo()) else ""
+            val infoW = if (info.isNotEmpty()) 4 + font.width(Font.styledText(info)) else 0
+            borderW + padX.value + nameW + infoW + padX.value
+        }
+
+        data class Group(val start: Int, val end: Int, val maxW: Int)
+        val groups = mutableListOf<Group>()
+        var i = 0
+        while (i < rawWidths.size) {
+            var j = i + 1
+            var maxW = rawWidths[i]
+            val anchor = rawWidths[i]
+
+            while (j < rawWidths.size && kotlin.math.abs(rawWidths[j] - anchor) <= 2) {
+                maxW = maxOf(maxW, rawWidths[j])
+                j++
+            }
+            groups.add(Group(i, j, maxW))
+            i = j
+        }
+
         var ry = 0
-        for (mod in mods) {
+        for (idx in mods.indices) {
+            val mod = mods[idx]
             val displayName = applyCase(mod.name)
             val nameComp = Font.styledText(displayName)
             val nameW = font.width(nameComp)
@@ -129,12 +162,31 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
             val infoComp = if (info.isNotEmpty()) Font.styledText(info) else null
             val infoW = if (infoComp != null) 4 + font.width(infoComp) else 0
 
-            val rowW = borderW + padX.value + nameW + infoW + padX.value
+            val group = groups.first { idx >= it.start && idx < it.end }
+            val rowW = group.maxW
             val textY = ry + (ROW_H - FONT_H) / 2
 
             if (onRight) {
                 val rightEdge = hudWidth()
-                if (background.value) g.fill(rightEdge - rowW, ry, rightEdge, ry + ROW_H, bgColor.liveColor(bgColor.value).argb)
+                if (background.value) {
+                    if (rounded.value) {
+                        val corners = run {
+                            val len = group.end - group.start
+                            var c = 0
+                            if (len == 1) {
+                                if (group.start == 0) c = c or CORNER_TL
+                                if (idx == group.end - 1) c = c or CORNER_BL
+                            } else {
+                                if (idx == group.start && group.start == 0) c = c or CORNER_TL
+                                if (idx == group.end - 1) c = c or CORNER_BL
+                            }
+                            c
+                        }
+                        g.roundedFill(rightEdge - rowW, ry, rowW, ROW_H, roundRadius.value, bgColor.liveColor(bgColor.value).argb, corners)
+                    } else {
+                        g.fill(rightEdge - rowW, ry, rightEdge, ry + ROW_H, bgColor.liveColor(bgColor.value).argb)
+                    }
+                }
                 if (leftBorder.value) g.fill(rightEdge - borderW, ry, rightEdge, ry + ROW_H, accentColor)
                 if (infoComp != null) {
                     val infoX = rightEdge - borderW - padX.value - font.width(infoComp)
@@ -149,7 +201,25 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
                     g.Text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 }
             } else {
-                if (background.value) g.fill(0, ry, rowW, ry + ROW_H, bgColor.liveColor(bgColor.value).argb)
+                if (background.value) {
+                    if (rounded.value) {
+                        val corners = run {
+                            val len = group.end - group.start
+                            var c = 0
+                            if (len == 1) {
+                                if (group.start == 0) c = c or CORNER_TR
+                                if (idx == group.end - 1) c = c or CORNER_BR
+                            } else {
+                                if (idx == group.start && group.start == 0) c = c or CORNER_TR
+                                if (idx == group.end - 1) c = c or CORNER_BR
+                            }
+                            c
+                        }
+                        g.roundedFill(0, ry, rowW, ROW_H, roundRadius.value, bgColor.liveColor(bgColor.value).argb, corners)
+                    } else {
+                        g.fill(0, ry, rowW, ry + ROW_H, bgColor.liveColor(bgColor.value).argb)
+                    }
+                }
                 if (leftBorder.value) g.fill(0, ry, borderW, ry + ROW_H, accentColor)
                 val nameX = borderW + padX.value
                 if (textShadow.value) g.Text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))

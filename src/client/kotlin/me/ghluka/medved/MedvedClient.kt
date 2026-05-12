@@ -52,6 +52,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(AutoRod)
         ModuleManager.register(HitSwap)
         ModuleManager.register(AutoCrystal)
+        ModuleManager.register(KeepSprint)
         // anarchy
         ModuleManager.register(KillAura)
         ModuleManager.register(CrystalAura)
@@ -65,6 +66,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(NoPush)
         ModuleManager.register(Parkour)
         // render
+        ModuleManager.register(Animations)
         ModuleManager.register(PlayerESP)
         ModuleManager.register(RiceFarmer)
         // player

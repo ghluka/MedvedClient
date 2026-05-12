@@ -16,7 +16,7 @@
     ],
     "smoothness": 30.0,
     "players only": true,
-    "auto block": false,
+    "auto block": true,
     "auto weapon": false
   },
   "Trigger Bot": {
@@ -88,28 +88,47 @@
     "enabled": true,
     "keybind": -1
   },
-  "Block Hit": {
-    "enabled": true,
+  "Auto Block": {
+    "enabled": false,
     "keybind": -1,
-    "mode": "STATIC",
-    "right click only": true,
-    "release on swing": true,
+    "mode": "MANUAL",
+    "block chance (%)": 80.0,
+    "block cps": 8.0,
+    "range": 6.5,
+    "max hold (ms)": 100,
+    "check left click": true,
+    "check right click": false,
+    "check took damage": false,
+    "damage window (ms)": 3000,
     "release (ms)": [
-      20,
+      1,
       40
     ],
-    "dynamic range": 5.0
+    "lag": false,
+    "lag chance (%)": 100.0,
+    "lag duration (ms)": [
+      150,
+      250
+    ],
+    "prevent delaying attacks": false,
+    "block again immediately": true
   },
   "Hit Select": {
-    "enabled": true,
+    "enabled": false,
     "keybind": -1,
     "mode": "ACTIVE",
-    "preference": "COMBO",
+    "preference": "BURST",
     "delay (ms)": [
       350,
       450
     ],
-    "filter %": 80
+    "wait for first hit (ms)": 0,
+    "hit later in trades (ms)": 0,
+    "disable during knockback": false,
+    "only while damaged": false,
+    "cancel rate (in combat) %": 80,
+    "cancel rate (missed) %": 0,
+    "fake swing": false
   },
   "Velocity": {
     "enabled": true,
@@ -177,8 +196,8 @@
     "enabled": true,
     "keybind": -1,
     "delay (ms)": [
-      10,
-      50
+      60,
+      100
     ],
     "chance %": 90
   },
@@ -186,8 +205,8 @@
     "enabled": true,
     "keybind": -1,
     "range": [
-      3.0,
-      3.04
+      3.05,
+      3.1
     ],
     "hit through walls": false,
     "chance %": 50
@@ -209,11 +228,27 @@
     "mode": "LAG",
     "delay (ms)": 350,
     "lag window (ms)": [
-      45,
-      65
+      0,
+      110
     ],
     "only players": true,
-    "show esp": true
+    "show esp": true,
+    "esp color": {
+      "value": "#14FF0050",
+      "mode": "CUSTOM",
+      "custom": "#14FF0050",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "line color": {
+      "value": "#FFFFFF50",
+      "mode": "CUSTOM",
+      "custom": "#FFFFFF50",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    }
   },
   "Criticals": {
     "enabled": false,
@@ -276,6 +311,12 @@
     "auto obsidian": false,
     "only players": true
   },
+  "Keep Sprint": {
+    "enabled": false,
+    "keybind": -1,
+    "retain factor": 0.0,
+    "reset sprint": false
+  },
   "Kill Aura": {
     "enabled": false,
     "keybind": -1,
@@ -334,9 +375,36 @@
     "enabled": true,
     "keybind": -1
   },
+  "No Push": {
+    "enabled": true,
+    "keybind": -1
+  },
   "Parkour": {
     "enabled": false,
     "keybind": -1
+  },
+  "Animations": {
+    "enabled": true,
+    "keybind": -1,
+    "mode": "PUSHDOWN",
+    "translate y": 0.25,
+    "swing scale": 0.9,
+    "visual block": false,
+    "main hand": true,
+    "main hand scale": -0.25,
+    "main hand x": 0.25,
+    "main hand y": 0.0,
+    "main hand rot x": 0.0,
+    "main hand rot y": 0.0,
+    "main hand rot z": 0.0,
+    "off hand": false,
+    "off hand scale": 0.0,
+    "off hand x": 0.0,
+    "off hand y": 0.0,
+    "off hand rot x": 0.0,
+    "off hand rot y": 0.0,
+    "off hand rot z": 0.0,
+    "swing duration": 6
   },
   "Box ESP": {
     "enabled": true,
@@ -513,12 +581,21 @@
     "blatant range": 5.0588236,
     "auto tool": true
   },
+  "Chest Aura": {
+    "enabled": false,
+    "keybind": -1,
+    "rotation speed": 50.0,
+    "click through walls": true,
+    "drill swap": false,
+    "drill name": "sword"
+  },
   "Click Gui": {
     "enabled": true,
     "keybind": 344,
     "mode": "DROPDOWN",
     "show_descriptions": true,
-    "show_background": true
+    "show_background": true,
+    "blur_background": true
   },
   "Font": {
     "enabled": true,
@@ -580,6 +657,8 @@
     "show visuals": false,
     "left border": true,
     "background": true,
+    "rounded": true,
+    "round radius": 3,
     "bg color": {
       "value": "#86000000",
       "mode": "CUSTOM",
@@ -649,14 +728,6 @@
     "shell radius": 6,
     "scan interval ms": 500
   },
-  "Chest Aura": {
-    "enabled": false,
-    "keybind": -1,
-    "rotation speed": 50.0,
-    "click through walls": true,
-    "drill swap": false,
-    "drill name": "sword"
-  },
   "Anti Fireball": {
     "enabled": true,
     "keybind": -1,
@@ -697,6 +768,79 @@
     "Auto Armor": true,
     "Prioritize Blast Resistance": false,
     "Inventory Cleaner": true,
-    "Trash Extra Gear": true
+    "Trash Extra Gear": true,
+    "Trash Blacklist": {
+      "mode": "BLACKLIST",
+      "filter": "NONE",
+      "items": [
+        "totem_of_undying",
+        "water_bucket",
+        "lava_bucket",
+        "netherite_ingot",
+        "smithing_template",
+        "experience_bottle",
+        "diamond"
+      ]
+    }
+  },
+  "Party Games": {
+    "enabled": false,
+    "keybind": 89,
+    "Animal Slaughter AIO": true,
+    "Animal ESP": true,
+    "Block wrong clicks": true,
+    "Hide wrong mobs": true,
+    "Cow ESP color": {
+      "value": "#FF2D2314",
+      "mode": "CUSTOM",
+      "custom": "#FF2D2314",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "Pig ESP color": {
+      "value": "#FFFFC0CB",
+      "mode": "CUSTOM",
+      "custom": "#FFFFC0CB",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "Chicken ESP color": {
+      "value": "#FFFFFFFF",
+      "mode": "CUSTOM",
+      "custom": "#FFFFFFFF",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "Anvil ESP": true,
+    "Anvil ESP color": {
+      "value": "#FFFF0000",
+      "mode": "CUSTOM",
+      "custom": "#FFFF0000",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "Avalanche ESP": true,
+    "Avalanche ESP color": {
+      "value": "#FF00FF00",
+      "mode": "CUSTOM",
+      "custom": "#FF00FF00",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "Jigsaw Rush Triggerbot": true,
+    "Spider Maze Pathfinder": true,
+    "Spider Maze color": {
+      "value": "#FFFF0000",
+      "mode": "CUSTOM",
+      "custom": "#FFFF0000",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    }
   }
 }
