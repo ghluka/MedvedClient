@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.KeyMapping
 import kotlin.random.Random
 import com.mojang.blaze3d.platform.InputConstants
+import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
 import org.lwjgl.glfw.GLFW
 
 object ComboTap : Module(
@@ -163,15 +164,5 @@ object ComboTap : Module(
         wasForceBackward   = forceBackward
         wasForceSneak      = forceSneak
         wasForceJump       = forceJump
-    }
-
-    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
-        if (mapping.isUnbound) return false
-        val window = Minecraft.getInstance().window.handle()
-        val key = InputConstants.getKey(mapping.saveString())
-        if (key.type == InputConstants.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
-        }
-        return GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
     }
 }

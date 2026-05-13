@@ -8,6 +8,7 @@ import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.common.ClientboundPingPacket;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -63,9 +64,9 @@ public class ClientPacketListenerMixin {
         if (!Backtrack.INSTANCE.shouldDelay()) return;
         ClientPacketListener connection = (ClientPacketListener)(Object) this;
         Vec3 realPos = new Vec3(
-            entity.getX() + packet.getXa() / 4096.0,
-            entity.getY() + packet.getYa() / 4096.0,
-            entity.getZ() + packet.getZa() / 4096.0
+                entity.getX() + packet.getXa() / 4096.0,
+                entity.getY() + packet.getYa() / 4096.0,
+                entity.getZ() + packet.getZa() / 4096.0
         );
         ci.cancel();
         Backtrack.INSTANCE.enqueue(entity.getId(), realPos, () -> connection.handleMoveEntity(packet));
@@ -99,17 +100,20 @@ public class ClientPacketListenerMixin {
         double mz = motion.z;
 
         Velocity.Mode mode = Velocity.INSTANCE.getMode().getValue();
-        if (mode == Velocity.Mode.REDUCE) {
-            float factorXZ = 1f - (Velocity.INSTANCE.getReducePercent().getValue() / 100f);
-            float factorY  = 1f - (Velocity.INSTANCE.getReduceYPercent().getValue() / 100f);
+
+        if (mode == Velocity.Mode.MODIFY) {
+            float factorXZ = 1f - (Velocity.INSTANCE.getModifyPercent().getValue() / 100f);
+            float factorY  = 1f - (Velocity.INSTANCE.getModifyYPercent().getValue() / 100f);
             player.lerpMotion(new Vec3(mx * factorXZ, my * factorY, mz * factorXZ));
             ci.cancel();
+
         } else if (mode == Velocity.Mode.CANCEL) {
             ci.cancel();
+
         } else if (mode == Velocity.Mode.REVERSE) {
-            float factor = Velocity.INSTANCE.getReversePercent().getValue() / 100f;
-            player.lerpMotion(new Vec3(-mx * factor, my, -mz * factor));
-            ci.cancel();
+            Velocity.INSTANCE.scheduleReverse(mx, my, mz);
+            //ci.cancel();
+
         } else if (mode == Velocity.Mode.JUMP_RESET) {
             if (Math.abs(mx) < 0.1 && Math.abs(mz) < 0.1) return;
             int chance = Velocity.INSTANCE.getJumpChance().getValue();
@@ -118,10 +122,22 @@ public class ClientPacketListenerMixin {
                 kotlin.Pair<?, ?> timing = Velocity.INSTANCE.getJumpTiming().getValue();
                 int lo = (Integer) timing.component1();
                 int hi = (Integer) timing.component2();
-                int delay = hi > lo ? lo + (int)(Math.random() * (hi - lo + 1)) : lo;
-                Velocity.INSTANCE.scheduleJump(System.currentTimeMillis() + delay);
+                int delayMs = hi > lo ? lo + (int)(Math.random() * (hi - lo + 1)) : lo;
+                Velocity.INSTANCE.scheduleJump(System.currentTimeMillis() + delayMs);
                 ci.cancel();
             }
+
+        } else if (mode == Velocity.Mode.REDUCE) {
+            if (!Velocity.INSTANCE.getReceivedDamage()) return;
+            if (Math.abs(mx) < 0.01 && Math.abs(mz) < 0.01) return;
+            Velocity.INSTANCE.triggerReduce(mc);
+
+        } else if (mode == Velocity.Mode.FREEZE) {
+            if (Math.abs(mx) < 0.01 && Math.abs(mz) < 0.01) return;
+            if (Velocity.INSTANCE.tryConsumeFreezeVelocity()) {
+                ci.cancel();
+            }
+
         } else if (mode == Velocity.Mode.DELAY) {
             if (Math.abs(mx) < 0.1 && Math.abs(mz) < 0.1) return;
             Velocity.INSTANCE.startPacketDelay();
@@ -132,6 +148,34 @@ public class ClientPacketListenerMixin {
             if (chance >= 100 || (int)(Math.random() * 100) < chance) {
                 KnockbackDelay.INSTANCE.triggerDelay(KnockbackDelay.cachedOnGround);
             }
+        }
+    }
+
+    @Inject(method = "handleDamageEvent", at = @At("HEAD"))
+    private void medved$onDamageEvent(ClientboundDamageEventPacket packet, CallbackInfo ci) {
+        if (!Velocity.INSTANCE.isEnabled()) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || packet.entityId() != player.getId()) return;
+
+        Velocity.Mode mode = Velocity.INSTANCE.getMode().getValue();
+        if (mode == Velocity.Mode.REDUCE) {
+            Velocity.INSTANCE.setReceivedDamage(true);
+        } else if (mode == Velocity.Mode.FREEZE) {
+            Velocity.INSTANCE.onFreezeDamage();
+        }
+    }
+
+    @Inject(method = "handleBlockUpdate", at = @At("HEAD"))
+    private void medved$onBlockUpdate(ClientboundBlockUpdatePacket packet, CallbackInfo ci) {
+        if (!Velocity.INSTANCE.isEnabled()) return;
+        if (Velocity.INSTANCE.getMode().getValue() != Velocity.Mode.FREEZE) return;
+        if (!Velocity.freezeWaitForUpdate) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null) return;
+        if (packet.getPos().equals(player.blockPosition())) {
+            Velocity.INSTANCE.onFreezeBlockUpdate();
         }
     }
 
@@ -151,22 +195,25 @@ public class ClientPacketListenerMixin {
         double mz = motion.z;
 
         Velocity.Mode mode = Velocity.INSTANCE.getMode().getValue();
-        if (mode == Velocity.Mode.REDUCE) {
-            float factorXZ = 1f - (Velocity.INSTANCE.getReducePercent().getValue() / 100f);
-            float factorY = 1f - (Velocity.INSTANCE.getReduceYPercent().getValue() / 100f);
-            player.setDeltaMovement(player.getDeltaMovement().subtract(motion).add(mx * factorXZ, my * factorY, mz * factorXZ));
+
+        if (mode == Velocity.Mode.MODIFY) {
+            float factorXZ = 1f - (Velocity.INSTANCE.getModifyPercent().getValue() / 100f);
+            float factorY  = 1f - (Velocity.INSTANCE.getModifyYPercent().getValue() / 100f);
+            player.setDeltaMovement(player.getDeltaMovement().subtract(motion)
+                    .add(mx * factorXZ, my * factorY, mz * factorXZ));
+
         } else if (mode == Velocity.Mode.CANCEL) {
             player.setDeltaMovement(player.getDeltaMovement().subtract(motion));
+
         } else if (mode == Velocity.Mode.REVERSE) {
             float factor = Velocity.INSTANCE.getReversePercent().getValue() / 100f;
-            player.setDeltaMovement(player.getDeltaMovement().subtract(motion).add(-mx * factor, my, -mz * factor));
+            player.setDeltaMovement(player.getDeltaMovement().subtract(motion)
+                    .add(-mx * factor, my, -mz * factor));
         }
-        // we wont jump reset because it might affect in games like bedwars with tnt jumps or fireball jumps
-
 
         if (KnockbackDelay.INSTANCE.isEnabled() && !KnockbackDelay.INSTANCE.isHolding()) {
             int chance = KnockbackDelay.INSTANCE.getChance().getValue();
-            if (chance >= 100 || (int) (Math.random() * 100) < chance) {
+            if (chance >= 100 || (int)(Math.random() * 100) < chance) {
                 KnockbackDelay.INSTANCE.triggerDelay(KnockbackDelay.cachedOnGround);
             }
         }

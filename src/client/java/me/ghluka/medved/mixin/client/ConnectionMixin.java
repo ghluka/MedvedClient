@@ -3,6 +3,7 @@ package me.ghluka.medved.mixin.client;
 import io.netty.channel.ChannelHandlerContext;
 import me.ghluka.medved.module.modules.combat.AutoBlock;
 import me.ghluka.medved.module.modules.combat.Backtrack;
+import me.ghluka.medved.module.modules.combat.Velocity;
 import me.ghluka.medved.module.modules.player.ClientBrand;
 import me.ghluka.medved.module.modules.combat.KnockbackDelay;
 import me.ghluka.medved.util.LagManager;
@@ -11,13 +12,11 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.ClientboundPingPacket;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import net.minecraft.network.protocol.common.custom.BrandPayload;
-import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
-import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
-import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.*;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -35,6 +34,7 @@ public class ConnectionMixin {
     @SuppressWarnings("unchecked")
     @Inject(method = "channelRead0", at = @At("HEAD"), cancellable = true)
     private void medved$onChannelRead(ChannelHandlerContext ctx, Packet<?> packet, CallbackInfo ci) {
+        //System.out.println(packet.type().toString() + " " + packet.toString());
         PacketListener listener = packetListener;
         if (!(listener instanceof ClientPacketListener)) return;
 
@@ -99,6 +99,12 @@ public class ConnectionMixin {
 
     private void medved$handleOutgoing(Packet<?> packet, CallbackInfo ci) {
         Connection conn = (Connection)(Object) this;
+
+        if (packet instanceof ServerboundPongPacket
+                && Velocity.INSTANCE.isEnabled()
+                && Velocity.INSTANCE.getMode().getValue() == Velocity.Mode.FREEZE) {
+            Velocity.INSTANCE.onFreezePong();
+        }
 
         // Brand spoofer: intercept the outgoing brand custom payload and replace it.
         // The re-entry guard prevents infinite recursion when we call conn.send() with the replacement.

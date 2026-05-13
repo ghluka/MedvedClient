@@ -102,8 +102,8 @@
     "check took damage": false,
     "damage window (ms)": 3000,
     "release (ms)": [
-      1,
-      2
+      20,
+      30
     ],
     "lag": true,
     "lag chance (%)": 100.0,
@@ -111,7 +111,7 @@
       50,
       70
     ],
-    "prevent delaying attacks": false,
+    "prevent delaying attacks": true,
     "block again immediately": true,
     "slow down": true
   },
@@ -135,10 +135,18 @@
   "Velocity": {
     "enabled": true,
     "keybind": -1,
-    "mode": "JUMP_RESET",
-    "reduce %": 100.0,
-    "reduce y %": 0.0,
+    "mode": "REDUCE",
+    "modify %": 50.0,
+    "modify y %": 0.0,
+    "attack count": [
+      3,
+      3
+    ],
+    "range": 4.2352943,
+    "horizontal": 0.0,
+    "vertical": 1.0,
     "reverse %": 49.673203,
+    "reverse delay (ticks)": 2,
     "chance %": 100,
     "timing (ms)": [
       70,
@@ -195,11 +203,11 @@
     "on ground only": false
   },
   "Kb Delay": {
-    "enabled": false,
+    "enabled": true,
     "keybind": -1,
     "delay (ms)": [
-      60,
-      100
+      205,
+      205
     ],
     "chance %": 90
   },
@@ -522,11 +530,8 @@
     "keybind": -1,
     "trigger": "ALWAYS",
     "blocks": 4.522876,
-    "silent aim": true,
-    "rotate back": false,
     "return to slot": true,
-    "clutch move delay": 0,
-    "max blocks": 25,
+    "telly": false,
     "rotation speed": 112.09151,
     "Block Whitelist": {
       "mode": "WHITELIST",
@@ -587,7 +592,7 @@
   },
   "Chest Aura": {
     "enabled": false,
-    "keybind": -1,
+    "keybind": 88,
     "rotation speed": 50.0,
     "click through walls": false,
     "drill swap": false,

@@ -15,6 +15,7 @@
       1
     ],
     "smoothness": 30.0,
+    "visibility check": true,
     "players only": true,
     "auto block": false,
     "auto weapon": false
@@ -114,7 +115,8 @@
       250
     ],
     "prevent delaying attacks": false,
-    "block again immediately": true
+    "block again immediately": true,
+    "slow down": true
   },
   "Hit Select": {
     "enabled": false,
@@ -521,11 +523,8 @@
     "keybind": -1,
     "trigger": "ALWAYS",
     "blocks": 4.522876,
-    "silent aim": true,
-    "rotate back": false,
     "return to slot": true,
-    "clutch move delay": 0,
-    "max blocks": 25,
+    "telly": false,
     "rotation speed": 112.09151,
     "Block Whitelist": {
       "mode": "WHITELIST",

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.config.entry.ItemListEntry
 import me.ghluka.medved.gui.components.itemCategories
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
@@ -98,17 +99,6 @@ object AutoPlace : Module(
         val result = client.gameMode?.useItemOn(player, InteractionHand.MAIN_HAND, hit) ?: return
         if (result.consumesAction()) {
             player.swing(InteractionHand.MAIN_HAND)
-        }
-    }
-
-    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
-        if (mapping.isUnbound) return false
-        val window = Minecraft.getInstance().window.handle()
-        val key = InputConstants.getKey(mapping.saveString())
-        return if (key.type == InputConstants.Type.MOUSE) {
-            GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
-        } else {
-            GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
         }
     }
 

@@ -1,9 +1,7 @@
 package me.ghluka.medved.util
 
-import me.ghluka.medved.module.modules.combat.AutoBlock
 import me.ghluka.medved.module.modules.combat.Backtrack
 import me.ghluka.medved.module.modules.combat.KnockbackDelay
-import me.ghluka.medved.module.modules.combat.KnockbackDisplacement
 import me.ghluka.medved.module.modules.combat.Velocity
 import me.ghluka.medved.module.modules.player.Blink
 import me.ghluka.medved.module.modules.player.FakeLag
@@ -30,12 +28,12 @@ object LagManager {
         if (flushingOutgoing) return false
         if (Minecraft.getInstance().level == null) return false
 
-        val blink = Blink.enabled.value && Blink.holding
-        val fakeLag = FakeLag.enabled.value && FakeLag.isCurrentlyLagging
+        val blink    = Blink.enabled.value && Blink.holding
+        val fakeLag  = FakeLag.enabled.value && FakeLag.isCurrentlyLagging
         val velocity = Velocity.enabled.value && Velocity.mode.value == Velocity.Mode.DELAY && Velocity.isDelayWindowActive()
         //val kbDisplaceBlink = KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive
-        val autoBlockLag = AutoBlock.isEnabled() && AutoBlock.isLagging
-        if (!blink && !fakeLag && !velocity && !autoBlockLag) {
+
+        if (!blink && !fakeLag && !velocity) {// && !kbDisplaceBlink) {
             if (!outgoingQueue.isEmpty()) flushAllOutgoing()
             return false
         }
@@ -47,12 +45,15 @@ object LagManager {
         if (flushingIncoming) return false
         if (Minecraft.getInstance().level == null) return false
 
-        val knockback = KnockbackDelay.enabled.value && KnockbackDelay.isHolding()
-        val backtrackLag = Backtrack.enabled.value && Backtrack.mode.value == Backtrack.Mode.LAG && Backtrack.lagActive
+        val knockback      = KnockbackDelay.enabled.value && KnockbackDelay.isHolding()
+        val backtrackLag   = Backtrack.enabled.value && Backtrack.mode.value == Backtrack.Mode.LAG && Backtrack.lagActive
         val backtrackManual = Backtrack.enabled.value && Backtrack.mode.value == Backtrack.Mode.MANUAL
 
-        // If no modules are active, flush all incoming and return false immediately!
-        if (!knockback && !backtrackLag && !backtrackManual) {
+        val freezing       = Velocity.enabled.value
+                && Velocity.mode.value == Velocity.Mode.FREEZE
+                && Velocity.freezeDelayActive
+
+        if (!knockback && !backtrackLag && !backtrackManual && !freezing) {
             if (!incomingQueue.isEmpty()) flushAllIncoming()
             return false
         }
@@ -68,8 +69,7 @@ object LagManager {
 
         val now = System.currentTimeMillis()
 
-        if ((AutoBlock.isEnabled() && AutoBlock.isLagging) ||
-            (Blink.enabled.value && Blink.holding)){// || (KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive)) {
+        if (Blink.enabled.value && Blink.holding) {//) || (KnockbackDisplacement.enabled.value && KnockbackDisplacement.isBlinkActive)) {
             outgoingQueue.add(Long.MAX_VALUE to action)
             return
         }
@@ -127,6 +127,15 @@ object LagManager {
                 val d = Backtrack.delay.value.toLong()
                 if (d > delayMs) delayMs = d
             }
+        }
+
+        if (Velocity.enabled.value
+            && Velocity.mode.value == Velocity.Mode.FREEZE
+            && Velocity.freezeDelayActive
+        ) {
+            outgoingQueue
+            incomingQueue.offer(Long.MAX_VALUE to action)
+            return
         }
 
         val active = delayMs > 0

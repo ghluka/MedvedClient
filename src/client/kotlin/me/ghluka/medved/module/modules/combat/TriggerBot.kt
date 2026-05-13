@@ -3,6 +3,7 @@ package me.ghluka.medved.module.modules.combat
 import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.other.TargetFilter
+import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
@@ -32,16 +33,6 @@ object TriggerBot : Module(
 
     override fun onEnabled() {
         seqDelayTicks = 0
-    }
-
-    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
-        if (mapping.isUnbound) return false
-        val window = Minecraft.getInstance().window.handle()
-        val key = InputConstants.getKey(mapping.saveString())
-        if (key.type == InputConstants.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
-        }
-        return GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
     }
 
     override fun onTick(client: Minecraft) {

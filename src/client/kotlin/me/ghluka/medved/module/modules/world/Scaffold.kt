@@ -10,6 +10,7 @@ import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
 import net.minecraft.client.KeyMapping
 import com.mojang.blaze3d.platform.InputConstants
+import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
 import net.minecraft.util.Mth
 import net.minecraft.world.item.BlockItem
 import net.minecraft.world.phys.BlockHitResult
@@ -72,20 +73,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     }
 
     private fun hasBlocks(player: LocalPlayer): Boolean = findBlockSlot(player) != -1
-
-    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
-        if (mapping.isUnbound) return false
-        val window = Minecraft.getInstance().window.handle()
-        val key = InputConstants.getKey(mapping.saveString())
-        if (key.type == InputConstants.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
-        }
-        if (mapping === Minecraft.getInstance().options.keyShift) {
-            return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
-                    GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS
-        }
-        return GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
-    }
 
     init {
         ClientTickEvents.START_CLIENT_TICK.register { client ->

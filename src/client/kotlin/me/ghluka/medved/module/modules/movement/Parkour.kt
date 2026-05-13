@@ -2,6 +2,7 @@ package me.ghluka.medved.module.modules.movement
 
 import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.KeyMapping
@@ -60,15 +61,5 @@ object Parkour : Module("Parkour", "Automatically jumps off ledges", Category.MO
                 debounce = true
             }
         }
-    }
-
-    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
-        if (mapping.isUnbound) return false
-        val window = Minecraft.getInstance().window.handle()
-        val key = InputConstants.getKey(mapping.saveString())
-        if (key.type == InputConstants.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
-        }
-        return GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
     }
 }

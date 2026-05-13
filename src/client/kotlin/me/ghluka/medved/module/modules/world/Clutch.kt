@@ -14,6 +14,7 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.item.BlockItem
 import net.minecraft.world.phys.BlockHitResult
 import com.mojang.blaze3d.platform.InputConstants
+import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.level.BlockGetter
 import org.lwjgl.glfw.GLFW
@@ -49,8 +50,6 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
 
     private var savedBackYaw     = 0f
     @JvmField var isActivelyPlacing = false
-
-    private const val JUMP_FALL_THRESHOLD = 1.30f
 
     private fun findBlockSlot(player: LocalPlayer): Int {
         val world  = Minecraft.getInstance().level ?: return -1
@@ -173,10 +172,12 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
 
             isActivelyPlacing = true
 
-            client.options.keyUp.setDown(false)
-            client.options.keyDown.setDown(false)
-            client.options.keyLeft.setDown(false)
-            client.options.keyRight.setDown(false)
+            if (!telly.value) {
+                client.options.keyUp.setDown(false)
+                client.options.keyDown.setDown(false)
+                client.options.keyLeft.setDown(false)
+                client.options.keyRight.setDown(false)
+            }
 
             if (player.mainHandItem.isEmpty || player.mainHandItem.item !is BlockItem) {
                 val slot = findBlockSlot(player)
@@ -204,10 +205,6 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             val playerBB     = player.boundingBox
             val trajectoryBB = playerBB.expandTowards(0.0, velY, 0.0)
 
-            val canPlaceOnTop  = player.fallDistance > JUMP_FALL_THRESHOLD
-            val sideDirections = arrayOf(Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST)
-            val searchDirections = if (canPlaceOnTop) sideDirections + Direction.DOWN else sideDirections
-
             data class Candidate(val neighbor: BlockPos, val face: Direction, val score: Double)
             var best: Candidate? = null
 
@@ -221,19 +218,21 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                             airPos.x.toDouble(), airPos.y.toDouble(), airPos.z.toDouble(),
                             airPos.x + 1.0, airPos.y + 1.0, airPos.z + 1.0
                         )
+                        if (trajectoryBB.intersects(blockBB)) continue
 
-                        for (dir in searchDirections) {
-                            if (dir != Direction.DOWN && trajectoryBB.intersects(blockBB)) continue
-
-                            val nb      = airPos.relative(dir)
+                        for (dir in arrayOf(
+                            Direction.NORTH, Direction.SOUTH,
+                            Direction.EAST,  Direction.WEST
+                        )) {
+                            val nb = airPos.relative(dir)
                             val nbState = world.getBlockState(nb)
                             if (nbState.isAir || !nbState.fluidState.isEmpty) continue
 
                             val face = dir.opposite
-                            val fx   = nb.x + 0.5 + face.stepX * 0.45
-                            val fy   = nb.y + 0.5 + face.stepY * 0.45
-                            val fz   = nb.z + 0.5 + face.stepZ * 0.45
-                            val ex   = fx - eyeX; val ey2 = fy - eyeY; val ez = fz - eyeZ
+                            val fx = nb.x + 0.5 + face.stepX * 0.45
+                            val fy = nb.y + 0.5 + face.stepY * 0.45
+                            val fz = nb.z + 0.5 + face.stepZ * 0.45
+                            val ex = fx - eyeX; val ey2 = fy - eyeY; val ez = fz - eyeZ
                             if (ex * ex + ey2 * ey2 + ez * ez > reach * reach) continue
 
                             val yDev  = Math.abs(airPos.y - targetY).toDouble()
@@ -241,9 +240,7 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                                 (airPos.x + 0.5 - player.x) * (airPos.x + 0.5 - player.x) +
                                         (airPos.z + 0.5 - player.z) * (airPos.z + 0.5 - player.z)
                             )
-
-                            val topFacePenalty = if (face == Direction.UP) 8.0 else 0.0
-                            val score = yDev * 20.0 + hDist + topFacePenalty
+                            val score = yDev * 20.0 + hDist
                             if (best == null || score < best.score) {
                                 best = Candidate(nb, face, score)
                             }
@@ -276,10 +273,11 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             val bhr = hitResult as? BlockHitResult ?: return@register
             if (bhr.blockPos != placement.neighbor || bhr.direction != placement.face) return@register
 
-            val result = client.gameMode?.useItemOn(player, InteractionHand.MAIN_HAND, bhr)
-            if (result?.consumesAction() == true) {
-                player.swing(InteractionHand.MAIN_HAND)
-            }
+            //val result = client.gameMode?.useItemOn(player, InteractionHand.MAIN_HAND, bhr)
+            //if (result?.consumesAction() == true) {
+            //    player.swing(InteractionHand.MAIN_HAND)
+            //}
+            KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
         }
     }
 
@@ -332,19 +330,5 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             }
         }
         return false
-    }
-
-    private fun isPhysicalKeyDown(mapping: KeyMapping): Boolean {
-        if (mapping.isUnbound) return false
-        val window = Minecraft.getInstance().window.handle()
-        val key    = InputConstants.getKey(mapping.saveString())
-        if (key.type == InputConstants.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(window, key.value) == GLFW.GLFW_PRESS
-        }
-        if (mapping === Minecraft.getInstance().options.keyShift) {
-            return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT)  == GLFW.GLFW_PRESS ||
-                    GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS
-        }
-        return GLFW.glfwGetKey(window, key.value) == GLFW.GLFW_PRESS
     }
 }
