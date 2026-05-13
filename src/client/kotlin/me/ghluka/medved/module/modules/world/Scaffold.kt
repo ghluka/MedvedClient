@@ -29,6 +29,10 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         NINJA, BREEZILY
     }
 
+    enum class ScaffoldState {
+        TOWERING, UPSTACKING, DIAGONAL, STRAIGHT, NONE
+    }
+
     private val blockWhitelist = itemList("Block Whitelist", listOf("wool_category"), defaultMode = ItemListEntry.Mode.WHITELIST, filter = ItemListEntry.Filter.BLOCKS_ONLY)
     private val bridgeMode = enum("mode", BridgeMode.NINJA)
 
@@ -111,8 +115,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             val D = isPhysicalKeyDown(client.options.keyRight)
             val isJumping = isPhysicalKeyDown(client.options.keyJump)
             val movingHoriz = W || S || A || D
-            val ninjaAutoRight = (bridgeMode.value == BridgeMode.NINJA)
-                    && W && !S && !A && !D
 
             var targetCard = RotationManager.getClientYaw()
             if (movingHoriz) {
@@ -120,12 +122,9 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 var mx = 0.0; var mz = 0.0
                 if (W) { mx -= kotlin.math.sin(camRad); mz += kotlin.math.cos(camRad) }
                 if (S) { mx += kotlin.math.sin(camRad); mz -= kotlin.math.cos(camRad) }
-                if (bridgeMode.value == BridgeMode.NINJA) {
-                    if (ninjaAutoRight) { mx -= kotlin.math.cos(camRad); mz -= kotlin.math.sin(camRad) }
-                } //else {
-                    if (D || ninjaAutoRight) { mx -= kotlin.math.cos(camRad); mz -= kotlin.math.sin(camRad) }
-                    if (A) { mx += kotlin.math.cos(camRad); mz += kotlin.math.sin(camRad) }
-                //}
+                if (D) { mx -= kotlin.math.cos(camRad); mz -= kotlin.math.sin(camRad) }
+                if (A) { mx += kotlin.math.cos(camRad); mz += kotlin.math.sin(camRad) }
+
                 val rawMoveYaw = Math.toDegrees(atan2(-mx, mz)).toFloat()
                 targetCard = Math.round(rawMoveYaw / 45.0f) * 45.0f
             } else {
@@ -134,31 +133,94 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
             val isDiagonal = (targetCard % 90.0f) != 0.0f
 
+            val scaffoldState = when {
+                !movingHoriz && isJumping -> ScaffoldState.TOWERING
+                movingHoriz && isJumping -> ScaffoldState.UPSTACKING
+                movingHoriz && isDiagonal -> ScaffoldState.DIAGONAL
+                movingHoriz && !isDiagonal -> ScaffoldState.STRAIGHT
+                else -> ScaffoldState.NONE
+            }
+
             var pressRight = false
             var pressLeft  = false
 
-            when (bridgeMode.value) {
-                BridgeMode.NINJA -> {
-                    if (movingHoriz) {
-                        if (W && !S) {
-                            if (D) {
-                                pressRight = false
-                                pressLeft = true
-                                client.options.keyUp.setDown(false)
-                                client.options.keyDown.setDown(true)
-                                client.options.keyRight.setDown(false)
-                                client.options.keyLeft.setDown(true)
-                            } else {
-                                pressRight = true
-                                pressLeft = false
-                                client.options.keyUp.setDown(false)
-                                client.options.keyDown.setDown(true)
-                                client.options.keyRight.setDown(true)
-                                client.options.keyLeft.setDown(false)
-                            }
-                        } else {
+            fun sidewaysBridge() {
+                if (W && !S && !A && !D) {
+                    val camRad = Math.toRadians(RotationManager.getClientYaw().toDouble())
+                    var mx = -kotlin.math.sin(camRad)
+                    var mz = kotlin.math.cos(camRad)
+                    mx -= kotlin.math.cos(camRad)
+                    mz -= kotlin.math.sin(camRad)
+                    val rawMoveYaw = Math.toDegrees(atan2(-mx, mz)).toFloat()
+                    targetCard = Math.round(rawMoveYaw / 45.0f) * 45.0f
+
+                    pressRight = true
+                    pressLeft = false
+                    client.options.keyUp.setDown(false)
+                    client.options.keyDown.setDown(true)
+                    client.options.keyRight.setDown(true)
+                    client.options.keyLeft.setDown(false)
+                } else {
+                    pressRight = false
+                    pressLeft = false
+                    client.options.keyUp.setDown(false)
+                    client.options.keyDown.setDown(true)
+                    client.options.keyRight.setDown(false)
+                    client.options.keyLeft.setDown(false)
+                }
+            }
+
+            when (scaffoldState) {
+                ScaffoldState.STRAIGHT -> {
+                    when (bridgeMode.value) {
+                        BridgeMode.NINJA -> {
+                            sidewaysBridge()
+                        }
+                        BridgeMode.BREEZILY -> {
+                            breezilyStrafeTick++
+                            val strafeRight = (breezilyStrafeTick / breezilyPeriod.value) % 2 == 0
+                            pressRight = strafeRight
+                            pressLeft  = !strafeRight
+                            client.options.keyUp.setDown(false)
+                            client.options.keyDown.setDown(true)
+                            client.options.keyRight.setDown(pressRight)
+                            client.options.keyLeft.setDown(pressLeft)
+                        }
+                    }
+                }
+
+
+                ScaffoldState.DIAGONAL -> {
+                    when (bridgeMode.value) {
+                        BridgeMode.NINJA -> {
                             pressRight = false
                             pressLeft = false
+                            client.options.keyUp.setDown(false)
+                            client.options.keyDown.setDown(true)
+                            client.options.keyRight.setDown(false)
+                            client.options.keyLeft.setDown(false)
+                        }
+                        BridgeMode.BREEZILY -> {
+                            pressRight = false
+                            pressLeft = false
+                            client.options.keyUp.setDown(false)
+                            client.options.keyDown.setDown(true)
+                            client.options.keyRight.setDown(false)
+                            client.options.keyLeft.setDown(false)
+                        }
+                    }
+                }
+
+
+                ScaffoldState.UPSTACKING, ScaffoldState.TOWERING, ScaffoldState.NONE -> {
+                    breezilyStrafeTick = 0
+                    pressRight = false
+                    pressLeft = false
+                    if (scaffoldState == ScaffoldState.UPSTACKING) {
+                        if (!isDiagonal) {
+                            sidewaysBridge()
+                        }
+                        else {
                             client.options.keyUp.setDown(false)
                             client.options.keyDown.setDown(true)
                             client.options.keyRight.setDown(false)
@@ -171,53 +233,114 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                         client.options.keyLeft.setDown(false)
                     }
                 }
-                BridgeMode.BREEZILY -> {
-                    if (movingHoriz) {
-                        breezilyStrafeTick++
-                        val strafeRight = (breezilyStrafeTick / breezilyPeriod.value) % 2 == 0
-                        pressRight = strafeRight
-                        pressLeft  = !strafeRight
-                        client.options.keyUp.setDown(false)
-                        client.options.keyDown.setDown(true)
-                        client.options.keyRight.setDown(pressRight)
-                        client.options.keyLeft.setDown(pressLeft)
-                    } else {
-                        breezilyStrafeTick = 0
-                        client.options.keyUp.setDown(false)
-                        client.options.keyDown.setDown(false)
-                        client.options.keyRight.setDown(false)
-                        client.options.keyLeft.setDown(false)
-                    }
-                }
             }
 
             val aimYaw = Mth.wrapDegrees(targetCard + 180f)
 
-            val physicsYaw = when {
-                (bridgeMode.value == BridgeMode.NINJA) && pressRight ->
-                    Mth.wrapDegrees(targetCard - 135f)
-                (bridgeMode.value == BridgeMode.NINJA) && pressLeft ->
-                    Mth.wrapDegrees(targetCard + 135f)
-                else -> aimYaw
-            }
-
             val hasSideKey = pressRight || pressLeft
-            val aimPitch = when {
-                !movingHoriz && isJumping -> 90.0f
 
-                bridgeMode.value == BridgeMode.BREEZILY && movingHoriz ->
-                    79.9f
+            val aimPitch = when (scaffoldState) {
+                ScaffoldState.TOWERING -> 90.0f
 
-                movingHoriz  && isJumping -> if (isDiagonal || hasSideKey) 79.0f else 81.0f
-                else                      -> if (isDiagonal || hasSideKey) 78.0f else 80f
+                ScaffoldState.UPSTACKING -> 75.6f
+                    //if (isDiagonal || hasSideKey) 75.6f else 78.5f
+
+                ScaffoldState.DIAGONAL -> 75.6f
+
+                ScaffoldState.STRAIGHT -> when (bridgeMode.value) {
+                    BridgeMode.NINJA -> 78.0f
+                    BridgeMode.BREEZILY -> 79.9f
+                }
+
+                else -> if (isDiagonal || hasSideKey) 78.0f else 80f
             }
 
             RotationManager.setTargetRotation(aimYaw, aimPitch)
             ownsRotation = true
             RotationManager.quickTick(60f)
 
+            fun getForceEdgePlaceHit(): BlockHitResult? {
+                if (!player.onGround() && scaffoldState != ScaffoldState.UPSTACKING) {
+                    return null
+                }
+
+                val lookHit = client.hitResult as? BlockHitResult ?: return null
+                val world = client.level ?: return null
+
+                val hitPos = lookHit.blockPos
+                if (world.getBlockState(hitPos).isAir) return null
+
+                val face = lookHit.direction
+                if (
+                    (scaffoldState != ScaffoldState.UPSTACKING
+                            && !isDiagonal) &&
+                    face != Direction.NORTH &&
+                    face != Direction.SOUTH &&
+                    face != Direction.EAST &&
+                    face != Direction.WEST
+                ) {
+                    return null
+                }
+
+                val placePos = hitPos.relative(face)
+
+                if (!world.getBlockState(placePos).isAir) return null
+
+                val hitVec = Vec3(
+                    hitPos.x + 0.5 + face.stepX * 0.5,
+                    hitPos.y + 0.5 + face.stepY * 0.5,
+                    hitPos.z + 0.5 + face.stepZ * 0.5
+                )
+
+                return BlockHitResult(
+                    hitVec,
+                    face,
+                    hitPos,
+                    false
+                )
+            }
+
             val level = client.level
             if (level != null) {
+                fun getForceEdgePlaceHit(): BlockHitResult? {
+                    if (!player.onGround() && scaffoldState != ScaffoldState.UPSTACKING) {
+                        return null
+                    }
+
+                    val lookHit = client.hitResult as? BlockHitResult ?: return null
+
+                    val hitPos = lookHit.blockPos
+                    if (level.getBlockState(hitPos).isAir) return null
+
+                    val face = lookHit.direction
+                    if (
+                        (scaffoldState != ScaffoldState.UPSTACKING
+                                && !isDiagonal) &&
+                        face != Direction.NORTH &&
+                        face != Direction.SOUTH &&
+                        face != Direction.EAST &&
+                        face != Direction.WEST
+                    ) {
+                        return null
+                    }
+
+                    val placePos = hitPos.relative(face)
+
+                    if (!level.getBlockState(placePos).isAir) return null
+
+                    val hitVec = Vec3(
+                        hitPos.x + 0.5 + face.stepX * 0.5,
+                        hitPos.y + 0.5 + face.stepY * 0.5,
+                        hitPos.z + 0.5 + face.stepZ * 0.5
+                    )
+
+                    return BlockHitResult(
+                        hitVec,
+                        face,
+                        hitPos,
+                        false
+                    )
+                }
                 val stack = player.mainHandItem
                 if (stack.isEmpty || stack.item !is BlockItem) {
                     val slot = findBlockSlot(player)
@@ -230,7 +353,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                     }
                 }
 
-                val forceHit = getForceEdgePlaceHit(client, player)
+                val forceHit = getForceEdgePlaceHit()
                 if (forceHit != null) {
                     val result = client.gameMode?.useItemOn(
                         player,
@@ -257,42 +380,42 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 }
             }
 
-            when (bridgeMode.value) {
-                BridgeMode.NINJA -> {
-                    if (player.onGround()) {
-                        val nearEdge = isNearEdge(player, client.level!!)
+            // crouch walk
+            if (player.onGround()
+                && (
+                        (bridgeMode.value == BridgeMode.NINJA
+                                && (scaffoldState == ScaffoldState.STRAIGHT
+                                || scaffoldState == ScaffoldState.DIAGONAL)
+                             )
+                     || (scaffoldState == ScaffoldState.UPSTACKING
+                             )
+                )) {
+                val nearEdge = isNearEdge(player, client.level!!)
 
-                        if (nearEdge && !isCrouching) {
-                            isCrouching = true
-                            val (lo, hi) = crouchDelay.value
-                            val delayMs = if (hi > lo) (lo..hi).random() else lo
-                            crouchWaitTicks = (delayMs / 50).coerceAtLeast(1)
-                        }
-
-                        if (isCrouching) {
-                            client.options.keyShift.setDown(true)
-                            player.setShiftKeyDown(true)
-                            if (!nearEdge) crouchWaitTicks--
-                            if (crouchWaitTicks <= 0 && !nearEdge) isCrouching = false
-                        } else {
-                            val physicalShift = isPhysicalKeyDown(client.options.keyShift)
-                            client.options.keyShift.setDown(physicalShift)
-                            player.setShiftKeyDown(physicalShift)
-                        }
-                    } else {
-                        isCrouching = false
-                        crouchWaitTicks = 0
-                        client.options.keyShift.setDown(true)
-                        player.setShiftKeyDown(true)
-                    }
+                if (nearEdge && !isCrouching) {
+                    isCrouching = true
+                    val (lo, hi) = crouchDelay.value
+                    val delayMs = if (hi > lo) (lo..hi).random() else lo
+                    crouchWaitTicks = (delayMs / 50).coerceAtLeast(1)
                 }
-                BridgeMode.BREEZILY -> {
-                    isCrouching = false
-                    crouchWaitTicks = 0
+
+                if (isCrouching) {
+                    client.options.keyShift.setDown(true)
+                    player.setShiftKeyDown(true)
+                    if (!nearEdge) crouchWaitTicks--
+                    if (crouchWaitTicks <= 0 && !nearEdge) isCrouching = false
+                } else {
                     val physicalShift = isPhysicalKeyDown(client.options.keyShift)
                     client.options.keyShift.setDown(physicalShift)
                     player.setShiftKeyDown(physicalShift)
                 }
+            }
+            else {
+                isCrouching = false
+                crouchWaitTicks = 0
+                val physicalShift = isPhysicalKeyDown(client.options.keyShift)
+                client.options.keyShift.setDown(physicalShift)
+                player.setShiftKeyDown(physicalShift)
             }
         }
     }
@@ -326,48 +449,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         val pos = BlockPos(x, y, z)
         val state = world.getBlockState(pos)
         return !state.isAir && state.fluidState.isEmpty && state.isCollisionShapeFullBlock(world, pos)
-    }
-
-    private fun getForceEdgePlaceHit(
-        client: Minecraft,
-        player: LocalPlayer
-    ): BlockHitResult? {
-        if (!player.onGround()) {
-            return null
-        }
-
-        val lookHit = client.hitResult as? BlockHitResult ?: return null
-        val world = client.level ?: return null
-
-        val hitPos = lookHit.blockPos
-        if (world.getBlockState(hitPos).isAir) return null
-
-        val face = lookHit.direction
-        if (
-            face != Direction.NORTH &&
-            face != Direction.SOUTH &&
-            face != Direction.EAST &&
-            face != Direction.WEST
-        ) {
-            return null
-        }
-
-        val placePos = hitPos.relative(face)
-
-        if (!world.getBlockState(placePos).isAir) return null
-
-        val hitVec = Vec3(
-            hitPos.x + 0.5 + face.stepX * 0.5,
-            hitPos.y + 0.5 + face.stepY * 0.5,
-            hitPos.z + 0.5 + face.stepZ * 0.5
-        )
-
-        return BlockHitResult(
-            hitVec,
-            face,
-            hitPos,
-            false
-        )
     }
 
     override fun onDisabled() {
