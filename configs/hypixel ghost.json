@@ -138,10 +138,18 @@
   "Velocity": {
     "enabled": true,
     "keybind": -1,
-    "mode": "DELAY",
-    "reduce %": 100.0,
-    "reduce y %": 0.0,
+    "mode": "JUMP_RESET",
+    "modify %": 50.0,
+    "modify y %": 0.0,
+    "attack count": [
+      3,
+      3
+    ],
+    "range": 4.2352943,
+    "horizontal": 0.0,
+    "vertical": 1.0,
     "reverse %": 49.673203,
+    "reverse delay (ticks)": 2,
     "chance %": 70,
     "timing (ms)": [
       70,
@@ -198,7 +206,7 @@
     "on ground only": true
   },
   "Kb Delay": {
-    "enabled": false,
+    "enabled": true,
     "keybind": -1,
     "delay (ms)": [
       10,

@@ -93,7 +93,7 @@
     "enabled": true,
     "keybind": -1,
     "mode": "MANUAL",
-    "block chance (%)": 100.0,
+    "block chance (%)": 80.0,
     "block cps": 8.0,
     "range": 6.5,
     "max hold (ms)": 100,
@@ -103,7 +103,7 @@
     "damage window (ms)": 3000,
     "release (ms)": [
       1,
-      1
+      5
     ],
     "lag": true,
     "lag chance (%)": 100.0,
@@ -203,7 +203,7 @@
     "on ground only": false
   },
   "Kb Delay": {
-    "enabled": false,
+    "enabled": true,
     "keybind": -1,
     "delay (ms)": [
       10,
@@ -238,8 +238,8 @@
     "mode": "LAG",
     "delay (ms)": 350,
     "lag window (ms)": [
-      0,
-      123
+      185,
+      240
     ],
     "only players": true,
     "show esp": true,
@@ -457,17 +457,17 @@
       "chromaBrightness": 1.0
     },
     "color start": {
-      "value": "#FF580000",
+      "value": "#FFFF00FF",
       "mode": "CUSTOM",
-      "custom": "#FF580000",
+      "custom": "#FFFF00FF",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
     },
     "color end": {
-      "value": "#FFB30A0A",
-      "mode": "THEME",
-      "custom": "#FF500000",
+      "value": "#FF5A0AFF",
+      "mode": "CUSTOM",
+      "custom": "#FF5A0AFF",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
@@ -528,16 +528,13 @@
     "trigger": "ALWAYS",
     "blocks": 4.522876,
     "return to slot": true,
-    "telly": true,
+    "telly": false,
     "rotation speed": 112.09151,
     "Block Whitelist": {
       "mode": "WHITELIST",
       "filter": "BLOCKS_ONLY",
       "items": [
-        "red_terracotta",
-        "blue_terracotta",
         "stone",
-        "oak_planks",
         "wool_category"
       ]
     }
@@ -737,7 +734,7 @@
     "scan interval ms": 500
   },
   "Anti Fireball": {
-    "enabled": true,
+    "enabled": false,
     "keybind": -1,
     "angle limit": 180.0,
     "aim speed": 30.0,
@@ -793,7 +790,7 @@
   },
   "Party Games": {
     "enabled": false,
-    "keybind": -1,
+    "keybind": 89,
     "Animal Slaughter AIO": true,
     "Animal ESP": true,
     "Block wrong clicks": true,

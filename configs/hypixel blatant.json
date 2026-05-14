@@ -1,6 +1,6 @@
 {
   "Silent Aura": {
-    "enabled": false,
+    "enabled": true,
     "keybind": 70,
     "mode": "CPS",
     "targeting": "SWITCH",
@@ -116,7 +116,7 @@
     "slow down": true
   },
   "Hit Select": {
-    "enabled": false,
+    "enabled": true,
     "keybind": -1,
     "mode": "ACTIVE",
     "preference": "BURST",
@@ -128,7 +128,7 @@
     "hit later in trades (ms)": 0,
     "disable during knockback": false,
     "only while damaged": false,
-    "cancel rate (in combat) %": 80,
+    "cancel rate (in combat) %": 100,
     "cancel rate (missed) %": 0,
     "fake swing": false
   },
@@ -203,7 +203,7 @@
     "on ground only": false
   },
   "Kb Delay": {
-    "enabled": true,
+    "enabled": false,
     "keybind": -1,
     "delay (ms)": [
       205,
