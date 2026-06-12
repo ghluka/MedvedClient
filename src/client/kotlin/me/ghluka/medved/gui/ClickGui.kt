@@ -573,7 +573,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
         val listExp = expandedItemList
         if (listExp != null) {
-            val h = 220
+            val h = itemListDropdownHeight(listExp)
             if (mx in itemListDropdownX until itemListDropdownX + itemListDropdownW && my in itemListDropdownY until itemListDropdownY + h) {
                 if (handleItemListDropdownClick(listExp, itemListDropdownX, itemListDropdownY, itemListDropdownW, mx, my)) return true
             }
@@ -595,15 +595,15 @@ class ClickGui : Screen(Component.literal("Medved")) {
         val mx = mouseX.toInt(); val my = mouseY.toInt()
         val listExp = expandedItemList
         if (listExp != null) {
-            val x = itemListDropdownX; val y = itemListDropdownY; val w = itemListDropdownW; val h = 220
+            val x = itemListDropdownX
+            val y = itemListDropdownY
+            val w = itemListDropdownW
+            val h = itemListDropdownHeight(listExp)
             if (mx in x until x + w && my in y until y + h) {
-                val searchY = y + 18
-                val searchH = 14
-                val topY = searchY + searchH + 6
                 val iconSize = 16
-                val topBarHeight = iconSize
                 
-                if (my in topY until topY + topBarHeight) {
+                val addedStrip = itemListAddedStripYRange(y, listExp)
+                if (addedStrip != null && my in addedStrip) {
                     val totalAddedWidth = listExp.value.size * (iconSize + 6)
                     val topBarW = w - 12
                     val maxAddedScroll = (totalAddedWidth - topBarW).coerceAtLeast(0)
@@ -612,13 +612,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     return true
                 }
                 
-                val rowH = 18
-                val listY = topY + topBarHeight + 8
-                val items = getAllItems()
-                val q = itemListSearch.text.lowercase(java.util.Locale.getDefault())
-                val filtered = items.filter { (fname, item) -> q.isBlank() || fname.contains(q) || fname.replace('_', ' ').contains(q) }
-                val maxRows = ((y + h - listY - 6) / rowH).coerceAtLeast(1)
-                val maxScroll = (filtered.size - maxRows).coerceAtLeast(0)
+                val maxScroll = itemListMaxScroll(listExp)
 
                 val delta = scrollY.toInt()
                 itemListScroll = (itemListScroll - delta).coerceIn(0, maxScroll)

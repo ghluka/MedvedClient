@@ -263,8 +263,8 @@ internal object DropdownMode {
                         gui.enumDropdownW = ew
                     }
                     if (entry == gui.expandedItemList && entry is me.ghluka.medved.config.entry.ItemListEntry) {
-                        val iw = 240
-                        val rawX = px + 6
+                        val iw = 240.coerceAtMost(gui.width - 8)
+                        val rawX = px + 3
                         gui.itemListDropdownX = rawX.coerceAtMost(gui.width - iw)
                         gui.itemListDropdownY = y
                         gui.itemListDropdownW = iw

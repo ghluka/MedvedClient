@@ -7,6 +7,7 @@ import me.ghluka.medved.config.entry.IntEntry
 import me.ghluka.medved.config.entry.IntRangeEntry
 import me.ghluka.medved.gui.ClickGui
 import me.ghluka.medved.gui.components.*
+import me.ghluka.medved.util.CORNERS_LEFT
 import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
 import me.ghluka.medved.util.Text
@@ -38,8 +39,8 @@ internal object SidebarMode {
         val logoH = 24
         g.roundedFill(px, py, pw, ph, radius, gui.PNL_BG)
 
-        g.fill(px, py, px + pw, py + logoH, gui.shade(20, 0.15f))
-        g.TextCentered(smallFont, gui.styled("GRIZZLY"), px + pw / 2, py + (logoH - 8) / 2, gui.TEXT_DIM)
+        g.roundedFill(px, py, pw, logoH, radius, gui.shade(24, 0.16f), me.ghluka.medved.util.CORNERS_TOP)
+        g.TextCentered(smallFont, gui.styled("GRIZZLY"), px + pw / 2, py + (logoH - 8) / 2, gui.TEXT)
 
         val tabW = pw / 2
         val tabs = listOf("Modules", "Config")
@@ -48,34 +49,22 @@ internal object SidebarMode {
             val tx = px + i * tabW
             val tabSel = gui.sidebarTab == i
             val tabHov = mx in tx until tx + tabW && my in tabBarY until tabBarY + tabH
-            g.fill(
-                tx,
-                tabBarY,
-                tx + tabW,
-                tabBarY + tabH,
-                if (tabSel) gui.shade(30, 0.18f) else if (tabHov) gui.shade(25, 0.12f) else gui.shade(18, 0.08f),
-            )
-            if (tabSel) g.fill(tx, tabBarY + tabH - 2, tx + tabW, tabBarY + tabH, gui.ACCENT)
+            gui.drawRowSurface(g, tx, tabBarY, tabW, tabH, hovered = tabHov, selected = false)
             g.TextCentered(smallFont, gui.styled(tabName), tx + tabW / 2, tabBarY + (tabH - 8) / 2, if (tabSel) gui.TEXT else gui.TEXT_DIM)
         }
 
         if (gui.sidebarTab == 0) {
             val catAreaY = py + logoH + tabH
-            g.fill(px, catAreaY, contentX, py + ph, gui.shade(14, 0.06f))
+            g.fill(px, catAreaY, contentX, py + ph, gui.shade(16, 0.07f))
+            g.fill(contentX - 1, catAreaY + 8, contentX, py + ph - 8, gui.shade(255, 0.05f))
             var cy = catAreaY + 6
             val catPad = 2
             for (cat in me.ghluka.medved.module.Module.Category.entries) {
                 val rowH = 18
                 val catHov = mx in px until contentX && my in cy until cy + rowH
                 val catSel = gui.selectedCategory == cat
-                g.fill(
-                    px,
-                    cy,
-                    contentX,
-                    cy + rowH,
-                    if (catSel) gui.shade(35, 0.22f) else if (catHov) gui.shade(28, 0.14f) else gui.shade(14, 0.06f),
-                )
-                g.TextCentered(smallFont, gui.styled(cat.name), px + catW / 2, cy + (rowH - 8) / 2, if (catSel) WHITE else GREY)
+                gui.drawRowSurface(g, px + 5, cy, catW - 10, rowH, hovered = catHov, selected = catSel)
+                g.Text(smallFont, gui.styled(cat.name), px + 12, cy + (rowH - 8) / 2, if (catSel) WHITE else GREY)
                 cy += rowH + catPad
             }
         }
@@ -129,10 +118,7 @@ internal object SidebarMode {
                 ey += descH + 8
                 val tgX = bodyX + 8
                 val tgY = ey
-                val tgLabel = if (detailMod.isEnabled()) "ON" else "OFF"
-                val tgCol = if (detailMod.isEnabled()) gui.BTN_ON else gui.BTN_OFF
-                g.fill(tgX, tgY, tgX + 60, tgY + tgH, tgCol)
-                g.TextCentered(smallFont, gui.styled(tgLabel), tgX + 30, tgY + (tgH - 8) / 2, gui.TEXT)
+                gui.drawToggle(g, tgX, tgY + 2, detailMod.isEnabled())
                 ey += toggleH
 
                 val configRegionTop = ey
@@ -176,8 +162,9 @@ internal object SidebarMode {
                             entryY += gui.ENT_H
                         }
                         if (entry == gui.expandedColorEntry && entry is me.ghluka.medved.config.entry.ColorEntry) {
-                            gui.drawColorPicker(g, entry, bodyX + 6, entryY, bodyW - 8, mx, my)
-                            entryY += gui.colorPickerH
+                            gui.colorPickerX = bodyX + 6
+                            gui.colorPickerY = entryY
+                            gui.colorPickerW = bodyW - 8
                         }
                         if (entry == gui.expandedEnum && entry is me.ghluka.medved.config.entry.EnumEntry<*>) {
                             val ew = gui.enumDropdownWidth(entry)
@@ -186,7 +173,8 @@ internal object SidebarMode {
                             gui.enumDropdownW = ew
                         }
                         if (entry == gui.expandedItemList && entry is me.ghluka.medved.config.entry.ItemListEntry) {
-                            val iw = 240
+                            val maxW = (gui.width - 8).coerceAtLeast(120)
+                            val iw = (bodyW - 8).coerceIn(120, maxW)
                             val rawX = bodyX + 4
                             gui.itemListDropdownX = rawX.coerceAtMost(gui.width - iw)
                             gui.itemListDropdownY = entryY
@@ -241,21 +229,29 @@ internal object SidebarMode {
                         if (my2 > bodyY + 6 + bodyH) break
                         val mHov = mx in bodyX until bodyX + bodyW && my in my2 until my2 + cardH
                         if (mHov) gui.hoveredMod = mod
-                        g.roundedFill(bodyX + 4, my2, bodyW - 8, cardH, radius, if (mHov) gui.shade(38, 0.14f) else gui.shade(32, 0.09f))
-                        if (mod.isEnabled()) g.roundedFill(bodyX + 4, my2, 3, cardH, radius, gui.ACCENT, me.ghluka.medved.util.CORNERS_LEFT)
+                        val cardX = bodyX + 6
+                        val cardW = bodyW - 12
+                        g.roundedFill(cardX, my2, cardW, cardH, radius, if (mHov) gui.shade(42, 0.15f) else gui.shade(30, 0.10f))
+                        if (mod.isEnabled()) {
+                            g.roundedFill(cardX, my2, 3, cardH, radius, gui.ACCENT, CORNERS_LEFT)
+                            val accent = gui.ACCENT
+                            val r = (accent ushr 16) and 0xFF
+                            val green = (accent ushr 8) and 0xFF
+                            val b = accent and 0xFF
+                            g.roundedFill(cardX, my2, cardW, cardH, radius, gui.argb(18, r, green, b))
+                        }
                         val nameTopPad = 8
                         val nameBottomPad = 8
                         val descLineSpacing = (lineH * 1.3).toInt()
-                        g.Text(smallFont, gui.styled(mod.name), bodyX + 12, my2 + nameTopPad, WHITE)
+                        g.Text(smallFont, gui.styled(mod.name), cardX + 9, my2 + nameTopPad, WHITE)
                         descLines.forEachIndexed { i, line ->
-                            g.Text(smallFont, gui.styled(line), bodyX + 12, my2 + nameTopPad + lineH + nameBottomPad + i * descLineSpacing, GREY)
+                            g.Text(smallFont, gui.styled(line), cardX + 9, my2 + nameTopPad + lineH + nameBottomPad + i * descLineSpacing, GREY)
                         }
-                        val tgX = bodyX + bodyW - 44
-                        val tgY = my2 + cardH / 2 - 6
-                        g.fill(tgX, tgY, tgX + 32, tgY + 12, if (mod.isEnabled()) gui.BTN_ON else gui.BTN_OFF)
-                        g.TextCentered(smallFont, gui.styled(if (mod.isEnabled()) "ON" else "OFF"), tgX + 16, tgY + 2, gui.TEXT)
+                        val tgX = bodyX + bodyW - 37
+                        val tgY = my2 + cardH / 2 - 7
+                        gui.drawToggle(g, tgX, tgY, mod.isEnabled())
                         if (gui.configEntries(mod).isNotEmpty()) {
-                            g.Text(smallFont, gui.plain("..."), tgX - 14, my2 + cardH / 2 - 4, gui.TEXT_DIM)
+                            drawConfigIndicator(gui, g, tgX - 14, my2 + cardH / 2 - 4)
                         }
                         my2 += cardH + cardPad
                     }
@@ -265,7 +261,7 @@ internal object SidebarMode {
             var ey = bodyY + 6
             val visW = bodyW - 10
             val textX2 = bodyX + 5
-            g.fill(bodyX, ey, bodyX + bodyW, ey + gui.ENT_H, if (gui.presetFieldActive) gui.shade(40, 0.25f) else gui.ENT_BG)
+            gui.drawRowSurface(g, bodyX, ey, bodyW, selected = gui.presetFieldActive)
             g.fill(bodyX, ey, bodyX + bodyW, ey + 1, if (gui.presetFieldActive) gui.ACCENT else gui.shade(10, 0.05f))
             g.enableScissor(textX2, ey, textX2 + visW, ey + gui.ENT_H)
             if (gui.presetFieldActive && gui.presetField.hasSelection) {
@@ -285,22 +281,21 @@ internal object SidebarMode {
             for ((i, label2) in listOf("Save", "Load", "Folder").withIndex()) {
                 val bx2 = bodyX + i * btnW2
                 val bHov = mx in bx2 until bx2 + btnW2 && my in ey until ey + gui.MOD_H
-                g.fill(bx2, ey, bx2 + btnW2, ey + gui.MOD_H, if (bHov) gui.shade(50, 0.20f) else gui.BTN_BG)
+                gui.drawControlSurface(g, bx2 + 2, ey + 1, btnW2 - 4, gui.MOD_H - 2, hovered = bHov)
                 if (i < 2) g.fill(bx2 + btnW2 - 1, ey, bx2 + btnW2, ey + gui.MOD_H, gui.shade(10, 0.05f))
                 g.TextCentered(gui.guiFont, gui.styled(label2), bx2 + btnW2 / 2, ey + (gui.MOD_H - 8) / 2, gui.TEXT)
             }
             ey += gui.MOD_H
             val presets = me.ghluka.medved.config.ConfigManager.listPresets()
             if (presets.isEmpty()) {
-                g.fill(bodyX, ey, bodyX + bodyW, ey + gui.ENT_H, gui.ENT_BG)
+                gui.drawRowSurface(g, bodyX, ey, bodyW)
                 g.Text(gui.guiFont, gui.styled("(no presets saved)"), bodyX + 5, ey + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
             } else {
                 for (preset in presets) {
                     if (ey + gui.ENT_H > bodyY + bodyH) break
                     val pHov = mx in bodyX until bodyX + bodyW && my in ey until ey + gui.ENT_H
                     val pSel = preset == gui.presetField.text
-                    g.fill(bodyX, ey, bodyX + bodyW, ey + gui.ENT_H, if (pHov) gui.MOD_HOV else gui.ENT_BG)
-                    if (pSel) g.fill(bodyX, ey, bodyX + 3, ey + gui.ENT_H, gui.ACCENT)
+                    gui.drawRowSurface(g, bodyX, ey, bodyW, hovered = pHov, selected = pSel)
                     g.Text(gui.guiFont, gui.styled(preset), bodyX + 7, ey + (gui.ENT_H - 8) / 2, if (pSel) gui.TEXT else gui.TEXT_DIM)
                     ey += gui.ENT_H
                 }
@@ -630,5 +625,13 @@ internal object SidebarMode {
         }
 
         return true
+    }
+
+    private fun drawConfigIndicator(gui: ClickGui, g: GuiGraphicsExtractor, x: Int, y: Int) {
+        val color = gui.TEXT_DIM
+        g.fill(x, y + 1, x + 7, y + 2, color)
+        g.fill(x, y + 4, x + 7, y + 5, color)
+        g.fill(x + 1, y + 2, x + 3, y + 3, color)
+        g.fill(x + 4, y + 5, x + 6, y + 6, color)
     }
 }
