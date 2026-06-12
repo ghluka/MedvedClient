@@ -9,6 +9,8 @@ import com.mojang.blaze3d.vertex.PoseStack
 import me.ghluka.medved.module.modules.combat.AutoBlock
 import me.ghluka.medved.module.modules.combat.AutoBlock.canUseAsBlock
 import net.minecraft.client.player.AbstractClientPlayer
+import net.minecraft.tags.ItemTags
+import net.minecraft.world.item.ItemStack
 
 object Animations : Module(
     name = "Animations",
@@ -31,6 +33,9 @@ object Animations : Module(
     }
 
     val visualBlock = boolean("visual block", false)
+    val visualBlockSwords = boolean("visual block swords", false).also {
+        it.visibleWhen = { visualBlock.value }
+    }
 
     val mainHand = boolean("main hand", false)
     val mainHandScale = float("main hand scale", 0f, -5f, 5f).also { it.visibleWhen = { mainHand.value } }
@@ -49,6 +54,7 @@ object Animations : Module(
     val offHandRotZ = float("off hand rot z", 0f, -50f, 50f).also { it.visibleWhen = { offHand.value } }
 
     val swingDuration = int("swing duration", 6, 2, 20)
+    val cancelEquipProgress = boolean("cancel equip progress", true)
 
     fun applySwingOffset(matrices: PoseStack, arm: HumanoidArm, swingProgress: Float) {
         val armSide = if (arm == HumanoidArm.RIGHT) 1 else -1
@@ -114,10 +120,15 @@ object Animations : Module(
     private var wasBlocking = false
 
     @JvmStatic
+    fun shouldUseBlockAnimationItem(stack: ItemStack): Boolean =
+        stack.canUseAsBlock() || (visualBlock.value && visualBlockSwords.value && stack.`is`(ItemTags.SWORDS))
+
+    @JvmStatic
     fun shouldAnimateSwordBlock(entity: AbstractClientPlayer, swingProgress: Float): Boolean {
         if (!isEnabled()) return false
 
-        val hasBlockItem = entity.mainHandItem.canUseAsBlock() || entity.offhandItem.canUseAsBlock()
+        val hasBlockItem = shouldUseBlockAnimationItem(entity.mainHandItem) ||
+                shouldUseBlockAnimationItem(entity.offhandItem)
         if (!hasBlockItem) {
             wasBlocking = false
             return false

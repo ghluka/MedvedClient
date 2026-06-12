@@ -84,12 +84,26 @@ public class ItemInHandRendererMixin {
         matrices.mulPose(Axis.ZP.rotationDegrees(rotateZ));
     }
 
+    @ModifyVariable(method = "submitArmWithItem", at = @At("HEAD"), argsOnly = true, ordinal = 3)
+    private float medved$cancelEquipProgress(
+            float equipProgress,
+            @Local(argsOnly = true) AbstractClientPlayer player,
+            @Local(argsOnly = true) InteractionHand hand
+    ) {
+        if (Animations.INSTANCE.isEnabled()
+                && Animations.INSTANCE.getCancelEquipProgress().getValue()
+                && Animations.shouldUseBlockAnimationItem(player.getItemInHand(hand))) {
+            return 0.0f;
+        }
+        return equipProgress;
+    }
+
     @Inject(method = "submitArmWithItem",
             slice = @Slice(from = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;getUseAnimation()Lnet/minecraft/world/item/ItemUseAnimation;")),
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 0, shift = At.Shift.AFTER))
     private void transformBlockAnimation(
             AbstractClientPlayer player, float tickProgress, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, SubmitNodeCollector orderedRenderCommandQueue, int light, CallbackInfo ci) {
-        if (AutoBlock.INSTANCE.canUseAsBlock(player.getItemInHand(hand))) {
+        if (Animations.shouldUseBlockAnimationItem(player.getItemInHand(hand))) {
             var arm = hand == InteractionHand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
 
             if (Animations.INSTANCE.isEnabled()) {

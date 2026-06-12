@@ -88,18 +88,12 @@ object AutoBlock : Module(
 
     private var lastNearbyEntityMs = 0L
 
-    override fun isEnabled(): Boolean {
-        if (SilentAura.isEnabled()
-            && SilentAura.autoBlock.value
-        ) {
-            return true
-        }
-        return enabled.value
-    }
+    private fun isBehaviorActive(): Boolean =
+        enabled.value || (SilentAura.isEnabled() && SilentAura.autoBlock.value)
 
     init {
         AttackEntityCallback.EVENT.register { player, _, _, _, _ ->
-            if (player === Minecraft.getInstance().player && isEnabled()) {
+            if (player === Minecraft.getInstance().player && isBehaviorActive()) {
                 attackedThisTick = true
                 val stoppedLag = lagEnabled.value && preventDelayAttacks.value && isLagging
                 if (stoppedLag) {
@@ -130,13 +124,13 @@ object AutoBlock : Module(
             }
 
             if (isLagging && now >= lagUntilMs) {
-                val reblock = isEnabled() && lagEnabled.value && blockAgainImmediately.value
+                val reblock = isBehaviorActive() && lagEnabled.value && blockAgainImmediately.value
                 stopLag(reblock = reblock)
                 if (reblock) releaseUntilMs = 0L
             }
 
             val silentAuraAutoBlock = SilentAura.isEnabled() && SilentAura.autoBlock.value
-            val active = isEnabled()
+            val active = isBehaviorActive()
 
             if (!active && !silentAuraAutoBlock) {
                 forceRelease(client)

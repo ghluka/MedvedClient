@@ -1,16 +1,15 @@
 package me.ghluka.medved.module.modules.combat
 
-import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.world.Scaffold
 import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RotationManager
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
-import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.tags.ItemTags
 import net.minecraft.util.Mth
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.TridentItem
@@ -98,13 +97,17 @@ object SilentAura : Module(
                             TargetFilter.isValidTarget(player, e) &&
                             (!visibilityCheck.value || player.hasLineOfSight(e))
                 }
+                .filter { e ->
+                    val (yaw, pitch) = calcRotation(player, e)
+                    Mth.abs(Mth.wrapDegrees(yaw - player.yRot)) <= halfFov &&
+                            Mth.abs(Mth.wrapDegrees(pitch - player.xRot)) <= halfFov
+                }
 
             val bestTarget = candidates.minByOrNull { e ->
                 val (yaw, pitch) = calcRotation(player, e)
                 val dy = Mth.wrapDegrees(yaw - player.yRot)
                 val dp = Mth.wrapDegrees(pitch - player.xRot)
-                if (Mth.abs(dy) > halfFov || Mth.abs(dp) > halfFov) 1000f
-                else sqrt((dy * dy + dp * dp).toDouble()).toFloat()
+                sqrt((dy * dy + dp * dp).toDouble()).toFloat()
             }
 
             if (targetMode.value == TargetMode.SINGLE && target != null && candidates.contains(target)) {
@@ -124,6 +127,11 @@ object SilentAura : Module(
                 }
             }
 
+            val currentTarget = target ?: return@register
+            if (!canUseAuraRotation()) return@register
+            updateAuraRotation(player, currentTarget)
+            if (!isAimedAtTarget(player, currentTarget, maxRange)) return@register
+
             when (mode.value) {
                 Mode.CPS -> {
                     accumulator += targetCps / 20.0f
@@ -135,10 +143,14 @@ object SilentAura : Module(
                 }
 
                 Mode.SEQUENTIAL -> {
-                    if (player.getAttackStrengthScale(0.5f - seqDelayTicks.toFloat()) >= 1.0f) {
+                    if (seqDelayTicks > 0) {
+                        seqDelayTicks--
+                        return@register
+                    }
+                    if (player.getAttackStrengthScale(0.5f) >= 1.0f) {
                         performNormalAttack(client)
                         val (lo, hi) = extraDelay.value
-                        seqDelayTicks = if (hi > lo) (lo..hi).random() else lo
+                        seqDelayTicks = (if (hi > lo) (lo..hi).random() else lo).coerceAtLeast(0)
                     }
                 }
             }
@@ -146,11 +158,13 @@ object SilentAura : Module(
     }
 
     private fun performNormalAttack(client: Minecraft) {
+        val player = client.player ?: return
+        val currentTarget = target ?: return
         if (autoBlock.value) {
             AutoBlock.prepareAuraSwing(client)
         }
-        val attackKey = InputConstants.getKey(client.options.keyAttack.saveString())
-        KeyMapping.click(attackKey)
+        client.gameMode?.attack(player, currentTarget)
+        player.swing(InteractionHand.MAIN_HAND)
         attackedThisTick = true
     }
 
@@ -158,20 +172,15 @@ object SilentAura : Module(
         val player = Minecraft.getInstance().player ?: return
         val currentTarget = target ?: return
 
-        if ((Scaffold.isEnabled() && RotationManager.isActive()) ||
-            me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld ||
-            (me.ghluka.medved.module.modules.world.BedBreaker.isEnabled() && me.ghluka.medved.module.modules.world.BedBreaker.pendingHitPos != null) ||
-            (me.ghluka.medved.module.modules.world.ChestAura.isEnabled() && RotationManager.isActive()) ||
-            me.ghluka.medved.module.modules.world.Clutch.isActivelyPlacing) {
+        if (!canUseAuraRotation()) {
             return
         }
 
-        val (targetYaw, baseTargetPitch) = calcRotation(player, currentTarget)
+        updateAuraRotation(player, currentTarget)
+    }
 
-        val time = System.currentTimeMillis()
-        val pitchJitter = (kotlin.math.sin(time / 150.0) * 1.5).toFloat()
-        val targetPitch = baseTargetPitch + pitchJitter
-
+    private fun updateAuraRotation(player: Player, currentTarget: LivingEntity) {
+        val (targetYaw, targetPitch) = calcRotation(player, currentTarget)
         RotationManager.perspective = true
         RotationManager.movementMode = RotationManager.MovementMode.CLIENT
         RotationManager.rotationMode  = RotationManager.RotationMode.CLIENT
@@ -179,6 +188,18 @@ object SilentAura : Module(
         RotationManager.setTargetRotation(targetYaw, targetPitch)
         ownsRotation = true
         RotationManager.quickTick(smoothSpeed.value)
+    }
+
+    private fun canUseAuraRotation(): Boolean =
+        !((Scaffold.isEnabled() && RotationManager.isActive()) ||
+                me.ghluka.medved.module.modules.combat.KnockbackDisplacement.rotationHeld ||
+                (me.ghluka.medved.module.modules.world.BedBreaker.isEnabled() && me.ghluka.medved.module.modules.world.BedBreaker.pendingHitPos != null) ||
+                (me.ghluka.medved.module.modules.world.ChestAura.isEnabled() && RotationManager.isActive()) ||
+                me.ghluka.medved.module.modules.world.Clutch.isActivelyPlacing)
+
+    private fun isAimedAtTarget(player: Player, currentTarget: LivingEntity, maxRange: Double): Boolean {
+        val hit = entityRaycast(player, maxRange) { it === currentTarget } ?: return false
+        return hit.entity === currentTarget
     }
 
     private fun calcRotation(player: Player, t: LivingEntity): Pair<Float, Float> {

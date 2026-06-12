@@ -1,18 +1,15 @@
 package me.ghluka.medved.module.modules.combat
 
-import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
-import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.tags.ItemTags
 import net.minecraft.world.item.TridentItem
-import net.minecraft.world.phys.HitResult
 
 object TriggerBot : Module(
     "Trigger Bot", 
@@ -38,11 +35,12 @@ object TriggerBot : Module(
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
         if (client.gui.screen() != null) return
+        if (seqDelayTicks > 0) {
+            seqDelayTicks--
+            return
+        }
 
-        val hitResult = client.hitResult ?: return
-        if (hitResult.type != HitResult.Type.ENTITY) return
-
-        val entityHit = hitResult as EntityHitResult
+        val entityHit = entityRaycast(player, range.value.toDouble()) ?: return
         val target = entityHit.entity
 
         if (target !is LivingEntity) return
@@ -65,13 +63,12 @@ object TriggerBot : Module(
             }
         }
 
-        if (player.getAttackStrengthScale(0.5f - seqDelayTicks.toFloat()) >= 1.0f) {
-            val attackKey = InputConstants.getKey(client.options.keyAttack.saveString())
-            KeyMapping.click(attackKey)
-            client.options.keyAttack.setDown(false)
+        if (player.getAttackStrengthScale(0.5f) >= 1.0f) {
+            client.gameMode?.attack(player, target)
+            player.swing(InteractionHand.MAIN_HAND)
             
             val (lo, hi) = extraDelay.value
-            seqDelayTicks = if (hi > lo) (lo..hi).random() else lo
+            seqDelayTicks = (if (hi > lo) (lo..hi).random() else lo).coerceAtLeast(0)
         }
     }
 }
