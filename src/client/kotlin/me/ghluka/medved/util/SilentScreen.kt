@@ -24,7 +24,7 @@ class SilentScreen(val wrapped: Screen) : Screen(
     override fun added() {
         wrapped.added()
         minecraft.execute {
-            if (minecraft.screen === this) {
+            if (minecraft.gui.screen() === this) {
                 minecraft.mouseHandler.grabMouse()
             }
         }

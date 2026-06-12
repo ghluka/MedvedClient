@@ -106,7 +106,7 @@ object ComboTap : Module(
 
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
-        if (client.screen != null) { resetInputFlags(); return }
+        if (client.gui.screen() != null) { resetInputFlags(); return }
 
         val now = System.currentTimeMillis()
         resetInputFlags()
@@ -126,7 +126,7 @@ object ComboTap : Module(
     }
 
     private fun applyKeyStates(client: Minecraft) {
-        if (client.screen != null) return
+        if (client.gui.screen() != null) return
         val options = client.options
 
         if (suppressForward) {

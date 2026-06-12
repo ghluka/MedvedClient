@@ -36,7 +36,7 @@ public class ItemInHandRendererMixin {
     @Final
     private static float ITEM_POS_Y;
     
-    @Inject(method = "renderArmWithItem", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", shift = At.Shift.AFTER))
+    @Inject(method = "submitArmWithItem", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", shift = At.Shift.AFTER))
     private void hookRenderFirstPersonItem(
             AbstractClientPlayer player, float tickProgress, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, SubmitNodeCollector orderedRenderCommandQueue, int light, CallbackInfo ci) {
         if (Animations.INSTANCE.isEnabled()) {
@@ -84,7 +84,7 @@ public class ItemInHandRendererMixin {
         matrices.mulPose(Axis.ZP.rotationDegrees(rotateZ));
     }
 
-    @Inject(method = "renderArmWithItem",
+    @Inject(method = "submitArmWithItem",
             slice = @Slice(from = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;getUseAnimation()Lnet/minecraft/world/item/ItemUseAnimation;")),
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 0, shift = At.Shift.AFTER))
     private void transformBlockAnimation(
@@ -101,7 +101,7 @@ public class ItemInHandRendererMixin {
         }
     }
 
-    @ModifyExpressionValue(method = "renderArmWithItem", at = @At(
+    @ModifyExpressionValue(method = "submitArmWithItem", at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/world/item/ItemStack;getUseAnimation()Lnet/minecraft/world/item/ItemUseAnimation;",
             ordinal = 0
@@ -113,7 +113,7 @@ public class ItemInHandRendererMixin {
         return original;
     }
 
-    @ModifyExpressionValue(method = "renderArmWithItem", at = @At(
+    @ModifyExpressionValue(method = "submitArmWithItem", at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/player/AbstractClientPlayer;isUsingItem()Z",
             ordinal = 1
@@ -126,7 +126,7 @@ public class ItemInHandRendererMixin {
         return original;
     }
 
-    @ModifyExpressionValue(method = "renderArmWithItem", at = @At(
+    @ModifyExpressionValue(method = "submitArmWithItem", at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/player/AbstractClientPlayer;getUsedItemHand()Lnet/minecraft/world/InteractionHand;",
             ordinal = 1
@@ -139,7 +139,7 @@ public class ItemInHandRendererMixin {
         return original;
     }
 
-    @ModifyExpressionValue(method = "renderArmWithItem", at = @At(
+    @ModifyExpressionValue(method = "submitArmWithItem", at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/player/AbstractClientPlayer;getUseItemRemainingTicks()I",
             ordinal = 2

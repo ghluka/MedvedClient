@@ -83,7 +83,7 @@ object SilentAura : Module(
             if (!isEnabled()) return@register
             val player = client.player ?: return@register
             val level = client.level ?: return@register
-            if (client.screen != null) return@register
+            if (client.gui.screen() != null) return@register
 
             val maxRange = range.value.toDouble()
             val halfFov = fov.value / 2f

@@ -49,7 +49,7 @@ object LeftClicker : Module(
 
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
-        if (client.screen != null) return
+        if (client.gui.screen() != null) return
 
         if (!client.options.keyAttack.isDown) return
 

@@ -144,7 +144,7 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
     }
 
     private fun projectToScreen(entity: LivingEntity, mc: Minecraft): Pair<Float, Float>? {
-        val camera = mc.gameRenderer.mainCamera
+        val camera = mc.gameRenderer.mainCamera()
         val camPos = camera.position()
 
         val wx = entity.x - camPos.x

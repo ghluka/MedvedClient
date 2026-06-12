@@ -20,7 +20,7 @@ object ModuleManager {
             modules.forEach { it.dispatchTick(client) }
         }
 
-        LevelRenderEvents.END_MAIN.register { ctx ->
+        LevelRenderEvents.COLLECT_SUBMITS.register { ctx ->
             ConfigManager.refreshDynamicColors()
             modules.forEach { it.dispatchLevelRender(ctx) }
         }
@@ -28,7 +28,7 @@ object ModuleManager {
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("medved", "modules"),
             HudElement { extractor, delta ->
-                if (Minecraft.getInstance().screen?.javaClass?.name != "me.ghluka.medved.gui.ClickGui")
+                if (Minecraft.getInstance().gui.screen()?.javaClass?.name != "me.ghluka.medved.gui.ClickGui")
                     modules.forEach { it.dispatchHudRender(extractor, delta) }
             }
         )

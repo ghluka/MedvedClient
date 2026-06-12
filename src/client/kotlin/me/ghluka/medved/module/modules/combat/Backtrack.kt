@@ -180,29 +180,27 @@ object Backtrack : Module("Backtrack", "Delays enemy position updates to hit pla
             val bLine = tracerColor.value.b / 255f
             val aLine = tracerColor.value.a / 255f
 
-            // Fill
             val fillRT = RenderUtil.ESP_FILLED
-            val vcFill = buf.getBuffer(fillRT)
-            for ((_, realBox) in entries) {
-                RenderUtil.boxFilledBothSides(vcFill, pose, realBox, rEsp, gEsp, bEsp, aEsp)
+            buf.draw(fillRT) { drawPose, vc ->
+                for ((_, realBox) in entries) {
+                    RenderUtil.boxFilledBothSides(vc, drawPose, realBox, rEsp, gEsp, bEsp, aEsp)
+                }
             }
-            buf.endBatch(fillRT)
 
-            // Outline & Tracer
             val lineRT = RenderUtil.ESP_LINES
-            val vcLines = buf.getBuffer(lineRT)
-            for ((frozenBox, realBox) in entries) {
-                RenderUtil.boxOutline(vcLines, pose, realBox, rEsp, gEsp, bEsp, aEsp, 1.0f)
-                val fc = frozenBox.center
-                val rc = realBox.center
-                RenderUtil.line(
-                    vcLines, pose,
-                    fc.x.toFloat(), fc.y.toFloat(), fc.z.toFloat(),
-                    rc.x.toFloat(), rc.y.toFloat(), rc.z.toFloat(),
-                    rLine, gLine, bLine, aLine, 1.0f
-                )
+            buf.draw(lineRT) { drawPose, vc ->
+                for ((frozenBox, realBox) in entries) {
+                    RenderUtil.boxOutline(vc, drawPose, realBox, rEsp, gEsp, bEsp, aEsp, 1.0f)
+                    val fc = frozenBox.center
+                    val rc = realBox.center
+                    RenderUtil.line(
+                        vc, drawPose,
+                        fc.x.toFloat(), fc.y.toFloat(), fc.z.toFloat(),
+                        rc.x.toFloat(), rc.y.toFloat(), rc.z.toFloat(),
+                        rLine, gLine, bLine, aLine, 1.0f
+                    )
+                }
             }
-            buf.endBatch(lineRT)
         }
     }
 

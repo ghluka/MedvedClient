@@ -7,7 +7,6 @@ import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.util.RenderUtil
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.world.entity.LivingEntity
 import kotlin.math.cos
@@ -47,19 +46,17 @@ object RiceFarmer : Module(
 
         val partialTick = mc.deltaTracker.getGameTimeDeltaPartialTick(true)
 
-        RenderUtil.worldContext(ctx) { pose, bufferSource ->
-            drawChinaHat(player, partialTick, pose, bufferSource)
+        RenderUtil.worldContext(ctx) { _, stack, bufferSource ->
+            drawHat(player, partialTick, stack, bufferSource)
         }
     }
 
-    private fun drawChinaHat(
+    private fun drawHat(
         entity: LivingEntity,
         partialTick: Float,
-        ctxPose: PoseStack.Pose,
-        bufferSource: MultiBufferSource.BufferSource
+        stack: PoseStack,
+        bufferSource: RenderUtil.GeometrySink
     ) {
-        val mc = Minecraft.getInstance()
-
         val ex = entity.xOld + (entity.x - entity.xOld) * partialTick
         val ey = entity.yOld + (entity.y - entity.yOld) * partialTick
         val ez = entity.zOld + (entity.z - entity.zOld) * partialTick
@@ -67,82 +64,70 @@ object RiceFarmer : Module(
         val yOffset = entity.bbHeight + pos.value - (if (entity.isCrouching) 0.23 else 0.0)
 
         val yaw = ((entity.tickCount + partialTick) * rotSpeed.value - 90f).toFloat()
-        val camYaw = -(mc.player!!.yBodyRotO + (mc.player!!.yBodyRot - mc.player!!.yBodyRotO) * partialTick)
 
         val r = radius.value
         val n = angles.value
+        val apex = getColor(0.0, n.toDouble(), true)
+        val rimColors = Array(n + 2) { getColor(it.toDouble(), n.toDouble(), false) }
 
-        val stack = PoseStack()
-        stack.last().pose().set(ctxPose.pose())
-        stack.last().normal().set(ctxPose.normal())
         stack.pushPose()
         stack.translate(ex, ey + yOffset, ez)
         stack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(yaw))
-        stack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(camYaw))
-        val localPose = stack.last()
 
-        // cone face
-        val filledVC = bufferSource.getBuffer(RenderTypes.debugFilledBox())
         val apexAlpha = if (shade.value) 0.8f else 0.5f
         val hy = height.value.toFloat()
 
-        for (j in 0 until n) {
-            val angle0 = j * Math.PI / (n / 2.0)
-            val angle1 = (j + 1) * Math.PI / (n / 2.0)
+        bufferSource.draw(RenderTypes.debugFilledBox()) { pose, vc ->
+            for (j in 0 until n) {
+                val angle0 = j * Math.PI / (n / 2.0)
+                val angle1 = (j + 1) * Math.PI / (n / 2.0)
 
-            val apex = getColor(0.0, n.toDouble(), true)
-            val c0   = getColor(j.toDouble(), n.toDouble(), false)
-            val c1   = getColor((j + 1).toDouble(), n.toDouble(), false)
+                val c0 = rimColors[j]
+                val c1 = rimColors[j + 1]
 
-            val rx0 = (cos(angle0) * r).toFloat()
-            val rz0 = (sin(angle0) * r).toFloat()
-            val rx1 = (cos(angle1) * r).toFloat()
-            val rz1 = (sin(angle1) * r).toFloat()
+                val rx0 = (cos(angle0) * r).toFloat()
+                val rz0 = (sin(angle0) * r).toFloat()
+                val rx1 = (cos(angle1) * r).toFloat()
+                val rz1 = (sin(angle1) * r).toFloat()
 
-            // front face
-            filledVC.addVertex(localPose, 0f,  hy,  0f).setColor(apex.r / 255f, apex.g / 255f, apex.b / 255f, apexAlpha)
-            filledVC.addVertex(localPose, rx0, 0f, rz0).setColor(c0.r / 255f,   c0.g / 255f,   c0.b / 255f,   0.3f)
-            filledVC.addVertex(localPose, rx1, 0f, rz1).setColor(c1.r / 255f,   c1.g / 255f,   c1.b / 255f,   0.3f)
-            filledVC.addVertex(localPose, 0f,  hy,  0f).setColor(apex.r / 255f, apex.g / 255f, apex.b / 255f, apexAlpha)
+                vc.addVertex(pose, 0f,  hy,  0f).setColor(apex.r / 255f, apex.g / 255f, apex.b / 255f, apexAlpha)
+                vc.addVertex(pose, rx0, 0f, rz0).setColor(c0.r / 255f,   c0.g / 255f,   c0.b / 255f,   0.3f)
+                vc.addVertex(pose, rx1, 0f, rz1).setColor(c1.r / 255f,   c1.g / 255f,   c1.b / 255f,   0.3f)
+                vc.addVertex(pose, 0f,  hy,  0f).setColor(apex.r / 255f, apex.g / 255f, apex.b / 255f, apexAlpha)
 
-            // back face
-            filledVC.addVertex(localPose, 0f,  hy,  0f).setColor(apex.r / 255f, apex.g / 255f, apex.b / 255f, apexAlpha)
-            filledVC.addVertex(localPose, rx1, 0f, rz1).setColor(c1.r / 255f,   c1.g / 255f,   c1.b / 255f,   0.3f)
-            filledVC.addVertex(localPose, rx0, 0f, rz0).setColor(c0.r / 255f,   c0.g / 255f,   c0.b / 255f,   0.3f)
-            filledVC.addVertex(localPose, 0f,  hy,  0f).setColor(apex.r / 255f, apex.g / 255f, apex.b / 255f, apexAlpha)
+                vc.addVertex(pose, 0f,  hy,  0f).setColor(apex.r / 255f, apex.g / 255f, apex.b / 255f, apexAlpha)
+                vc.addVertex(pose, rx1, 0f, rz1).setColor(c1.r / 255f,   c1.g / 255f,   c1.b / 255f,   0.3f)
+                vc.addVertex(pose, rx0, 0f, rz0).setColor(c0.r / 255f,   c0.g / 255f,   c0.b / 255f,   0.3f)
+                vc.addVertex(pose, 0f,  hy,  0f).setColor(apex.r / 255f, apex.g / 255f, apex.b / 255f, apexAlpha)
+            }
         }
 
-        bufferSource.endBatch(RenderTypes.debugFilledBox())
+        bufferSource.draw(RenderTypes.lines()) { pose, vc ->
+            for (i in 0..n) {
+                val angle0 = i * Math.PI / (n / 2.0)
+                val angle1 = (i + 1) * Math.PI / (n / 2.0)
+                val c0 = rimColors[i]
+                val c1 = rimColors[i + 1]
 
-        // rim outline
-        val linesVC = bufferSource.getBuffer(RenderTypes.lines())
+                val x0 = (cos(angle0) * r).toFloat()
+                val z0 = (sin(angle0) * r).toFloat()
+                val x1 = (cos(angle1) * r).toFloat()
+                val z1 = (sin(angle1) * r).toFloat()
 
-        for (i in 0..n) {
-            val angle0 = i * Math.PI / (n / 2.0)
-            val angle1 = (i + 1) * Math.PI / (n / 2.0)
-            val c0 = getColor(i.toDouble(), n.toDouble(), false)
-            val c1 = getColor((i + 1).toDouble(), n.toDouble(), false)
+                val nx = (x1 - x0); val nz = (z1 - z0)
+                val len = kotlin.math.sqrt(nx * nx + nz * nz).coerceAtLeast(0.001f)
 
-            val x0 = (cos(angle0) * r).toFloat()
-            val z0 = (sin(angle0) * r).toFloat()
-            val x1 = (cos(angle1) * r).toFloat()
-            val z1 = (sin(angle1) * r).toFloat()
+                vc.addVertex(pose, x0, 0f, z0)
+                    .setColor(c0.r / 255f, c0.g / 255f, c0.b / 255f, 0.5f)
+                    .setNormal(pose, nx / len, 0f, nz / len)
+                    .setLineWidth(1.5f)
 
-            val nx = (x1 - x0); val nz = (z1 - z0)
-            val len = kotlin.math.sqrt(nx * nx + nz * nz).coerceAtLeast(0.001f)
-
-            linesVC.addVertex(localPose, x0, 0f, z0)
-                .setColor(c0.r / 255f, c0.g / 255f, c0.b / 255f, 0.5f)
-                .setNormal(localPose, nx / len, 0f, nz / len)
-                .setLineWidth(1.5f)
-
-            linesVC.addVertex(localPose, x1, 0f, z1)
-                .setColor(c1.r / 255f, c1.g / 255f, c1.b / 255f, 0.5f)
-                .setNormal(localPose, nx / len, 0f, nz / len)
-                .setLineWidth(1.5f)
+                vc.addVertex(pose, x1, 0f, z1)
+                    .setColor(c1.r / 255f, c1.g / 255f, c1.b / 255f, 0.5f)
+                    .setNormal(pose, nx / len, 0f, nz / len)
+                    .setLineWidth(1.5f)
+            }
         }
-
-        bufferSource.endBatch(RenderTypes.lines())
 
         stack.popPose()
     }

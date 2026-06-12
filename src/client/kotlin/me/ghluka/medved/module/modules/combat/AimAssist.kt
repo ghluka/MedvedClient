@@ -71,7 +71,7 @@ object AimAssist : Module(
         val client = Minecraft.getInstance()
         val player = Minecraft.getInstance().player ?: return
         val level  = Minecraft.getInstance().level  ?: return
-        if (Minecraft.getInstance().screen != null) {
+        if (Minecraft.getInstance().gui.screen() != null) {
             clearAssist()
             return
         }

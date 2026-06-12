@@ -8,7 +8,7 @@ object GuiConfig : Config("gui") {
     val openKey = keybind("open_key", GLFW.GLFW_KEY_RIGHT_SHIFT)
         .onPress {
             val mc = Minecraft.getInstance()
-            if (mc.screen is ClickGui) mc.setScreen(null)
-            else if (mc.screen == null) mc.setScreen(ClickGui())
+            if (mc.gui.screen() is ClickGui) mc.gui.setScreen(null)
+            else if (mc.gui.screen() == null) mc.gui.setScreen(ClickGui())
         }
 }

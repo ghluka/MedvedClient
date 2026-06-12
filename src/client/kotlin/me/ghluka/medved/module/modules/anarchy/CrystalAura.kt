@@ -145,7 +145,7 @@ object CrystalAura : Module(
             val client = Minecraft.getInstance()
             val player = client.player ?: return@register
             val level = client.level ?: return@register
-            if (client.screen != null) return@register
+            if (client.gui.screen() != null) return@register
 
             val maxRange = range.value.toDouble()
             var targetBlock: BlockPos? = null

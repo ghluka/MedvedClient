@@ -42,7 +42,7 @@ object AutoPlace : Module(
             armUseNextTick = false
             return
         }
-        if (client.screen != null) {
+        if (client.gui.screen() != null) {
             armUseNextTick = false
             return
         }

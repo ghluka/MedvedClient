@@ -97,7 +97,7 @@ object InventoryManager : Module(
     override fun onTick(client: Minecraft) {
         val player = client.player ?: return
         val gameMode = client.gameMode ?: return
-        val screenOpen = client.screen is SilentScreen || client.screen is InventoryScreen
+        val screenOpen = client.gui.screen() is SilentScreen || client.gui.screen() is InventoryScreen
 
         if (openedByModule && !screenOpen) {
             openedByModule = false
@@ -107,9 +107,9 @@ object InventoryManager : Module(
         if (now < nextActionTime) return
 
         if (mode.value == Mode.ALWAYS && !screenOpen) {
-            if (client.screen != null) return
+            if (client.gui.screen() != null) return
             if (inventoryFullPercent(player) >= activateOnPercent.value && hasWork(player)) {
-                client.setScreen(SilentScreen(InventoryScreen(player)))
+                client.gui.setScreen(SilentScreen(InventoryScreen(player)))
                 openedByModule = true
                 setDelay()
             }
@@ -236,15 +236,15 @@ object InventoryManager : Module(
         }
 
         if (openedByModule) {
-            client.setScreen(null)
+            client.gui.setScreen(null)
             openedByModule = false
         }
     }
 
     override fun onDisabled() {
         val mc = Minecraft.getInstance()
-        if (openedByModule && (mc.screen is SilentScreen || mc.screen is InventoryScreen)) {
-            mc.setScreen(null)
+        if (openedByModule && (mc.gui.screen() is SilentScreen || mc.gui.screen() is InventoryScreen)) {
+            mc.gui.setScreen(null)
         }
         openedByModule = false
     }

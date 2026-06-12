@@ -23,7 +23,7 @@ object AutoTotem : Module("Auto Totem", "Automatically equips totems of undying 
         val player = client.player ?: return
         val gameMode = client.gameMode ?: return
 
-        if (pendingSwapSlot != null && (client.screen is SilentScreen || client.screen is InventoryScreen)) {
+        if (pendingSwapSlot != null && (client.gui.screen() is SilentScreen || client.gui.screen() is InventoryScreen)) {
             val now = System.currentTimeMillis()
             if (now < nextActionTime) return
 
@@ -41,7 +41,7 @@ object AutoTotem : Module("Auto Totem", "Automatically equips totems of undying 
         }
 
         if (openedByModule) {
-            if (client.screen !is SilentScreen && client.screen !is InventoryScreen) {
+            if (client.gui.screen() !is SilentScreen && client.gui.screen() !is InventoryScreen) {
                 openedByModule = false
                 pendingSwapSlot = null
                 return
@@ -50,7 +50,7 @@ object AutoTotem : Module("Auto Totem", "Automatically equips totems of undying 
                 closeTicksLeft -= 1
                 return
             } else {
-                client.setScreen(null)
+                client.gui.setScreen(null)
                 openedByModule = false
                 return
             }
@@ -76,7 +76,7 @@ object AutoTotem : Module("Auto Totem", "Automatically equips totems of undying 
         }
 
         when {
-            client.screen is SilentScreen || client.screen is InventoryScreen -> {
+            client.gui.screen() is SilentScreen || client.gui.screen() is InventoryScreen -> {
                 gameMode.handleContainerInput(
                     player.inventoryMenu.containerId,
                     chosenInvSlot,
@@ -86,9 +86,9 @@ object AutoTotem : Module("Auto Totem", "Automatically equips totems of undying 
                 )
                 setDelay()
             }
-            client.screen != null -> return
+            client.gui.screen() != null -> return
             openInventory.value -> {
-                client.setScreen(SilentScreen(InventoryScreen(player)))
+                client.gui.setScreen(SilentScreen(InventoryScreen(player)))
                 openedByModule = true
                 pendingSwapSlot = chosenInvSlot
                 setDelay()

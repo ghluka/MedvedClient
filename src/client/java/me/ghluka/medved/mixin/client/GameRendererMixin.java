@@ -17,7 +17,7 @@ public class GameRendererMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
 
         if (RotationManager.perspective && camera.entity() instanceof LocalPlayer) {
             CameraOverriddenEntity e = (CameraOverriddenEntity) camera.entity();

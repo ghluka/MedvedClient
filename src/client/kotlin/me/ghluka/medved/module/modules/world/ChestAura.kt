@@ -34,7 +34,7 @@ object ChestAura : Module(
         ClientTickEvents.START_CLIENT_TICK.register {
             val client = Minecraft.getInstance()
             if (clearRotationNextTick) {
-                if (client.screen == null) {
+                if (client.gui.screen() == null) {
                     RotationManager.clearRotation()
                     clearRotationNextTick = false
                 }

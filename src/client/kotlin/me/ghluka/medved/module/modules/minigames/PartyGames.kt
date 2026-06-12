@@ -103,6 +103,16 @@ object PartyGames : Module(
         val level  = mc.level  ?: return
 
         RenderUtil.worldContext(ctx) { ctxPose, _, bufferSource ->
+            fun drawBox(box: AABB, col: Color, fillAlpha: Float, outlineAlpha: Float, lineWidth: Float) {
+                val r = col.r / 255f; val g = col.g / 255f; val b = col.b / 255f
+                bufferSource.draw(RenderUtil.ESP_FILLED) { pose, vc ->
+                    RenderUtil.boxFilledBothSides(vc, pose, box, r, g, b, fillAlpha)
+                }
+                bufferSource.draw(RenderUtil.ESP_LINES) { pose, vc ->
+                    RenderUtil.boxOutline(vc, pose, box, r, g, b, outlineAlpha, lineWidth)
+                }
+            }
+
             if (animalSlaughterAIO.value) {
                 for (entity in level.entitiesForRendering()) {
                     if (entity !is Animal) continue
@@ -120,19 +130,7 @@ object PartyGames : Module(
                             else -> null
                         } ?: continue
 
-                        val r = col.r / 255f; val g = col.g / 255f; val b = col.b / 255f
-                        RenderUtil.boxFilledBothSides(
-                            bufferSource.getBuffer(RenderUtil.ESP_FILLED),
-                            ctxPose, entity.boundingBox,
-                            r, g, b, 0.15f
-                        )
-                        bufferSource.endBatch(RenderUtil.ESP_FILLED)
-                        RenderUtil.boxOutline(
-                            bufferSource.getBuffer(RenderUtil.ESP_LINES),
-                            ctxPose, entity.boundingBox,
-                            r, g, b, 1.0f, 1.5f
-                        )
-                        bufferSource.endBatch(RenderUtil.ESP_LINES)
+                        drawBox(entity.boundingBox, col, 0.15f, 1.0f, 1.5f)
                     }
                 }
             }
@@ -149,35 +147,24 @@ object PartyGames : Module(
                     val col = anvilESPColor.value
                     val r = col.r / 255f; val g = col.g / 255f; val b = col.b / 255f
 
-                    RenderUtil.boxFilledBothSides(
-                        bufferSource.getBuffer(RenderUtil.ESP_FILLED),
-                        ctxPose, AABB(landingPos),
-                        r, g, b, 0.2f
-                    )
-                    bufferSource.endBatch(RenderUtil.ESP_FILLED)
-                    RenderUtil.boxOutline(
-                        bufferSource.getBuffer(RenderUtil.ESP_LINES),
-                        ctxPose, AABB(landingPos),
-                        r, g, b, 1.0f, 2.0f
-                    )
-                    bufferSource.endBatch(RenderUtil.ESP_LINES)
+                    drawBox(AABB(landingPos), col, 0.2f, 1.0f, 2.0f)
 
                     val pts = prediction.trajectoryPoints
                     if (pts.size >= 2) {
-                        val vc = bufferSource.getBuffer(RenderUtil.ESP_LINES)
-                        for (i in 0 until pts.size - 1) {
-                            val (ax, ay, az) = pts[i]
-                            val (bx, by, bz) = pts[i + 1]
+                        bufferSource.draw(RenderUtil.ESP_LINES) { pose, vc ->
+                            for (i in 0 until pts.size - 1) {
+                                val (ax, ay, az) = pts[i]
+                                val (bx, by, bz) = pts[i + 1]
 
-                            val alpha = 1.0f - (i.toFloat() / pts.size) * 0.6f
-                            RenderUtil.line(
-                                vc, ctxPose,
-                                ax.toFloat(), ay.toFloat(), az.toFloat(),
-                                bx.toFloat(), by.toFloat(), bz.toFloat(),
-                                r, g, b, alpha, 1.5f
-                            )
+                                val alpha = 1.0f - (i.toFloat() / pts.size) * 0.6f
+                                RenderUtil.line(
+                                    vc, pose,
+                                    ax.toFloat(), ay.toFloat(), az.toFloat(),
+                                    bx.toFloat(), by.toFloat(), bz.toFloat(),
+                                    r, g, b, alpha, 1.5f
+                                )
+                            }
                         }
-                        bufferSource.endBatch(RenderUtil.ESP_LINES)
                     }
                 }
             }
@@ -198,20 +185,8 @@ object PartyGames : Module(
                 }
 
                 val col = avalancheESPColor.value
-                val r = col.r / 255f; val g = col.g / 255f; val b = col.b / 255f
                 for (safePos in cachedSafePositions) {
-                    RenderUtil.boxFilledBothSides(
-                        bufferSource.getBuffer(RenderUtil.ESP_FILLED),
-                        ctxPose, AABB(safePos),
-                        r, g, b, 0.15f
-                    )
-                    bufferSource.endBatch(RenderUtil.ESP_FILLED)
-                    RenderUtil.boxOutline(
-                        bufferSource.getBuffer(RenderUtil.ESP_LINES),
-                        ctxPose, AABB(safePos),
-                        r, g, b, 0.7f, 1.5f
-                    )
-                    bufferSource.endBatch(RenderUtil.ESP_LINES)
+                    drawBox(AABB(safePos), col, 0.15f, 0.7f, 1.5f)
                 }
             }
 
@@ -229,7 +204,6 @@ object PartyGames : Module(
                     }
 
                     val col = spiderMazeColor.value
-                    val r = col.r / 255f; val g = col.g / 255f; val b = col.b / 255f
                     for (pos in cachedMazePath) {
                         val pathBox = AABB(
                             pos.x.toDouble(),       pos.y.toDouble(),
@@ -237,18 +211,7 @@ object PartyGames : Module(
                             (pos.x + 1).toDouble(), pos.y + 0.05,
                             (pos.z + 1).toDouble()
                         )
-                        RenderUtil.boxFilledBothSides(
-                            bufferSource.getBuffer(RenderUtil.ESP_FILLED),
-                            ctxPose, pathBox,
-                            r, g, b, 0.35f
-                        )
-                        bufferSource.endBatch(RenderUtil.ESP_FILLED)
-                        RenderUtil.boxOutline(
-                            bufferSource.getBuffer(RenderUtil.ESP_LINES),
-                            ctxPose, pathBox,
-                            r, g, b, 0.9f, 2.0f
-                        )
-                        bufferSource.endBatch(RenderUtil.ESP_LINES)
+                        drawBox(pathBox, col, 0.35f, 0.9f, 2.0f)
                     }
                 }
             }

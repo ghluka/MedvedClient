@@ -10,7 +10,6 @@ import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RenderUtil
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.entity.EquipmentSlot
@@ -108,18 +107,18 @@ object PlayerESP : Module(
 
                 when (renderMode.value) {
                     RenderMode.BOX -> {
-                        val fillVC = bufferSource.getBuffer(fillRT)
-                        RenderUtil.boxFilledBothSides(fillVC, pose, box, r, g, b, fa)
-                        bufferSource.endBatch(fillRT)
+                        bufferSource.draw(fillRT) { drawPose, vc ->
+                            RenderUtil.boxFilledBothSides(vc, drawPose, box, r, g, b, fa)
+                        }
 
-                        val lineVC = bufferSource.getBuffer(lineRT)
-                        RenderUtil.boxOutline(lineVC, pose, box, r, g, b, oa, lw)
-                        bufferSource.endBatch(lineRT)
+                        bufferSource.draw(lineRT) { drawPose, vc ->
+                            RenderUtil.boxOutline(vc, drawPose, box, r, g, b, oa, lw)
+                        }
                     }
                     RenderMode.CORNERS -> {
-                        val lineVC = bufferSource.getBuffer(lineRT)
-                        drawCorners(lineVC, pose, box, r, g, b, oa, lw)
-                        bufferSource.endBatch(lineRT)
+                        bufferSource.draw(lineRT) { drawPose, vc ->
+                            drawCorners(vc, drawPose, box, r, g, b, oa, lw)
+                        }
                     }
                 }
 

@@ -4,8 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
-import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.rendertype.LayeringTransform
 import net.minecraft.client.renderer.rendertype.OutputTarget
@@ -18,6 +17,19 @@ import java.util.Optional
 import kotlin.math.sqrt
 
 object RenderUtil {
+    class GeometrySink(
+        private val collector: SubmitNodeCollector,
+        private val stack: PoseStack
+    ) {
+        fun draw(
+            renderType: RenderType,
+            block: (pose: PoseStack.Pose, vc: VertexConsumer) -> Unit
+        ) {
+            collector.submitCustomGeometry(stack, renderType) { pose, vc ->
+                block(pose, vc)
+            }
+        }
+    }
 
     val ESP_FILLED: RenderType by lazy {
         val pipeline = RenderPipelines.register(
@@ -53,20 +65,20 @@ object RenderUtil {
 
     inline fun worldContext(
         ctx: LevelRenderContext,
-        block: (pose: PoseStack.Pose, stack: PoseStack, buf: MultiBufferSource.BufferSource) -> Unit
+        block: (pose: PoseStack.Pose, stack: PoseStack, sink: GeometrySink) -> Unit
     ) {
-        val camera = Minecraft.getInstance().gameRenderer.mainCamera.position()
+        val camera = ctx.levelState().cameraRenderState.pos
         ctx.poseStack().pushPose()
         ctx.poseStack().translate(-camera.x, -camera.y, -camera.z)
-        block(ctx.poseStack().last(), ctx.poseStack(), ctx.bufferSource())
+        block(ctx.poseStack().last(), ctx.poseStack(), GeometrySink(ctx.submitNodeCollector(), ctx.poseStack()))
         ctx.poseStack().popPose()
     }
 
-    inline fun worldContext(ctx: LevelRenderContext, block: (pose: PoseStack.Pose, buf: MultiBufferSource.BufferSource) -> Unit) {
-        val camera = Minecraft.getInstance().gameRenderer.mainCamera.position()
+    inline fun worldContext(ctx: LevelRenderContext, block: (pose: PoseStack.Pose, sink: GeometrySink) -> Unit) {
+        val camera = ctx.levelState().cameraRenderState.pos
         ctx.poseStack().pushPose()
         ctx.poseStack().translate(-camera.x, -camera.y, -camera.z)
-        block(ctx.poseStack().last(), ctx.bufferSource())
+        block(ctx.poseStack().last(), GeometrySink(ctx.submitNodeCollector(), ctx.poseStack()))
         ctx.poseStack().popPose()
     }
 

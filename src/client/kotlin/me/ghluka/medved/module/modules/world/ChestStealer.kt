@@ -54,9 +54,9 @@ object ChestStealer : Module(
             return
         }
 
-        val currentScreen = client.screen
+        val currentScreen = client.gui.screen()
         if (currentScreen is ContainerScreen) {
-            client.setScreen(SilentScreen(currentScreen))
+            client.gui.setScreen(SilentScreen(currentScreen))
             silentOpenedByModule = true
         }
 
@@ -97,7 +97,7 @@ object ChestStealer : Module(
     override fun onDisabled() {
         val mc = Minecraft.getInstance()
         val player = mc.player
-        if (silentOpenedByModule && mc.screen is SilentScreen && player != null) {
+        if (silentOpenedByModule && mc.gui.screen() is SilentScreen && player != null) {
             player.closeContainer()
         }
         silentOpenedByModule = false

@@ -33,16 +33,16 @@ object Refill : Module("Refill", "Automatically refills your hotbar with healing
         val player = client.player ?: return
         val gameMode = client.gameMode ?: return
 
-        if (openedByModule && client.screen !is SilentScreen && client.screen !is InventoryScreen) {
+        if (openedByModule && client.gui.screen() !is SilentScreen && client.gui.screen() !is InventoryScreen) {
             openedByModule = false
         }
 
-        if (mode.value == Mode.INVENTORY && client.screen !is SilentScreen && client.screen !is InventoryScreen) return
+        if (mode.value == Mode.INVENTORY && client.gui.screen() !is SilentScreen && client.gui.screen() !is InventoryScreen) return
 
         val now = System.currentTimeMillis()
         if (now < nextActionTime) return
 
-        val screenOpen = client.screen is SilentScreen || client.screen is InventoryScreen
+        val screenOpen = client.gui.screen() is SilentScreen || client.gui.screen() is InventoryScreen
         val inventory = player.inventory
 
         val wantPots = type.value == Type.BOTH || type.value == Type.POTS
@@ -92,9 +92,9 @@ object Refill : Module("Refill", "Automatically refills your hotbar with healing
         }
 
         if (mode.value == Mode.ALWAYS && !screenOpen) {
-            if (client.screen != null) return
+            if (client.gui.screen() != null) return
             if (hotbarNeedsWork()) {
-                client.setScreen(SilentScreen(InventoryScreen(player)))
+                client.gui.setScreen(SilentScreen(InventoryScreen(player)))
                 openedByModule = true
                 setDelay()
             }
@@ -120,7 +120,7 @@ object Refill : Module("Refill", "Automatically refills your hotbar with healing
         var sourceSlots = (9..35).filter { isHealing(inventory.getItem(it)) }
         if (sourceSlots.isEmpty()) {
             if (openedByModule) {
-                client.setScreen(null)
+                client.gui.setScreen(null)
                 openedByModule = false
             }
             return
@@ -144,14 +144,14 @@ object Refill : Module("Refill", "Automatically refills your hotbar with healing
         }
 
         if (openedByModule) {
-            client.setScreen(null)
+            client.gui.setScreen(null)
             openedByModule = false
         }
     }
 
     override fun onDisabled() {
         val mc = Minecraft.getInstance()
-        if (openedByModule && (mc.screen is SilentScreen || mc.screen is InventoryScreen)) mc.setScreen(null)
+        if (openedByModule && (mc.gui.screen() is SilentScreen || mc.gui.screen() is InventoryScreen)) mc.gui.setScreen(null)
         openedByModule = false
     }
 

@@ -144,7 +144,7 @@ object AutoBlock : Module(
                 return@register
             }
 
-            if (player == null || client.screen != null) {
+            if (player == null || client.gui.screen() != null) {
                 forceRelease(client)
                 manualBlockActive = false
                 prevAttackDown = client.options.keyAttack.isDown
@@ -358,7 +358,7 @@ object AutoBlock : Module(
             return
         }
 
-        if (allowLag && lagEnabled.value && !isLagging && client.screen == null) {
+        if (allowLag && lagEnabled.value && !isLagging && client.gui.screen() == null) {
             if (Random.nextFloat() * 100f < lagChance.value) startLag()
         }
 
