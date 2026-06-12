@@ -1,12 +1,14 @@
 package me.ghluka.medved.mixin.client;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.sugar.Cancellable;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import me.ghluka.medved.module.modules.combat.AutoBlock;
 import me.ghluka.medved.module.modules.render.Animations;
+import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
@@ -15,6 +17,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
+import org.joml.Quaternionfc;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -35,6 +38,14 @@ public class ItemInHandRendererMixin {
     @Shadow
     @Final
     private static float ITEM_POS_Y;
+
+    @WrapWithCondition(method = "submitHandsWithItems", at = @At(
+            value = "INVOKE",
+            target = "Lcom/mojang/blaze3d/vertex/PoseStack;mulPose(Lorg/joml/Quaternionfc;)V"
+    ))
+    private boolean medved$skipPerspectiveHandBob(PoseStack poseStack, Quaternionfc quaternion) {
+        return !RotationManager.perspective;
+    }
     
     @Inject(method = "submitArmWithItem", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", shift = At.Shift.AFTER))
     private void hookRenderFirstPersonItem(
@@ -103,7 +114,7 @@ public class ItemInHandRendererMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 0, shift = At.Shift.AFTER))
     private void transformBlockAnimation(
             AbstractClientPlayer player, float tickProgress, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, SubmitNodeCollector orderedRenderCommandQueue, int light, CallbackInfo ci) {
-        if (Animations.shouldUseBlockAnimationItem(player.getItemInHand(hand))) {
+        if (Animations.shouldAnimateSwordBlock(player, swingProgress)) {
             var arm = hand == InteractionHand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
 
             if (Animations.INSTANCE.isEnabled()) {
