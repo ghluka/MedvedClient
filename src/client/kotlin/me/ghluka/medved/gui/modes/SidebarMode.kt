@@ -114,12 +114,7 @@ internal object SidebarMode {
                 val toggleH = tgH + 8
                 val staticH = backBtnH + nameH + descH + 8 + toggleH
                 val entries = gui.configEntries(detailMod)
-                var entriesH = 0
-                for (entry in entries) {
-                    entriesH += gui.ENT_H
-                    if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += gui.ENT_H
-                    if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += gui.ENT_H
-                }
+                val entriesH = gui.configEntriesHeight(entries)
                 gui.sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
                 if (gui.sidebarConfigScroll > gui.sidebarConfigScrollMax) gui.sidebarConfigScroll = gui.sidebarConfigScrollMax
                 if (gui.sidebarConfigScroll < 0f) gui.sidebarConfigScroll = 0f
@@ -146,7 +141,14 @@ internal object SidebarMode {
                 if (entries.isEmpty()) {
                     g.Text(smallFont, gui.styled("No settings."), bodyX + 6, entryY, GREY)
                 } else {
+                    var previousGroup: me.ghluka.medved.config.ConfigGroup? = null
                     for (entry in entries) {
+                        val group = entry.group
+                        if (group != null && gui.shouldDrawGroupHeader(entry, previousGroup)) {
+                            if (entryY + gui.ENT_H > configRegionBottom) break
+                            gui.drawGroupHeader(g, group, bodyX + 4, entryY, bodyW - 8)
+                            entryY += gui.ENT_H
+                        }
                         if (entryY + gui.ENT_H > configRegionBottom) break
                         gui.drawEntry(g, entry, bodyX + 4, entryY, bodyW - 8, mx, my)
                         entryY += gui.ENT_H
@@ -190,6 +192,7 @@ internal object SidebarMode {
                             gui.itemListDropdownY = entryY
                             gui.itemListDropdownW = iw
                         }
+                        previousGroup = group
                     }
                 }
             } else {
@@ -252,7 +255,7 @@ internal object SidebarMode {
                         g.fill(tgX, tgY, tgX + 32, tgY + 12, if (mod.isEnabled()) gui.BTN_ON else gui.BTN_OFF)
                         g.TextCentered(smallFont, gui.styled(if (mod.isEnabled()) "ON" else "OFF"), tgX + 16, tgY + 2, gui.TEXT)
                         if (gui.configEntries(mod).isNotEmpty()) {
-                            g.Text(smallFont, gui.plain("⋮"), tgX - 12, my2 + cardH / 2 - 4, gui.TEXT_DIM)
+                            g.Text(smallFont, gui.plain("..."), tgX - 14, my2 + cardH / 2 - 4, gui.TEXT_DIM)
                         }
                         my2 += cardH + cardPad
                     }
@@ -349,12 +352,7 @@ internal object SidebarMode {
             val toggleH = tgH + 8
             val staticH = backBtnH + nameH + descH + 8 + toggleH
             val entries = if (detailMod != null) gui.configEntries(detailMod) else emptyList()
-            var entriesH = 0
-            for (entry in entries) {
-                entriesH += gui.ENT_H
-                if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += gui.ENT_H
-                if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += gui.ENT_H
-            }
+            val entriesH = gui.configEntriesHeight(entries)
             gui.sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
             if (mouseX in bodyX.toDouble()..(bodyX + bodyW).toDouble() && mouseY in bodyY.toDouble()..(bodyY + bodyH).toDouble()) {
                 gui.sidebarConfigScroll = (gui.sidebarConfigScroll - scrollY * 32f)
@@ -465,12 +463,7 @@ internal object SidebarMode {
                     val toggleH = tgH + 8
                     val staticH = backBtnH + nameH + descH + 8 + toggleH
                     val entries = gui.configEntries(detailMod)
-                    var entriesH = 0
-                    for (entry in entries) {
-                        entriesH += gui.ENT_H
-                        if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) entriesH += gui.ENT_H
-                        if (entry is IntRangeEntry || entry is FloatRangeEntry) entriesH += gui.ENT_H
-                    }
+                    val entriesH = gui.configEntriesHeight(entries)
                     gui.sidebarConfigScrollMax = (entriesH - (bodyH - staticH)).coerceAtLeast(0).toFloat()
                     if (gui.sidebarConfigScroll > gui.sidebarConfigScrollMax) gui.sidebarConfigScroll = gui.sidebarConfigScrollMax
                     if (gui.sidebarConfigScroll < 0f) gui.sidebarConfigScroll = 0f
@@ -491,7 +484,14 @@ internal object SidebarMode {
                     val configRegionTop = ey
                     val configRegionBottom = bodyY + 6 + (ph - logoH - tabH)
                     var entryY = configRegionTop - gui.sidebarConfigScroll.toInt()
+                    var previousGroup: me.ghluka.medved.config.ConfigGroup? = null
                     for (entry in entries) {
+                        val group = entry.group
+                        if (group != null && gui.shouldDrawGroupHeader(entry, previousGroup)) {
+                            if (entryY + gui.ENT_H > configRegionBottom) break
+                            if (entryY + gui.ENT_H >= configRegionTop && my in entryY until entryY + gui.ENT_H) return true
+                            entryY += gui.ENT_H
+                        }
                         if (entryY + gui.ENT_H > configRegionBottom) break
                         if (entryY + gui.ENT_H >= configRegionTop) {
                             if (my in entryY until entryY + gui.ENT_H) {
@@ -533,6 +533,7 @@ internal object SidebarMode {
                             gui.colorPickerY = entryY
                             gui.colorPickerW = bodyW2 - 8
                         }
+                        previousGroup = group
                     }
                 } else {
                     val mods = gui.selectedCategory?.let { me.ghluka.medved.module.ModuleManager.getByCategory(it) } ?: emptyList()

@@ -34,32 +34,18 @@ class ItemListEntry(name: String, default: List<String> = emptyList(), defaultMo
         val obj = JsonObject()
         obj.addProperty("mode", mode.name)
         obj.addProperty("filter", filter.name)
-        val arr = JsonArray()
-        for (it in value) arr.add(it)
-        obj.add("items", arr)
+        obj.add("items", JsonArray().apply { value.forEach(::add) })
         return obj
     }
 
     override fun fromJson(element: JsonElement) {
-        try {
-            val obj = element.asJsonObject
-            if (obj.has("mode")) {
-                mode = try { Mode.valueOf(obj.getAsJsonPrimitive("mode").asString) } catch (e: Exception) { mode }
-            }
-            if (obj.has("filter")) {
-                filter = try { Filter.valueOf(obj.getAsJsonPrimitive("filter").asString) } catch (e: Exception) { filter }
-            }
-            val arr = obj.getAsJsonArray("items")
-            val list = mutableListOf<String>()
-            for (v in arr) list.add(v.asString)
-            value = list
-        } catch (e: Exception) {
-            try {
-                val arr = element.asJsonArray
-                val list = mutableListOf<String>()
-                for (v in arr) list.add(v.asString)
-                value = list
-            } catch (_: Exception) {}
+        element.objectOrNull?.let { obj ->
+            mode = enumValueOrNull<Mode>(obj.stringOrNull("mode")) ?: mode
+            filter = enumValueOrNull<Filter>(obj.stringOrNull("filter")) ?: filter
+            obj.get("items").arrayOrNull?.let { value = it.toListSafely { item -> item.stringOrNull } }
+            return
         }
+
+        element.arrayOrNull?.let { value = it.toListSafely { item -> item.stringOrNull } }
     }
 }

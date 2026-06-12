@@ -18,9 +18,9 @@ class FloatRangeEntry(
     }
 
     override fun fromJson(element: JsonElement) {
-        val arr = element.asJsonArray
-        val lo = arr[0].asFloat.coerceIn(min, max)
-        val hi = arr[1].asFloat.coerceIn(min, max)
+        val arr = element.arrayOrNull?.takeIf { it.size() >= 2 } ?: return
+        val lo = arr[0].floatOrNull?.coerceIn(min, max) ?: return
+        val hi = arr[1].floatOrNull?.coerceIn(min, max) ?: return
         value = lo.coerceAtMost(hi) to hi.coerceAtLeast(lo)
     }
 }

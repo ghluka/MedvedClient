@@ -21,9 +21,9 @@ class IntRangeEntry(
     }
 
     override fun fromJson(element: JsonElement) {
-        val arr = element.asJsonArray
-        val lo = arr[0].asInt.coerceIn(min, max)
-        val hi = arr[1].asInt.coerceIn(min, max)
+        val arr = element.arrayOrNull?.takeIf { it.size() >= 2 } ?: return
+        val lo = arr[0].intOrNull?.coerceIn(min, max) ?: return
+        val hi = arr[1].intOrNull?.coerceIn(min, max) ?: return
         value = lo.coerceAtMost(hi) to hi.coerceAtLeast(lo)
     }
 }

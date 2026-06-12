@@ -9,47 +9,62 @@ import kotlin.math.roundToInt
 internal fun ClickGui.drawNumericSliderBar(
     g: GuiGraphicsExtractor,
     bounded: Boolean, v: Float, minV: Float, maxV: Float,
-    x: Int, y: Int, w: Int
+    x: Int, y: Int, w: Int,
+    bottomRounded: Boolean = false,
 ) {
-    g.fill(x, y, x + w, y + ENT_H, ENT_BG)
+    drawRowSurface(g, x, y, w, bottomRounded = bottomRounded)
     val barX = x + 2; val barW = w - 4
     if (bounded && barW > 0) {
-        g.fill(barX, y + 2, barX + barW, y + ENT_H - 2, SLI_BG)
+        drawControlSurface(g, barX, y + 3, barW, ENT_H - 6)
         val fraction = ((v - minV) / (maxV - minV)).coerceIn(0f, 1f)
         val filled = (fraction * barW).roundToInt()
-        if (filled > 0) g.fill(barX, y + 2, barX + filled, y + ENT_H - 2, SLI_FG)
+        if (filled > 0) g.fill(barX + 1, y + 4, barX + filled, y + ENT_H - 4, SLI_FG)
     }
 }
 
-internal fun ClickGui.drawRangeSliders(g: GuiGraphicsExtractor, entry: IntRangeEntry, x: Int, y: Int, w: Int) {
-    g.fill(x, y, x + w, y + ENT_H, ENT_BG)
+internal fun ClickGui.drawRangeSliders(
+    g: GuiGraphicsExtractor,
+    entry: IntRangeEntry,
+    x: Int,
+    y: Int,
+    w: Int,
+    bottomRounded: Boolean = false,
+) {
+    drawRowSurface(g, x, y, w, bottomRounded = bottomRounded)
     val bx = x + 4; val bw = w - 8
     if (bw > 0) {
-        g.fill(bx, y + 2, bx + bw, y + ENT_H - 2, SLI_BG)
+        drawControlSurface(g, bx, y + 3, bw, ENT_H - 6)
         val range = (entry.max - entry.min).toFloat()
         val loFrac = ((entry.value.first - entry.min) / range).coerceIn(0f, 1f)
         val hiFrac = ((entry.value.second - entry.min) / range).coerceIn(0f, 1f)
         val loX = (loFrac * bw).roundToInt()
         val hiX = (hiFrac * bw).roundToInt()
-        if (hiX > loX) g.fill(bx + loX, y + 2, bx + hiX, y + ENT_H - 2, SLI_FG)
-        g.fill(bx + loX, y + 1, bx + loX + 2, y + ENT_H - 1, TEXT)
-        g.fill(bx + hiX - 1, y + 1, bx + hiX + 1, y + ENT_H - 1, TEXT)
+        if (hiX > loX) g.fill(bx + loX, y + 4, bx + hiX, y + ENT_H - 4, SLI_FG)
+        g.fill(bx + loX, y + 2, bx + loX + 2, y + ENT_H - 2, TEXT)
+        g.fill(bx + hiX - 1, y + 2, bx + hiX + 1, y + ENT_H - 2, TEXT)
     }
 }
 
-internal fun ClickGui.drawFloatRangeSliders(g: GuiGraphicsExtractor, entry: FloatRangeEntry, x: Int, y: Int, w: Int) {
-    g.fill(x, y, x + w, y + ENT_H, ENT_BG)
+internal fun ClickGui.drawFloatRangeSliders(
+    g: GuiGraphicsExtractor,
+    entry: FloatRangeEntry,
+    x: Int,
+    y: Int,
+    w: Int,
+    bottomRounded: Boolean = false,
+) {
+    drawRowSurface(g, x, y, w, bottomRounded = bottomRounded)
     val bx = x + 4; val bw = w - 8
     if (bw > 0) {
-        g.fill(bx, y + 2, bx + bw, y + ENT_H - 2, SLI_BG)
+        drawControlSurface(g, bx, y + 3, bw, ENT_H - 6)
         val range = entry.max - entry.min
         val loFrac = ((entry.value.first - entry.min) / range).coerceIn(0f, 1f)
         val hiFrac = ((entry.value.second - entry.min) / range).coerceIn(0f, 1f)
         val loX = (loFrac * bw).roundToInt()
         val hiX = (hiFrac * bw).roundToInt()
-        if (hiX > loX) g.fill(bx + loX, y + 2, bx + hiX, y + ENT_H - 2, SLI_FG)
-        g.fill(bx + loX, y + 1, bx + loX + 2, y + ENT_H - 1, TEXT)
-        g.fill(bx + hiX - 1, y + 1, bx + hiX + 1, y + ENT_H - 1, TEXT)
+        if (hiX > loX) g.fill(bx + loX, y + 4, bx + hiX, y + ENT_H - 4, SLI_FG)
+        g.fill(bx + loX, y + 2, bx + loX + 2, y + ENT_H - 2, TEXT)
+        g.fill(bx + hiX - 1, y + 2, bx + hiX + 1, y + ENT_H - 2, TEXT)
     }
 }
 

@@ -5,7 +5,7 @@
       "file": "medved:jetbrains_mono.ttf",
       "shift": [0, 1],
       "size": 11.0,
-      "oversample": 2.0
+      "oversample": 4.0
     }
   ]
 }

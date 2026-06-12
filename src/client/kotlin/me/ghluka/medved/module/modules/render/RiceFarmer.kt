@@ -19,30 +19,50 @@ object RiceFarmer : Module(
 ) {
     enum class ColorMode { RAINBOW, GRADIENT, SINGLE }
 
-    private val radius      = double("radius",   0.5, 0.5, 1.0)
-    private val height      = double("height",   0.3, 0.1, 0.7)
-    private val pos         = double("position", 0.1, -0.5, 0.5)
-    private val rotSpeed    = double("rotation", 5.0, 0.0, 5.0)
-    private val angles      = int("angles",      32,   4,   90)
-    private val firstPerson = boolean("first person", false)
-    private val shade       = boolean("shade", true)
-    private val colorMode   = enum("color mode", ColorMode.RAINBOW)
+    private val radiusEntry = double("radius", 0.5, 0.5, 1.0)
+    private var radius by radiusEntry
 
-    private val single = color("color", Color(9, 9, 9), allowAlpha = false).also {
-        it.visibleWhen = { colorMode.value == ColorMode.SINGLE }
+    private val heightEntry = double("height", 0.3, 0.1, 0.7)
+    private var height by heightEntry
+
+    private val positionEntry = double("position", 0.1, -0.5, 0.5)
+    private var position by positionEntry
+
+    private val rotationSpeedEntry = double("rotation", 5.0, 0.0, 5.0)
+    private var rotationSpeed by rotationSpeedEntry
+
+    private val anglesEntry = int("angles", 32, 4, 90)
+    private var angles by anglesEntry
+
+    private val firstPersonEntry = boolean("first person", false)
+    private var firstPerson by firstPersonEntry
+
+    private val shadeEntry = boolean("shade", true)
+    private var shade by shadeEntry
+
+    private val colorModeEntry = enum("color mode", ColorMode.RAINBOW)
+    private var colorMode by colorModeEntry
+
+    private val singleEntry = color("color", Color(9, 9, 9), allowAlpha = false).also {
+        it.visibleWhen = { colorMode == ColorMode.SINGLE }
     }
-    private val gradient1 = color("color start", Color(255, 0, 255), allowAlpha = false).also {
-        it.visibleWhen = { colorMode.value == ColorMode.GRADIENT }
+    private var single by singleEntry
+
+    private val gradientStartEntry = color("color start", Color(255, 0, 255), allowAlpha = false).also {
+        it.visibleWhen = { colorMode == ColorMode.GRADIENT }
     }
-    private val gradient2 = color("color end", Color(90, 10, 255), allowAlpha = false).also {
-        it.visibleWhen = { colorMode.value == ColorMode.GRADIENT }
+    private var gradientStart by gradientStartEntry
+
+    private val gradientEndEntry = color("color end", Color(90, 10, 255), allowAlpha = false).also {
+        it.visibleWhen = { colorMode == ColorMode.GRADIENT }
     }
+    private var gradientEnd by gradientEndEntry
 
     override fun onLevelRender(ctx: LevelRenderContext) {
         val mc = Minecraft.getInstance()
         val player = mc.player ?: return
 
-        if (mc.options.cameraType.isFirstPerson && !firstPerson.value) return
+        if (mc.options.cameraType.isFirstPerson && !firstPerson) return
 
         val partialTick = mc.deltaTracker.getGameTimeDeltaPartialTick(true)
 
@@ -61,12 +81,12 @@ object RiceFarmer : Module(
         val ey = entity.yOld + (entity.y - entity.yOld) * partialTick
         val ez = entity.zOld + (entity.z - entity.zOld) * partialTick
 
-        val yOffset = entity.bbHeight + pos.value - (if (entity.isCrouching) 0.23 else 0.0)
+        val yOffset = entity.bbHeight + position - (if (entity.isCrouching) 0.23 else 0.0)
 
-        val yaw = ((entity.tickCount + partialTick) * rotSpeed.value - 90f).toFloat()
+        val yaw = ((entity.tickCount + partialTick) * rotationSpeed - 90f).toFloat()
 
-        val r = radius.value
-        val n = angles.value
+        val r = radius
+        val n = angles
         val apex = getColor(0.0, n.toDouble(), true)
         val rimColors = Array(n + 2) { getColor(it.toDouble(), n.toDouble(), false) }
 
@@ -74,8 +94,8 @@ object RiceFarmer : Module(
         stack.translate(ex, ey + yOffset, ez)
         stack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(yaw))
 
-        val apexAlpha = if (shade.value) 0.8f else 0.5f
-        val hy = height.value.toFloat()
+        val apexAlpha = if (shade) 0.8f else 0.5f
+        val hy = height.toFloat()
 
         bufferSource.draw(RenderTypes.debugFilledBox()) { pose, vc ->
             for (j in 0 until n) {
@@ -133,19 +153,19 @@ object RiceFarmer : Module(
     }
 
     private fun getColor(i: Double, max: Double, first: Boolean): Color {
-        return when (colorMode.value) {
+        return when (colorMode) {
             ColorMode.RAINBOW -> {
                 val hsb = java.awt.Color.getHSBColor((i / max).toFloat(), 0.65f, 1.0f)
                 Color(hsb.red, hsb.green, hsb.blue, hsb.alpha)
             }
 
             ColorMode.GRADIENT -> if (first) {
-                Color(gradient1.value.r, gradient1.value.g, gradient1.value.b)
+                Color(gradientStart.r, gradientStart.g, gradientStart.b)
             } else {
-                Color(gradient2.value.r, gradient2.value.g, gradient2.value.b)
+                Color(gradientEnd.r, gradientEnd.g, gradientEnd.b)
             }
 
-            ColorMode.SINGLE -> Color(single.value.r, single.value.g, single.value.b)
+            ColorMode.SINGLE -> Color(single.r, single.g, single.b)
         }
     }
 }

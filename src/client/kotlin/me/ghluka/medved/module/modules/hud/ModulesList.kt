@@ -17,12 +17,14 @@ import me.ghluka.medved.util.Text
 import me.ghluka.medved.util.roundedFill
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
 
     enum class Sort   { SIZE, ALPHA, ORDER }
     enum class Capitalize { UPPER, LOWER, TITLE }
+    enum class Shadow { NONE, SIMPLE, SOFT }
 
     val showVisuals    = boolean("show visuals", false)
     val leftBorder     = boolean("left border", true)
@@ -30,10 +32,11 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
     val rounded        = boolean("rounded", false).also { it.visibleWhen = { background.value } }
     val roundRadius    = int("round radius", 3, 1, 5).also { it.visibleWhen = { rounded.value && background.value } }
     val bgColor        = color("bg color", Color(0, 0, 0, 160), allowAlpha = true)
-    val textShadow     = boolean("text shadow", false)
     val sort           = enum("sort", Sort.SIZE)
     val reverseOrder   = boolean("reverse order", false)
     val capitalize     = enum("capitalize", Capitalize.LOWER)
+    val shadow         = enum("shadow", Shadow.SOFT)
+    val shadowStrength = int("shadow strength", 180, 40, 255).also { it.visibleWhen = { shadow.value != Shadow.NONE } }
     val padX           = int("pad x", 2, 0, 6)
     val padY           = int("pad y", 3, 0, 6)
     val showConfig     = boolean("show config", true)
@@ -49,6 +52,8 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
     }
 
     private fun argb(a: Int, r: Int, g: Int, b: Int) = (a shl 24) or (r shl 16) or (g shl 8) or b
+
+    private fun shadowColor(alpha: Int): Int = argb(alpha.coerceIn(0, 255), 0, 0, 0)
 
     private fun applyCase(name: String) = when (capitalize.value) {
         Capitalize.UPPER -> name.uppercase()
@@ -190,15 +195,12 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
                 if (leftBorder.value) g.fill(rightEdge - borderW, ry, rightEdge, ry + ROW_H, accentColor)
                 if (infoComp != null) {
                     val infoX = rightEdge - borderW - padX.value - font.width(infoComp)
-                    if (textShadow.value) g.Text(font, infoComp, infoX + 1, textY + 1, argb(160, 0, 0, 0))
-                    g.Text(font, infoComp, infoX, textY, mod.hudInfoColor())
+                    drawText(g, font, infoComp, infoX, textY, mod.hudInfoColor())
                     val nameX = infoX - 4 - nameW
-                    if (textShadow.value) g.Text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
-                    g.Text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
+                    drawText(g, font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 } else {
                     val nameX = rightEdge - borderW - padX.value - nameW
-                    if (textShadow.value) g.Text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
-                    g.Text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
+                    drawText(g, font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 }
             } else {
                 if (background.value) {
@@ -222,17 +224,56 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
                 }
                 if (leftBorder.value) g.fill(0, ry, borderW, ry + ROW_H, accentColor)
                 val nameX = borderW + padX.value
-                if (textShadow.value) g.Text(font, nameComp, nameX + 1, textY + 1, argb(160, 0, 0, 0))
-                g.Text(font, nameComp, nameX, textY, argb(255, 215, 215, 228))
+                drawText(g, font, nameComp, nameX, textY, argb(255, 215, 215, 228))
                 if (infoComp != null) {
                     val infoX = nameX + nameW + 4
-                    if (textShadow.value) g.Text(font, infoComp, infoX + 1, textY + 1, argb(160, 0, 0, 0))
-                    g.Text(font, infoComp, infoX, textY, mod.hudInfoColor())
+                    drawText(g, font, infoComp, infoX, textY, mod.hudInfoColor())
                 }
             }
 
             ry += ROW_H
         }
+    }
+
+    private fun drawText(
+        g: GuiGraphicsExtractor,
+        font: net.minecraft.client.gui.Font,
+        text: Component,
+        x: Int,
+        y: Int,
+        color: Int
+    ) {
+        when (shadow.value) {
+            Shadow.NONE -> {}
+            Shadow.SIMPLE -> g.Text(font, text, x + 1, y + 1, shadowColor((shadowStrength.value * 0.75f).toInt()), false)
+            Shadow.SOFT -> drawSoftShadow(g, font, text, x, y)
+        }
+        g.Text(font, text, x, y, color, false)
+    }
+
+    private fun drawSoftShadow(
+        g: GuiGraphicsExtractor,
+        font: net.minecraft.client.gui.Font,
+        text: Component,
+        x: Int,
+        y: Int
+    ) {
+        val strength = shadowStrength.value
+        val outer = (strength * 0.22f).toInt()
+        val mid = (strength * 0.34f).toInt()
+        val inner = (strength * 0.50f).toInt()
+
+        g.Text(font, text, x - 1, y, shadowColor(mid), false)
+        g.Text(font, text, x + 1, y, shadowColor(mid), false)
+        g.Text(font, text, x, y - 1, shadowColor(mid), false)
+        g.Text(font, text, x, y + 1, shadowColor(mid), false)
+
+        g.Text(font, text, x - 1, y - 1, shadowColor(outer), false)
+        g.Text(font, text, x + 1, y - 1, shadowColor(outer), false)
+        g.Text(font, text, x - 1, y + 1, shadowColor(inner), false)
+        g.Text(font, text, x + 1, y + 1, shadowColor(inner), false)
+
+        g.Text(font, text, x, y + 2, shadowColor(outer), false)
     }
 }
 

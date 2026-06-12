@@ -1,6 +1,7 @@
 package me.ghluka.medved.gui
 
 import me.ghluka.medved.config.ConfigManager
+import me.ghluka.medved.config.ConfigGroup
 import me.ghluka.medved.config.entry.*
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.ModuleManager
@@ -167,17 +168,17 @@ class ClickGui : Screen(Component.literal("Medved")) {
         return argb(alpha, r, g, b)
     }
 
-    internal val BG       get() = shade(8, 0.05f, 100)
-    internal val PNL_BG   get() = shade(18, 0.08f, 240)
-    internal val HDR_BG   get() = shade(20, 0.20f)
+    internal val BG       get() = shade(9, 0.06f, 115)
+    internal val PNL_BG   get() = shade(20, 0.10f, 242)
+    internal val HDR_BG   get() = shade(24, 0.18f)
     internal val HDR_ACC  get() = Colour.bg.liveColor(Colour.bg.value).argb
-    internal val MOD_NORM get() = shade(20, 0.06f)
-    internal val MOD_HOV  get() = shade(30, 0.10f)
+    internal val MOD_NORM get() = shade(24, 0.08f)
+    internal val MOD_HOV  get() = shade(38, 0.13f)
     internal val ACCENT   get() = Colour.accent.liveColor(Colour.accent.value).argb
-    internal val ENT_BG   get() = shade(14, 0.04f)
-    internal val SLI_BG   get() = shade(30, 0.12f)
+    internal val ENT_BG   get() = shade(21, 0.07f)
+    internal val SLI_BG   get() = shade(38, 0.14f)
     internal val SLI_FG   get() = with(Colour.accent.liveColor(Colour.accent.value)) { argb(255, (r * 0.8).toInt(), (g * 0.8).toInt(), (b * 0.8).toInt()) }
-    internal val BTN_BG   get() = shade(35, 0.12f)
+    internal val BTN_BG   get() = shade(42, 0.14f)
     internal val BTN_ON   = argb(255,  50, 175,  60)
     internal val BTN_OFF  = argb(255, 170,  55,  55)
     internal val TEXT     = argb(255, 215, 215, 228)
@@ -361,10 +362,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             h += MOD_H
             if (mod in expandedModules) {
                 val entries = configEntries(mod)
-                h += entries.size * ENT_H
-                for (e in entries) {
-                    if (e is IntRangeEntry || e is FloatRangeEntry || e is IntEntry || e is FloatEntry || e is DoubleEntry) h += ENT_H
-                }
+                h += configEntriesHeight(entries)
                 val colorExp = entries.firstOrNull { it == expandedColorEntry } as? ColorEntry
                 if (colorExp != null) {
                     // overlay picker does not reserve inline height
@@ -372,7 +370,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
                 val enumExp = entries.firstOrNull { it == expandedEnum } as? EnumEntry<*>
             }
         }
-        return h + 3
+        return h
     }
 
     internal fun drawModuleName(
@@ -405,45 +403,54 @@ class ClickGui : Screen(Component.literal("Medved")) {
         g.disableScissor()
     }
 
-    internal fun drawEntry(g: GuiGraphicsExtractor, entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, my: Int) {
+    internal fun drawEntry(
+        g: GuiGraphicsExtractor,
+        entry: ConfigEntry<*>,
+        x: Int,
+        y: Int,
+        w: Int,
+        mx: Int,
+        my: Int,
+        bottomRounded: Boolean = false,
+    ) {
+        val hovered = mx in x until x + w && my in y until y + ENT_H
         if (entry is HudEditEntry) {
-            g.fill(x, y, x + w, y + ENT_H, BTN_BG)
+            drawControlSurface(g, x, y, w, ENT_H, hovered = hovered)
             g.TextCentered(guiFont, styled("Edit Position"), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
             return
         }
         if (entry is ButtonEntry) {
-            g.fill(x, y, x + w, y + ENT_H, BTN_BG)
+            drawControlSurface(g, x, y, w, ENT_H, hovered = hovered)
             g.TextCentered(guiFont, styled(entry.label), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
             return
         }
-        g.fill(x, y, x + w, y + ENT_H, ENT_BG)
-        g.Text(guiFont, styled(fmtLabel(entry.name)), x + 2, y + (ENT_H - 8) / 2, TEXT_DIM)
+        val selected = entry == expandedColorEntry || entry == expandedEnum || entry == listeningKeybind || entry == expandedItemList
+        drawRowSurface(g, x, y, w, selected = selected, hovered = hovered, bottomRounded = bottomRounded)
+        g.Text(guiFont, styled(fmtLabel(entry.name)), x + 4, y + (ENT_H - 8) / 2, TEXT_DIM)
 
         when (entry) {
             is BooleanEntry -> {
-                val bx = x + w - 28
-                g.fill(bx, y + 1, bx + 26, y + ENT_H - 1, if (entry.value) BTN_ON else BTN_OFF)
-                g.TextCentered(guiFont, styled(if (entry.value) "ON" else "OFF"), bx + 13, y + (ENT_H - 8) / 2, TEXT)
+                val bx = x + w - 26
+                drawToggle(g, bx, y, entry.value)
             }
             is IntEntry -> {
-                val txt = "${entry.value}"
-                g.Text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+                drawValueText(g, "${entry.value}", x, y, w)
             }
             is FloatEntry -> {
                 val v = entry.value
                 val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
-                g.Text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+                drawValueText(g, txt, x, y, w)
             }
             is DoubleEntry -> {
                 val v = entry.value.toFloat()
                 val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
-                g.Text(guiFont, styled(txt), x + w - guiFont.width(styled(txt)) - 4, y + (ENT_H - 8) / 2, TEXT)
+                drawValueText(g, txt, x, y, w)
             }
             is StringEntry -> {
                 val fx = x + w - 66
                 val textX = fx + 2
                 val active = entry == editingString
-                g.fill(fx, y + 1, fx + 64, y + ENT_H - 1, if (active) shade(40, 0.25f) else BTN_BG)
+                drawControlSurface(g, fx, y + 1, 64, ENT_H - 2, active = active)
                 g.enableScissor(textX, y + 1, fx + 64, y + ENT_H - 1)
                 if (active && entryField.hasSelection) {
                     val sx = textX - entryField.scrollPx + guiFont.width(styled(entryField.text.substring(0, entryField.selMin)))
@@ -461,49 +468,74 @@ class ClickGui : Screen(Component.literal("Medved")) {
             is ColorEntry -> {
                 val sx = x + w - 16
                 val swatch = if (entry.pickerMode == ColorEntry.PickerMode.CHROMA) liveColorFor(entry) else entry.value
-                g.fill(sx, y + 1, sx + 14, y + ENT_H - 1, swatch.argb)
-                g.outline(sx, y + 1, 14, ENT_H - 2, TEXT_DIM)
+                drawControlSurface(g, sx - 1, y + 1, 15, ENT_H - 2, active = entry == expandedColorEntry)
+                g.fill(sx + 1, y + 3, sx + 12, y + ENT_H - 3, swatch.argb)
                 if (entry == expandedColorEntry)
                     g.Text(guiFont, jbMono("\u25bc"), sx - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
             }
             is KeybindEntry -> {
                 val kx = x + w - 50
                 val listening = entry == listeningKeybind
-                g.fill(kx, y + 1, kx + 48, y + ENT_H - 1, if (listening) ACCENT else BTN_BG)
+                drawControlSurface(g, kx, y + 1, 48, ENT_H - 2, active = listening)
                 g.TextCentered(guiFont, styled(if (listening) "..." else keyName(entry.value)), kx + 24, y + (ENT_H - 8) / 2, TEXT)
             }
             is EnumEntry<*> -> {
                 val ew = enumButtonWidth(entry)
                 val ex = x + w - ew
-                g.fill(ex, y + 1, ex + ew, y + ENT_H - 1, BTN_BG)
                 val isOpen = entry == expandedEnum
+                drawControlSurface(g, ex, y + 1, ew, ENT_H - 2, active = isOpen)
                 val label = fmtLabel(entry.value.name)
                 g.Text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
                 g.Text(guiFont, jbMono(if (isOpen) "\u25bc" else "\u25b2"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
             }
             is IntRangeEntry -> {
                 val txt = "${entry.value.first} - ${entry.value.second}"
-                val styledTxt = styled(txt)
-                val tw = guiFont.width(styledTxt)
-                g.Text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
+                drawValueText(g, txt, x, y, w)
             }
             is FloatRangeEntry -> {
                 val fmt = "%.${entry.decimals}f"
                 val txt = "$fmt - $fmt".format(entry.value.first, entry.value.second)
-                val styledTxt = styled(txt)
-                val tw = guiFont.width(styledTxt)
-                g.Text(guiFont, styledTxt, x + w - tw - 4, y + (ENT_H - 8) / 2, TEXT)
+                drawValueText(g, txt, x, y, w)
             }
             is me.ghluka.medved.config.entry.ItemListEntry -> {
                 val label = "${entry.value.size}"
                 val ew = guiFont.width(styled(label)) + 16
                 val ex = x + w - ew
-                g.fill(ex, y + 1, ex + ew, y + ENT_H - 1, BTN_BG)
-                g.Text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
                 val isOpen = expandedItemList == entry
+                drawControlSurface(g, ex, y + 1, ew, ENT_H - 2, active = isOpen)
+                g.Text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
                 g.Text(guiFont, jbMono(if (isOpen) "\u25bc" else "\u25b2"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
             }
         }
+    }
+
+    internal fun configEntriesHeight(entries: List<ConfigEntry<*>>): Int {
+        var height = 0
+        var previousGroup: ConfigGroup? = null
+        for (entry in entries) {
+            if (shouldDrawGroupHeader(entry, previousGroup)) height += ENT_H
+            height += entryHeight(entry)
+            previousGroup = entry.group
+        }
+        return height
+    }
+
+    internal fun entryHeight(entry: ConfigEntry<*>): Int {
+        var height = ENT_H
+        if (entry is IntEntry || entry is FloatEntry || entry is DoubleEntry) height += ENT_H
+        if (entry is IntRangeEntry || entry is FloatRangeEntry) height += ENT_H
+        return height
+    }
+
+    internal fun shouldDrawGroupHeader(entry: ConfigEntry<*>, previousGroup: ConfigGroup?): Boolean =
+        entry.group != null && entry.group !== previousGroup
+
+    internal fun drawGroupHeader(g: GuiGraphicsExtractor, group: ConfigGroup, x: Int, y: Int, w: Int) {
+        g.fill(x, y, x + w, y + ENT_H, shade(18, 0.07f))
+        g.fill(x + 4, y + ENT_H / 2, x + 18, y + ENT_H / 2 + 1, shade(255, 0.10f))
+        g.Text(guiFont, styled(fmtLabel(group.name)), x + 22, y + (ENT_H - 8) / 2, TEXT_DIM)
+        val labelW = guiFont.width(styled(fmtLabel(group.name)))
+        g.fill(x + 26 + labelW, y + ENT_H / 2, x + w - 4, y + ENT_H / 2 + 1, shade(255, 0.07f))
     }
 
     override fun mouseClicked(event: MouseButtonEvent, inBounds: Boolean): Boolean {

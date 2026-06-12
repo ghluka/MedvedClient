@@ -52,5 +52,5 @@ class KeybindEntry(name: String, default: Int) : ConfigEntry<Int>(name, default)
     }
 
     override fun toJson(): JsonElement = JsonPrimitive(value)
-    override fun fromJson(element: JsonElement) { value = element.asInt }
+    override fun fromJson(element: JsonElement) { element.intOrNull?.let { value = it } }
 }

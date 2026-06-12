@@ -27,6 +27,6 @@ class EnumEntry<T : Enum<T>>(
 
     override fun toJson(): JsonElement = JsonPrimitive(value.name)
     override fun fromJson(element: JsonElement) {
-        value = enumClass.enumConstants.firstOrNull { it.name == element.asString } ?: defaultValue
+        value = enumClass.enumConstants.firstOrNull { it.name == element.stringOrNull } ?: defaultValue
     }
 }

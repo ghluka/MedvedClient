@@ -8,7 +8,6 @@ import me.ghluka.medved.gui.components.*
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.ModuleManager
-import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.util.CORNERS_BOT
 import me.ghluka.medved.util.CORNERS_TOP
 import me.ghluka.medved.util.NotificationManager
@@ -116,15 +115,22 @@ internal object DropdownMode {
 
         val presets = ConfigManager.listPresets()
         if (presets.isEmpty()) {
-            g.fill(px, y, px + gui.PNL_W, y + gui.ENT_H, gui.ENT_BG)
+            gui.drawRowSurface(g, px, y, gui.PNL_W, bottomRounded = true)
             g.Text(gui.guiFont, gui.styled("(no presets saved)"), px + 5, y + (gui.ENT_H - 8) / 2, gui.TEXT_DIM)
             y += gui.ENT_H
         } else {
-            for (preset in presets) {
+            for ((index, preset) in presets.withIndex()) {
                 val hov = mx in px until px + gui.PNL_W && my in y until y + gui.ENT_H
                 val selected = preset == gui.presetField.text
-                g.fill(px, y, px + gui.PNL_W, y + gui.ENT_H, if (hov) gui.MOD_HOV else gui.ENT_BG)
-                if (selected) g.fill(px, y, px + 3, y + gui.ENT_H, gui.ACCENT)
+                gui.drawRowSurface(
+                    g,
+                    px,
+                    y,
+                    gui.PNL_W,
+                    hovered = hov,
+                    selected = selected,
+                    bottomRounded = index == presets.lastIndex
+                )
                 g.Text(gui.guiFont, gui.styled(preset), px + 7, y + (gui.ENT_H - 8) / 2, if (selected) gui.TEXT else gui.TEXT_DIM)
                 y += gui.ENT_H
             }
@@ -141,7 +147,7 @@ internal object DropdownMode {
 
         if (expanded) {
             g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, radius, gui.HDR_BG, CORNERS_TOP)
-            g.roundedFill(px, py + gui.HDR_H, gui.PNL_W, panelH - gui.HDR_H + radius - 3, radius, gui.PNL_BG, CORNERS_BOT)
+            g.roundedFill(px, py + gui.HDR_H, gui.PNL_W, panelH - gui.HDR_H, radius, gui.PNL_BG, CORNERS_BOT)
         } else {
             g.roundedFill(px, py, gui.PNL_W, gui.HDR_H, radius, gui.HDR_BG)
         }
@@ -153,43 +159,16 @@ internal object DropdownMode {
         g.enableScissor(px, py + gui.HDR_H, px + gui.PNL_W, py + panelH)
         var y = py + gui.HDR_H
 
-        fun shade(base: Int, mix: Float, alpha: Int = 255): Int {
-            val c = Colour.accent.liveColor(Colour.accent.value)
-            val r = (base + (c.r - base) * mix).toInt().coerceIn(0, 255)
-            val g = (base + (c.g - base) * mix).toInt().coerceIn(0, 255)
-            val b = (base + (c.b - base) * mix).toInt().coerceIn(0, 255)
-            return gui.argb(alpha, r, g, b)
-        }
-
-        for (mod in ModuleManager.getByCategory(cat)) {
+        val modules = ModuleManager.getByCategory(cat)
+        for ((modIndex, mod) in modules.withIndex()) {
+            val isLastModule = modIndex == modules.lastIndex
             val hovMod = mx in px until px + gui.PNL_W && my in y until y + gui.MOD_H
             if (hovMod) gui.hoveredMod = mod
-            if (mod.isEnabled()) {
-                val accentColor = gui.ACCENT
-                val a = (accentColor ushr 24) and 0xFF
-                val r = (accentColor ushr 16) and 0xFF
-                val g2 = (accentColor ushr 8) and 0xFF
-                val b = accentColor and 0xFF
-                val rowTint = gui.argb(20, r, g2, b)
-                g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, gui.HDR_BG)
-                g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, rowTint)
-                g.fill(px, y, px + 2, y + gui.MOD_H, accentColor)
-
-                val gx = (px + 2).toFloat()
-                val gy = y.toFloat()
-                val gw = 120f
-                val gh = gui.MOD_H.toFloat()
-                g.pose().pushMatrix()
-                g.pose().translate(gx + gw / 2f, gy + gh / 2f)
-                g.pose().rotate((-Math.PI / 2).toFloat())
-                g.pose().translate(-gh / 2f, -gw / 2f)
-                g.fillGradient(0, 0, gh.toInt(), gw.toInt(), gui.argb(30, r, g2, b), 0x00000000)
-                g.pose().popMatrix()
-            } else {
-                g.fill(px, y, px + gui.PNL_W, y + gui.MOD_H, if (hovMod) gui.MOD_HOV else gui.MOD_NORM)
-            }
 
             val entries = gui.configEntries(mod)
+            val moduleRowIsPanelBottom = isLastModule && mod !in gui.expandedModules
+            drawModuleRow(gui, g, px, y, mod, hovMod, bottomRounded = moduleRowIsPanelBottom)
+
             val nameAvailW = gui.PNL_W - 7 - (if (entries.isNotEmpty()) 14 else 4)
             gui.drawModuleName(g, mod, px + 7, y, nameAvailW, if (mod.isEnabled()) gui.TEXT else gui.TEXT_DIM)
             if (entries.isNotEmpty()) {
@@ -198,8 +177,26 @@ internal object DropdownMode {
             y += gui.MOD_H
 
             if (mod in gui.expandedModules) {
-                for (entry in entries) {
-                    gui.drawEntry(g, entry, px + 3, y, gui.PNL_W - 3, mx, my)
+                var previousGroup: me.ghluka.medved.config.ConfigGroup? = null
+                for ((entryIndex, entry) in entries.withIndex()) {
+                    val isLastEntry = isLastModule && entryIndex == entries.lastIndex
+                    val entryHasExtraRow = entry is IntEntry || entry is FloatEntry || entry is DoubleEntry ||
+                            entry is IntRangeEntry || entry is FloatRangeEntry
+                    val group = entry.group
+                    if (group != null && gui.shouldDrawGroupHeader(entry, previousGroup)) {
+                        gui.drawGroupHeader(g, group, px + 3, y, gui.PNL_W - 3)
+                        y += gui.ENT_H
+                    }
+                    gui.drawEntry(
+                        g,
+                        entry,
+                        px + 3,
+                        y,
+                        gui.PNL_W - 3,
+                        mx,
+                        my,
+                        bottomRounded = isLastEntry && !entryHasExtraRow
+                    )
                     y += gui.ENT_H
                     if (entry is IntEntry) {
                         val bounded = entry.min != Int.MIN_VALUE && entry.max != Int.MAX_VALUE
@@ -211,7 +208,8 @@ internal object DropdownMode {
                             if (bounded) entry.max.toFloat() else 1f,
                             px + 3,
                             y,
-                            gui.PNL_W - 3
+                            gui.PNL_W - 3,
+                            bottomRounded = isLastEntry
                         )
                         y += gui.ENT_H
                     }
@@ -225,7 +223,8 @@ internal object DropdownMode {
                             entry.max.takeIf { it != Float.MAX_VALUE } ?: 1f,
                             px + 3,
                             y,
-                            gui.PNL_W - 3
+                            gui.PNL_W - 3,
+                            bottomRounded = isLastEntry
                         )
                         y += gui.ENT_H
                     }
@@ -239,16 +238,17 @@ internal object DropdownMode {
                             entry.max.takeIf { it != Double.MAX_VALUE }?.toFloat() ?: 1f,
                             px + 3,
                             y,
-                            gui.PNL_W - 3
+                            gui.PNL_W - 3,
+                            bottomRounded = isLastEntry
                         )
                         y += gui.ENT_H
                     }
                     if (entry is IntRangeEntry) {
-                        gui.drawRangeSliders(g, entry, px + 6, y, gui.PNL_W - 6)
+                        gui.drawRangeSliders(g, entry, px + 6, y, gui.PNL_W - 6, bottomRounded = isLastEntry)
                         y += gui.ENT_H
                     }
                     if (entry is FloatRangeEntry) {
-                        gui.drawFloatRangeSliders(g, entry, px + 6, y, gui.PNL_W - 6)
+                        gui.drawFloatRangeSliders(g, entry, px + 6, y, gui.PNL_W - 6, bottomRounded = isLastEntry)
                         y += gui.ENT_H
                     }
                     if (entry == gui.expandedColorEntry && entry is ColorEntry) {
@@ -269,11 +269,38 @@ internal object DropdownMode {
                         gui.itemListDropdownY = y
                         gui.itemListDropdownW = iw
                     }
+                    previousGroup = group
                 }
             }
         }
 
         g.disableScissor()
+    }
+
+    private fun drawModuleRow(
+        gui: ClickGui,
+        g: GuiGraphicsExtractor,
+        x: Int,
+        y: Int,
+        mod: Module,
+        hovered: Boolean,
+        bottomRounded: Boolean,
+    ) {
+        gui.drawRowSurface(g, x, y, gui.PNL_W, gui.MOD_H, hovered = hovered, selected = mod.isEnabled(), bottomRounded = bottomRounded)
+        if (mod.isEnabled()) {
+            val accent = gui.ACCENT
+            val r = (accent ushr 16) and 0xFF
+            val green = (accent ushr 8) and 0xFF
+            val b = accent and 0xFF
+            val tint = gui.argb(18, r, green, b)
+            if (bottomRounded) {
+                g.roundedFill(x, y, gui.PNL_W, gui.MOD_H, 4, tint, CORNERS_BOT)
+                g.fill(x, y, x + 2, y + gui.MOD_H - 2, accent)
+                g.fill(x + 1, y + gui.MOD_H - 2, x + 2, y + gui.MOD_H - 1, accent)
+            } else {
+                g.fill(x + 2, y, x + gui.PNL_W, y + gui.MOD_H, tint)
+            }
+        }
     }
 
     fun handleScroll(gui: ClickGui, mouseY: Double, scrollY: Double): Boolean {
@@ -408,7 +435,13 @@ internal object DropdownMode {
                 y += gui.MOD_H
 
                 if (mod in gui.expandedModules) {
+                    var previousGroup: me.ghluka.medved.config.ConfigGroup? = null
                     for (entry in gui.configEntries(mod)) {
+                        val group = entry.group
+                        if (group != null && gui.shouldDrawGroupHeader(entry, previousGroup)) {
+                            if (my in y until y + gui.ENT_H) return true
+                            y += gui.ENT_H
+                        }
                         if (my in y until y + gui.ENT_H) {
                             if (entry is HudEditEntry && mod is HudModule) {
                                 Minecraft.getInstance().gui.setScreen(HudEditorScreen(mod, gui))
@@ -437,6 +470,7 @@ internal object DropdownMode {
                         if (entry == gui.expandedColorEntry && entry is ColorEntry) {
                             if (gui.handleColorClick(entry, cpx + 6, y, gui.PNL_W - 6, mx, my)) return true
                         }
+                        previousGroup = group
                     }
                 }
             }

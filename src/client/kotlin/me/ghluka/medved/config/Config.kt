@@ -19,14 +19,24 @@ import me.ghluka.medved.config.entry.*
 abstract class Config(val name: String) {
 
     private val _entries = mutableListOf<ConfigEntry<*>>()
+    private val _groups = mutableListOf<ConfigGroup>()
 
     /** All entries registered to this config. */
     val entries: List<ConfigEntry<*>> get() = _entries
+
+    /** Groups declared by this config, in declaration order. */
+    val groups: List<ConfigGroup> get() = _groups
 
     protected fun <T : ConfigEntry<*>> register(entry: T): T {
         _entries += entry
         return entry
     }
+
+    protected fun group(name: String, description: String? = null): ConfigGroup =
+        ConfigGroup(name, description).also { _groups += it }
+
+    protected fun <T : ConfigEntry<*>> T.inGroup(group: ConfigGroup): T =
+        apply { this.group = group }
 
     protected fun boolean(name: String, default: Boolean) =
         register(BooleanEntry(name, default))
@@ -70,9 +80,12 @@ abstract class Config(val name: String) {
 
     fun deserialize(json: JsonObject) {
         for (entry in _entries) {
-            if (json.has(entry.name)) {
-                runCatching { entry.fromJson(json[entry.name]) }
-            }
+            val key = sequenceOf(entry.name)
+                .plus(entry.aliases)
+                .firstOrNull(json::has)
+                ?: continue
+
+            runCatching { entry.fromJson(json[key]) }
         }
     }
 

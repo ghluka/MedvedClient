@@ -5,7 +5,7 @@ import com.google.gson.JsonPrimitive
 
 class BooleanEntry(name: String, default: Boolean) : ConfigEntry<Boolean>(name, default) {
     override fun toJson(): JsonElement = JsonPrimitive(value)
-    override fun fromJson(element: JsonElement) { value = element.asBoolean }
+    override fun fromJson(element: JsonElement) { element.booleanOrNull?.let { value = it } }
 }
 
 class IntEntry(
@@ -15,7 +15,7 @@ class IntEntry(
     val max: Int = Int.MAX_VALUE
 ) : ConfigEntry<Int>(name, default) {
     override fun toJson(): JsonElement = JsonPrimitive(value)
-    override fun fromJson(element: JsonElement) { value = element.asInt.coerceIn(min, max) }
+    override fun fromJson(element: JsonElement) { element.intOrNull?.let { value = it.coerceIn(min, max) } }
 }
 
 class FloatEntry(
@@ -25,7 +25,7 @@ class FloatEntry(
     val max: Float = Float.MAX_VALUE
 ) : ConfigEntry<Float>(name, default) {
     override fun toJson(): JsonElement = JsonPrimitive(value)
-    override fun fromJson(element: JsonElement) { value = element.asFloat.coerceIn(min, max) }
+    override fun fromJson(element: JsonElement) { element.floatOrNull?.let { value = it.coerceIn(min, max) } }
 }
 
 class DoubleEntry(
@@ -35,10 +35,10 @@ class DoubleEntry(
     val max: Double = Double.MAX_VALUE
 ) : ConfigEntry<Double>(name, default) {
     override fun toJson(): JsonElement = JsonPrimitive(value)
-    override fun fromJson(element: JsonElement) { value = element.asDouble.coerceIn(min, max) }
+    override fun fromJson(element: JsonElement) { element.doubleOrNull?.let { value = it.coerceIn(min, max) } }
 }
 
 class StringEntry(name: String, default: String) : ConfigEntry<String>(name, default) {
     override fun toJson(): JsonElement = JsonPrimitive(value)
-    override fun fromJson(element: JsonElement) { value = element.asString }
+    override fun fromJson(element: JsonElement) { element.stringOrNull?.let { value = it } }
 }

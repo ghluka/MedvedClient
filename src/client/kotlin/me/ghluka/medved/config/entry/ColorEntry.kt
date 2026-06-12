@@ -2,7 +2,6 @@ package me.ghluka.medved.config.entry
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
 import kotlin.math.abs
 
 class ColorEntry(name: String, default: Color, val allowAlpha: Boolean = true) : ConfigEntry<Color>(name, default) {
@@ -38,30 +37,28 @@ class ColorEntry(name: String, default: Color, val allowAlpha: Boolean = true) :
 
     override fun fromJson(element: JsonElement) {
         if (element.isJsonPrimitive) {
-            val loaded = Color.fromHex(element.asString)
+            val loaded = Color.fromHex(element.stringOrNull.orEmpty())
             value = loaded
             customValue = loaded
             pickerMode = PickerMode.CUSTOM
             return
         }
 
-        if (!element.isJsonObject) return
-        val obj = element.asJsonObject
-        val loadedValue = obj.getStringOrNull("value")?.let(Color::fromHex)
-            ?: obj.getStringOrNull("custom")?.let(Color::fromHex)
+        val obj = element.objectOrNull ?: return
+        val loadedValue = obj.stringOrNull("value")?.let(Color::fromHex)
+            ?: obj.stringOrNull("custom")?.let(Color::fromHex)
             ?: value
-        val loadedCustom = obj.getStringOrNull("custom")?.let(Color::fromHex) ?: loadedValue
+        val loadedCustom = obj.stringOrNull("custom")?.let(Color::fromHex) ?: loadedValue
         value = loadedValue
         customValue = loadedCustom
 
-        pickerMode = obj.getStringOrNull("mode")
-            ?.let { runCatching { PickerMode.valueOf(it) }.getOrNull() }
+        pickerMode = enumValueOrNull<PickerMode>(obj.stringOrNull("mode"))
             ?.let { if (!allowThemeMode() && it == PickerMode.THEME) PickerMode.CUSTOM else it }
             ?: PickerMode.CUSTOM
 
-        chromaSpeed = obj.getFloatOrNull("chromaSpeed")?.coerceIn(0.05f, 8f) ?: chromaSpeed
-        chromaSaturation = obj.getFloatOrNull("chromaSaturation")?.coerceIn(0f, 1f) ?: chromaSaturation
-        chromaBrightness = obj.getFloatOrNull("chromaBrightness")?.coerceIn(0f, 1f) ?: chromaBrightness
+        chromaSpeed = obj.floatOrNull("chromaSpeed")?.coerceIn(0.05f, 8f) ?: chromaSpeed
+        chromaSaturation = obj.floatOrNull("chromaSaturation")?.coerceIn(0f, 1f) ?: chromaSaturation
+        chromaBrightness = obj.floatOrNull("chromaBrightness")?.coerceIn(0f, 1f) ?: chromaBrightness
     }
 
     fun applyDynamicColor(themeColor: Color, timeSeconds: Float, allowThemeMode: Boolean) {
@@ -113,10 +110,4 @@ class ColorEntry(name: String, default: Color, val allowAlpha: Boolean = true) :
             255
         )
     }
-
-    private fun JsonObject.getStringOrNull(key: String): String? =
-        if (has(key) && get(key).isJsonPrimitive) get(key).asString else null
-
-    private fun JsonObject.getFloatOrNull(key: String): Float? =
-        if (has(key) && get(key).isJsonPrimitive) get(key).asFloat else null
 }

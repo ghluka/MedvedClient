@@ -29,7 +29,7 @@ object Animations : Module(
     val swingProgressScale = float("swing scale", 0.9f, 0.1f, 1.0f).also {
         it.visibleWhen = { mode.value == Mode.ONE_SEVEN }
     }
-    
+
     val visualBlock = boolean("visual block", false)
 
     val mainHand = boolean("main hand", false)

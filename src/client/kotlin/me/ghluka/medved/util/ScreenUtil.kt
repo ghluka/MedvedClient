@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FormattedText
 import net.minecraft.util.ARGB
 import net.minecraft.util.FormattedCharSequence
+import kotlin.math.roundToInt
 
 const val radius = 5
 
@@ -60,46 +61,76 @@ fun GuiGraphicsExtractor.roundedFill(
 
     if (!doTL && !doTR && !doBL && !doBR) return
 
-    val baseA = (color ushr 24) and 0xFF
-    val rgb   = color and 0x00FFFFFF
-    val rrF   = rr.toFloat()
+    drawRoundedCornerPixels(x, y, w, h, rr, color, doTL, doTR, doBL, doBR)
+}
 
-    for (i in 0 until rr) {
-        val xi = i + 0.5f   // pixel-centre distance from outer edge   (used by TR / BR)
-        val xo = rrF - xi   // pixel-centre distance from inner centre  (used by TL / BL)
-        for (j in 0 until rr) {
-            val yi = j + 0.5f
-            val yo = rrF - yi
-            if (doTL) {
-                val cov = (rrF - kotlin.math.sqrt((xo * xo + yo * yo).toDouble()).toFloat() + 0.5f).coerceIn(0f, 1f)
-                if (cov > 0f) {
-                    val a = if (cov >= 1f) baseA else (baseA * cov + 0.5f).toInt()
-                    fill(x + i, y + j, x + i + 1, y + j + 1, (a shl 24) or rgb)
+private fun GuiGraphicsExtractor.drawRoundedCornerPixels(
+    x: Int,
+    y: Int,
+    w: Int,
+    h: Int,
+    r: Int,
+    color: Int,
+    doTL: Boolean,
+    doTR: Boolean,
+    doBL: Boolean,
+    doBR: Boolean,
+) {
+    val scale = Minecraft.getInstance().window.guiScale.toFloat().coerceAtLeast(1f)
+    val baseA = (color ushr 24) and 0xFF
+    val rgb = color and 0x00FFFFFF
+    val radiusPx = (r * scale).roundToInt().coerceAtLeast(1)
+    val radiusPxF = radiusPx.toFloat()
+
+    pose().pushMatrix()
+    if (scale != 1f) pose().scale(1f / scale, 1f / scale)
+
+    fun guiToPixel(value: Int): Int = (value * scale).roundToInt()
+
+    fun drawPixel(px: Int, py: Int, coverage: Float) {
+        if (coverage <= 0f) return
+        val alpha = if (coverage >= 1f) baseA else (baseA * coverage + 0.5f).toInt()
+        fill(px, py, px + 1, py + 1, (alpha shl 24) or rgb)
+    }
+
+    val leftPx = guiToPixel(x)
+    val rightPx = guiToPixel(x + w - r)
+    val topPx = guiToPixel(y)
+    val bottomPx = guiToPixel(y + h - r)
+
+    fun drawCorner(originX: Int, originY: Int, flipX: Boolean, flipY: Boolean) {
+        for (j in 0 until radiusPx) {
+            val yCenter = j + 0.5f
+            val yDistance = radiusPxF - yCenter
+            val boundary = radiusPxF - kotlin.math.sqrt(
+                (radiusPxF * radiusPxF - yDistance * yDistance).coerceAtLeast(0f).toDouble()
+            ).toFloat()
+            val firstFull = kotlin.math.ceil(boundary + 0.5f).toInt().coerceIn(0, radiusPx)
+            val rowY = if (flipY) originY + radiusPx - 1 - j else originY + j
+
+            if (firstFull < radiusPx) {
+                if (flipX) {
+                    fill(originX, rowY, originX + radiusPx - firstFull, rowY + 1, color)
+                } else {
+                    fill(originX + firstFull, rowY, originX + radiusPx, rowY + 1, color)
                 }
             }
-            if (doTR) {
-                val cov = (rrF - kotlin.math.sqrt((xi * xi + yo * yo).toDouble()).toFloat() + 0.5f).coerceIn(0f, 1f)
-                if (cov > 0f) {
-                    val a = if (cov >= 1f) baseA else (baseA * cov + 0.5f).toInt()
-                    fill(x + w - rr + i, y + j, x + w - rr + i + 1, y + j + 1, (a shl 24) or rgb)
-                }
-            }
-            if (doBL) {
-                val cov = (rrF - kotlin.math.sqrt((xo * xo + yi * yi).toDouble()).toFloat() + 0.5f).coerceIn(0f, 1f)
-                if (cov > 0f) {
-                    val a = if (cov >= 1f) baseA else (baseA * cov + 0.5f).toInt()
-                    fill(x + i, y + h - rr + j, x + i + 1, y + h - rr + j + 1, (a shl 24) or rgb)
-                }
-            }
-            if (doBR) {
-                val cov = (rrF - kotlin.math.sqrt((xi * xi + yi * yi).toDouble()).toFloat() + 0.5f).coerceIn(0f, 1f)
-                if (cov > 0f) {
-                    val a = if (cov >= 1f) baseA else (baseA * cov + 0.5f).toInt()
-                    fill(x + w - rr + i, y + h - rr + j, x + w - rr + i + 1, y + h - rr + j + 1, (a shl 24) or rgb)
-                }
+
+            val aaIndex = firstFull - 1
+            if (aaIndex >= 0) {
+                val coverage = (aaIndex + 0.5f - boundary + 0.5f).coerceIn(0f, 1f)
+                val rowX = if (flipX) originX + radiusPx - 1 - aaIndex else originX + aaIndex
+                drawPixel(rowX, rowY, coverage)
             }
         }
     }
+
+    if (doTL) drawCorner(leftPx, topPx, flipX = false, flipY = false)
+    if (doTR) drawCorner(rightPx, topPx, flipX = true, flipY = false)
+    if (doBL) drawCorner(leftPx, bottomPx, flipX = false, flipY = true)
+    if (doBR) drawCorner(rightPx, bottomPx, flipX = true, flipY = true)
+
+    pose().popMatrix()
 }
 
 fun GuiGraphicsExtractor.TextHighlight(x0: Int, y0: Int, x1: Int, y1: Int, invertText: Boolean) {
