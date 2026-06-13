@@ -23,7 +23,6 @@
   "Trigger Bot": {
     "enabled": false,
     "keybind": -1,
-    "range": 2.993464,
     "extra delay": [
       -2,
       2
@@ -397,12 +396,13 @@
     "keybind": -1
   },
   "Animations": {
-    "enabled": true,
+    "enabled": false,
     "keybind": -1,
     "mode": "PUSHDOWN",
     "translate y": 0.25,
     "swing scale": 0.9,
     "visual block": false,
+    "visual block swords": true,
     "main hand": true,
     "main hand scale": -0.25,
     "main hand x": 0.25,
@@ -417,7 +417,8 @@
     "off hand rot x": 0.0,
     "off hand rot y": 0.0,
     "off hand rot z": 0.0,
-    "swing duration": 6
+    "swing duration": 6,
+    "cancel equip progress": true
   },
   "Box ESP": {
     "enabled": true,
@@ -589,7 +590,8 @@
     "rotations": "SERVER",
     "range": 4.5,
     "blatant range": 5.0588236,
-    "auto tool": true
+    "auto tool": true,
+    "ignore own bed": true
   },
   "Chest Aura": {
     "enabled": false,
@@ -677,10 +679,11 @@
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
     },
-    "text shadow": false,
     "sort": "SIZE",
     "reverse order": false,
     "capitalize": "LOWER",
+    "shadow": "SOFT",
+    "shadow strength": 165,
     "pad x": 2,
     "pad y": 3,
     "show config": true

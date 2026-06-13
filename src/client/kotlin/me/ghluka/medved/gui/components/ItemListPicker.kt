@@ -8,10 +8,10 @@ import me.ghluka.medved.util.roundedFill
 import me.ghluka.medved.util.TextCentered
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.BlockItem
-import java.lang.reflect.Modifier
 import java.util.Locale
  
 internal data class ItemCategory(
@@ -42,16 +42,14 @@ internal var _cachedItems: List<Pair<String, Item>>? = null
  
 internal fun getAllItems(): List<Pair<String, Item>> {
     _cachedItems?.let { return it }
-    val list = mutableListOf<Pair<String, Item>>()
-    try {
-        for (f in Items::class.java.fields) {
-            if (Modifier.isStatic(f.modifiers) && Item::class.java.isAssignableFrom(f.type)) {
-                val v = f.get(null) as? Item ?: continue
-                list.add(f.name.lowercase(Locale.getDefault()) to v)
-            }
-        }
-    } catch (_: Exception) {}
-    _cachedItems = list.distinctBy { it.first }
+    val list = BuiltInRegistries.ITEM
+        .asSequence()
+        .filter { it !== Items.AIR }
+        .map { item -> BuiltInRegistries.ITEM.getKey(item).path.lowercase(Locale.ROOT) to item }
+        .distinctBy { it.first }
+        .sortedBy { it.first.replace('_', ' ') }
+        .toList()
+    _cachedItems = list
  
     _buildEdibleSet(_cachedItems!!)
  
@@ -59,7 +57,9 @@ internal fun getAllItems(): List<Pair<String, Item>> {
 }
  
 internal fun findItemByName(name: String): Pair<String, Item>? =
-    getAllItems().firstOrNull { it.first.equals(name, ignoreCase = true) }
+    normalizeItemName(name).let { normalized ->
+        getAllItems().firstOrNull { it.first == normalized }
+    }
  
 private var _edibleItemNames: Set<String> = emptySet()
  
@@ -101,6 +101,14 @@ private data class ItemRow(
 }
  
 private fun itemNameOf(entry: Pair<String, Item>) = entry.first // already lowercase from getAllItems()
+
+internal fun normalizeItemName(name: String): String {
+    var normalized = name.trim().lowercase(Locale.ROOT)
+    normalized = normalized.substringAfter("item.minecraft.")
+    normalized = normalized.substringAfter("block.minecraft.")
+    normalized = normalized.substringAfter("minecraft:")
+    return normalized
+}
 
 private var _rowCacheKey: Pair<String, ItemListEntry.Filter>? = null
 private var _rowCache: List<PickerRow> = emptyList()
