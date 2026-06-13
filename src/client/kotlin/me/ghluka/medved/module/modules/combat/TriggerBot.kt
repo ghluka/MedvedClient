@@ -17,7 +17,6 @@ object TriggerBot : Module(
     Category.COMBAT
 ) {
 
-    private val range = float("range", 3.0f, 1.0f, 6.0f)
     private val extraDelay = intRange("extra delay", 0 to 2, -5, 5)
     private val playersOnly = boolean("players only", true)
     
@@ -40,13 +39,12 @@ object TriggerBot : Module(
             return
         }
 
-        val entityHit = entityRaycast(player, range.value.toDouble()) ?: return
+        val entityHit = attackRaycast(player) ?: return
         val target = entityHit.entity
 
         if (target !is LivingEntity) return
         if (target.isDeadOrDying) return
         if (playersOnly.value && target !is Player) return
-        if (player.distanceTo(target) > range.value) return
         if (!TargetFilter.isValidTarget(player, target)) return
 
         if (requireMouseDown.value && !isPhysicalKeyDown(client.options.keyAttack)) return

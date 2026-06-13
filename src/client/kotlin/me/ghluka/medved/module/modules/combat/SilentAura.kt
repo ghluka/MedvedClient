@@ -130,7 +130,7 @@ object SilentAura : Module(
             val currentTarget = target ?: return@register
             if (!canUseAuraRotation()) return@register
             updateAuraRotation(player, currentTarget)
-            if (!isAimedAtTarget(player, currentTarget, maxRange)) return@register
+            if (!isAimedAtTarget(player, currentTarget)) return@register
 
             when (mode.value) {
                 Mode.CPS -> {
@@ -197,8 +197,8 @@ object SilentAura : Module(
                 (me.ghluka.medved.module.modules.world.ChestAura.isEnabled() && RotationManager.isActive()) ||
                 me.ghluka.medved.module.modules.world.Clutch.isActivelyPlacing)
 
-    private fun isAimedAtTarget(player: Player, currentTarget: LivingEntity, maxRange: Double): Boolean {
-        val hit = entityRaycast(player, maxRange) { it === currentTarget } ?: return false
+    private fun isAimedAtTarget(player: Player, currentTarget: LivingEntity): Boolean {
+        val hit = attackRaycast(player) { it === currentTarget } ?: return false
         return hit.entity === currentTarget
     }
 

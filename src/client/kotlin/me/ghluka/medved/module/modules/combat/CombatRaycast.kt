@@ -9,14 +9,15 @@ import net.minecraft.world.phys.HitResult
 internal fun entityRaycast(
     player: Player,
     range: Double,
+    stopAtBlocks: Boolean = true,
     predicate: (Entity) -> Boolean = { true },
 ): EntityHitResult? {
     val level = Minecraft.getInstance().level ?: return null
     val eye = player.eyePosition
     val end = eye.add(player.lookAngle.scale(range))
 
-    val blockHit = player.pick(range, 1.0f, false)
-    val maxDistanceSq = if (blockHit.type == HitResult.Type.MISS) {
+    val blockHit = if (stopAtBlocks) player.pick(range, 1.0f, false) else null
+    val maxDistanceSq = if (blockHit == null || blockHit.type == HitResult.Type.MISS) {
         range * range
     } else {
         eye.distanceToSqr(blockHit.location).coerceAtMost(range * range)
@@ -43,4 +44,24 @@ internal fun entityRaycast(
     }
 
     return best?.let { EntityHitResult(it, bestHit) }
+}
+
+internal fun actualAttackReach(player: Player): Double =
+    player.entityInteractionRange()
+
+internal fun attackRaycast(
+    player: Player,
+    predicate: (Entity) -> Boolean = { true },
+): EntityHitResult? {
+    val reach = actualAttackReach(player)
+    val reachModuleCanHitThroughWalls = Reach.isEnabled() &&
+            Reach.tickReach > 0.0 &&
+            Reach.hitThroughWalls.value
+
+    return entityRaycast(
+        player = player,
+        range = reach,
+        stopAtBlocks = !reachModuleCanHitThroughWalls,
+        predicate = predicate,
+    )
 }
