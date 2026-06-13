@@ -21,8 +21,6 @@ import net.minecraft.world.InteractionHand
 import org.lwjgl.glfw.GLFW
 import kotlin.math.atan2
 import kotlin.math.floor
-import kotlin.math.sin
-import kotlin.math.cos
 
 object Scaffold : Module("Scaffold", "Automatically places blocks under you while walking", Category.WORLD) {
 
@@ -55,6 +53,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     private var autoclickAccum = 0.0f
     private var autoclickTargetCps = 0
     private var ownsRotation = false
+    private var ninjaStrafeRight = true
 
     private fun findBlockSlot(player: LocalPlayer): Int {
         val world = Minecraft.getInstance().level ?: return -1
@@ -134,19 +133,25 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             fun sidewaysBridge() {
                 if (W && !S && !A && !D) {
                     val camRad = Math.toRadians(RotationManager.getClientYaw().toDouble())
+                    ninjaStrafeRight = chooseNinjaStrafeRight(player, camRad)
                     var mx = -kotlin.math.sin(camRad)
                     var mz = kotlin.math.cos(camRad)
-                    mx -= kotlin.math.cos(camRad)
-                    mz -= kotlin.math.sin(camRad)
+                    if (ninjaStrafeRight) {
+                        mx -= kotlin.math.cos(camRad)
+                        mz -= kotlin.math.sin(camRad)
+                    } else {
+                        mx += kotlin.math.cos(camRad)
+                        mz += kotlin.math.sin(camRad)
+                    }
                     val rawMoveYaw = Math.toDegrees(atan2(-mx, mz)).toFloat()
                     targetCard = Math.round(rawMoveYaw / 45.0f) * 45.0f
 
-                    pressRight = true
-                    pressLeft = false
+                    pressRight = ninjaStrafeRight
+                    pressLeft = !ninjaStrafeRight
                     client.options.keyUp.setDown(false)
                     client.options.keyDown.setDown(true)
-                    client.options.keyRight.setDown(true)
-                    client.options.keyLeft.setDown(false)
+                    client.options.keyRight.setDown(pressRight)
+                    client.options.keyLeft.setDown(pressLeft)
                 } else {
                     pressRight = false
                     pressLeft = false
@@ -222,10 +227,9 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 }
             }
 
-            val aimYaw = Mth.wrapDegrees(targetCard + 180f)
-
             val hasSideKey = pressRight || pressLeft
 
+            val aimYaw = Mth.wrapDegrees(targetCard + 180f)
             val aimPitch = when (scaffoldState) {
                 ScaffoldState.TOWERING -> 90.0f
 
@@ -245,47 +249,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             RotationManager.setTargetRotation(aimYaw, aimPitch)
             ownsRotation = true
             RotationManager.quickTick(60f)
-
-            fun getForceEdgePlaceHit(): BlockHitResult? {
-                if (!player.onGround() && scaffoldState != ScaffoldState.UPSTACKING) {
-                    return null
-                }
-
-                val lookHit = client.hitResult as? BlockHitResult ?: return null
-                val world = client.level ?: return null
-
-                val hitPos = lookHit.blockPos
-                if (world.getBlockState(hitPos).isAir) return null
-
-                val face = lookHit.direction
-                if (
-                    (scaffoldState != ScaffoldState.UPSTACKING
-                            && !isDiagonal) &&
-                    face != Direction.NORTH &&
-                    face != Direction.SOUTH &&
-                    face != Direction.EAST &&
-                    face != Direction.WEST
-                ) {
-                    return null
-                }
-
-                val placePos = hitPos.relative(face)
-
-                if (!world.getBlockState(placePos).isAir) return null
-
-                val hitVec = Vec3(
-                    hitPos.x + 0.5 + face.stepX * 0.5,
-                    hitPos.y + 0.5 + face.stepY * 0.5,
-                    hitPos.z + 0.5 + face.stepZ * 0.5
-                )
-
-                return BlockHitResult(
-                    hitVec,
-                    face,
-                    hitPos,
-                    false
-                )
-            }
 
             val level = client.level
             if (level != null) {
@@ -328,6 +291,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                         false
                     )
                 }
+
                 val stack = player.mainHandItem
                 if (stack.isEmpty || stack.item !is BlockItem) {
                     val slot = findBlockSlot(player)
@@ -377,7 +341,11 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                      || (scaffoldState == ScaffoldState.UPSTACKING
                              )
                 )) {
-                val nearEdge = isNearEdge(player, client.level!!)
+                val nearEdge = if (movingHoriz) {
+                    isMovingTowardEdge(player, client.level!!, W, S, A, D)
+                } else {
+                    isNearEdge(player, client.level!!)
+                }
 
                 if (nearEdge && !isCrouching) {
                     isCrouching = true
@@ -430,6 +398,61 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             }
         }
         return false
+    }
+
+    private fun chooseNinjaStrafeRight(player: LocalPlayer, camRad: Double): Boolean {
+        val localX = player.x - floor(player.x) - 0.5
+        val localZ = player.z - floor(player.z) - 0.5
+        val rightX = -kotlin.math.cos(camRad)
+        val rightZ = -kotlin.math.sin(camRad)
+        val sideOffset = localX * rightX + localZ * rightZ
+
+        return when {
+            sideOffset > 0.08 -> true
+            sideOffset < -0.08 -> false
+            else -> ninjaStrafeRight
+        }
+    }
+
+    private fun isMovingTowardEdge(
+        player: LocalPlayer,
+        world: net.minecraft.client.multiplayer.ClientLevel,
+        forward: Boolean,
+        back: Boolean,
+        left: Boolean,
+        right: Boolean,
+    ): Boolean {
+        val yaw = Math.toRadians(RotationManager.getClientYaw().toDouble())
+        var moveX = 0.0
+        var moveZ = 0.0
+
+        if (forward) {
+            moveX -= kotlin.math.sin(yaw)
+            moveZ += kotlin.math.cos(yaw)
+        }
+        if (back) {
+            moveX += kotlin.math.sin(yaw)
+            moveZ -= kotlin.math.cos(yaw)
+        }
+        if (right) {
+            moveX -= kotlin.math.cos(yaw)
+            moveZ -= kotlin.math.sin(yaw)
+        }
+        if (left) {
+            moveX += kotlin.math.cos(yaw)
+            moveZ += kotlin.math.sin(yaw)
+        }
+
+        val len = kotlin.math.sqrt(moveX * moveX + moveZ * moveZ)
+        if (len < 0.001) return isNearEdge(player, world)
+
+        val margin = 0.42
+        val checkX = player.x + moveX / len * margin
+        val checkZ = player.z + moveZ / len * margin
+        val checkY = floor(player.y - 1.0).toInt()
+        val pos = BlockPos(floor(checkX).toInt(), checkY, floor(checkZ).toInt())
+        val state = world.getBlockState(pos)
+        return state.isAir || !state.fluidState.isEmpty || !state.isCollisionShapeFullBlock(world, pos)
     }
 
     private fun isSolidSupportBlock(world: net.minecraft.client.multiplayer.ClientLevel, x: Int, y: Int, z: Int): Boolean {

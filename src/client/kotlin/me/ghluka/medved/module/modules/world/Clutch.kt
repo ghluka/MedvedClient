@@ -5,7 +5,6 @@ import me.ghluka.medved.config.entry.ItemListEntry
 import me.ghluka.medved.util.RotationManager
 import me.ghluka.medved.gui.components.itemCategories
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
@@ -13,12 +12,10 @@ import net.minecraft.core.Direction
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.item.BlockItem
 import net.minecraft.world.phys.BlockHitResult
-import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
-import net.minecraft.client.multiplayer.ClientLevel
-import net.minecraft.world.level.BlockGetter
-import org.lwjgl.glfw.GLFW
+import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.sqrt
 
@@ -34,8 +31,6 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
 
     private val returnToSlot     = boolean("return to slot", true)
 
-    private val telly = boolean("telly", true)
-
     private val rotSpeed = float("rotation speed", 60f, 10f, 120f)
 
     private val blockWhitelist = itemList("Block Whitelist", listOf("wool_category"), defaultMode = ItemListEntry.Mode.WHITELIST, filter = ItemListEntry.Filter.BLOCKS_ONLY)
@@ -47,9 +42,17 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
     private var savedCamYaw      = 0f
     private var savedCamPitch    = 0f
     private var ownsRotation     = false
+    private var postClutchBridgeTicks = 0
 
     private var savedBackYaw     = 0f
     @JvmField var isActivelyPlacing = false
+
+    private data class Placement(
+        val placePos: BlockPos,
+        val neighbor: BlockPos,
+        val face: Direction,
+        val score: Double,
+    )
 
     private fun findBlockSlot(player: LocalPlayer): Int {
         val world  = Minecraft.getInstance().level ?: return -1
@@ -112,20 +115,33 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             if (!isEnabled()) return@register
             val player = client.player ?: return@register
             val world  = client.level  ?: return@register
+            var continueGroundBridge = false
 
             if (player.onGround()) {
                 isActivelyPlacing = false
                 val physicalW = isPhysicalKeyDown(client.options.keyUp)
+                val nearEdgeNow = isNearEdge(player, world)
+                if (clutching && postClutchBridgeTicks <= 0) {
+                    postClutchBridgeTicks = 8
+                }
 
-                if (clutching) {
+                continueGroundBridge = postClutchBridgeTicks > 0 &&
+                        nearEdgeNow &&
+                        horizontalSpeed(player) > 0.03 &&
+                        hasBlocks(player)
+
+                if (continueGroundBridge) {
+                    postClutchBridgeTicks--
+                    isActivelyPlacing = true
+                } else if (clutching) {
                     if (savedSlot != -1 && returnToSlot.value) {
                         player.inventory.setSelectedSlot(savedSlot)
                         savedSlot = -1
                     }
 
                     savedBackYaw    = net.minecraft.util.Mth.wrapDegrees(RotationManager.getClientYaw() + 180f)
-                    moveFreezeTicks = if (telly.value) 0 else 20
                     clutching       = false
+                    postClutchBridgeTicks = 0
                 }
 
                 if (!physicalW) {
@@ -141,9 +157,8 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                     opts.keyDown.setDown(isPhysicalKeyDown(opts.keyDown))
                     opts.keyLeft.setDown(isPhysicalKeyDown(opts.keyLeft))
                     opts.keyRight.setDown(isPhysicalKeyDown(opts.keyRight))
-                    opts.keyShift.setDown(isPhysicalKeyDown(opts.keyShift))
                     ownsRotation = false
-                } else if (physicalW && ownsRotation) {
+                } else if (!continueGroundBridge && physicalW && ownsRotation) {
                     RotationManager.movementMode = RotationManager.MovementMode.CLIENT
                     RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
                     RotationManager.perspective  = true
@@ -154,12 +169,13 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
                     client.options.keyDown.setDown(true)
                 }
 
-                return@register
+                if (!continueGroundBridge) {
+                    return@register
+                }
             }
-            moveFreezeTicks = if (telly.value) 0 else 20
 
-            if (player.deltaMovement.y >= 0) return@register
-            if (!triggerMet(player, world)) return@register
+            if (!continueGroundBridge && player.deltaMovement.y >= 0) return@register
+            if (!continueGroundBridge && !triggerMet(player, world)) return@register
             if (!hasBlocks(player)) return@register
 
             if (!clutching) {
@@ -172,12 +188,10 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
 
             isActivelyPlacing = true
 
-            if (!telly.value) {
                 client.options.keyUp.setDown(false)
                 client.options.keyDown.setDown(false)
                 client.options.keyLeft.setDown(false)
                 client.options.keyRight.setDown(false)
-            }
 
             if (player.mainHandItem.isEmpty || player.mainHandItem.item !is BlockItem) {
                 val slot = findBlockSlot(player)
@@ -193,63 +207,7 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             }
 
             val reach = if (player.isCreative) 5.0 else 4.5
-            val eyeX  = player.x
-            val eyeY  = player.y + player.eyeHeight
-            val eyeZ  = player.z
-            val bx    = floor(player.x).toInt()
-            val feetY = floor(player.y).toInt()
-            val bz    = floor(player.z).toInt()
-
-            val velY         = player.deltaMovement.y.coerceAtMost(0.0)
-            val targetY      = floor(player.y + velY).toInt() - 1
-            val playerBB     = player.boundingBox
-            val trajectoryBB = playerBB.expandTowards(0.0, velY, 0.0)
-
-            data class Candidate(val neighbor: BlockPos, val face: Direction, val score: Double)
-            var best: Candidate? = null
-
-            for (dy in 3 downTo -4) {
-                for (ddx in -4..4) {
-                    for (ddz in -4..4) {
-                        val airPos = BlockPos(bx + ddx, feetY + dy, bz + ddz)
-                        if (!world.getBlockState(airPos).isAir) continue
-
-                        val blockBB = net.minecraft.world.phys.AABB(
-                            airPos.x.toDouble(), airPos.y.toDouble(), airPos.z.toDouble(),
-                            airPos.x + 1.0, airPos.y + 1.0, airPos.z + 1.0
-                        )
-                        if (trajectoryBB.intersects(blockBB)) continue
-
-                        for (dir in arrayOf(
-                            Direction.NORTH, Direction.SOUTH,
-                            Direction.EAST,  Direction.WEST
-                        )) {
-                            val nb = airPos.relative(dir)
-                            val nbState = world.getBlockState(nb)
-                            if (nbState.isAir || !nbState.fluidState.isEmpty) continue
-
-                            val face = dir.opposite
-                            val fx = nb.x + 0.5 + face.stepX * 0.45
-                            val fy = nb.y + 0.5 + face.stepY * 0.45
-                            val fz = nb.z + 0.5 + face.stepZ * 0.45
-                            val ex = fx - eyeX; val ey2 = fy - eyeY; val ez = fz - eyeZ
-                            if (ex * ex + ey2 * ey2 + ez * ez > reach * reach) continue
-
-                            val yDev  = Math.abs(airPos.y - targetY).toDouble()
-                            val hDist = Math.sqrt(
-                                (airPos.x + 0.5 - player.x) * (airPos.x + 0.5 - player.x) +
-                                        (airPos.z + 0.5 - player.z) * (airPos.z + 0.5 - player.z)
-                            )
-                            val score = yDev * 20.0 + hDist
-                            if (best == null || score < best.score) {
-                                best = Candidate(nb, face, score)
-                            }
-                        }
-                    }
-                }
-            }
-
-            val placement = best ?: return@register
+            val placement = findBestPlacement(player, world, reach) ?: return@register
 
             val (aimYaw, aimPitch) = faceAim(player, placement.neighbor, placement.face)
 
@@ -273,15 +231,122 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
             val bhr = hitResult as? BlockHitResult ?: return@register
             if (bhr.blockPos != placement.neighbor || bhr.direction != placement.face) return@register
 
-            //val result = client.gameMode?.useItemOn(player, InteractionHand.MAIN_HAND, bhr)
-            //if (result?.consumesAction() == true) {
-            //    player.swing(InteractionHand.MAIN_HAND)
-            //}
-            KeyMapping.click(InputConstants.getKey(client.options.keyUse.saveString()))
+            val result = client.gameMode?.useItemOn(player, InteractionHand.MAIN_HAND, bhr)
+            if (result?.consumesAction() == true) {
+                player.swing(InteractionHand.MAIN_HAND)
+            }
         }
     }
 
     override fun onTick(client: Minecraft) {}
+
+    private fun findBestPlacement(
+        player: LocalPlayer,
+        world: net.minecraft.client.multiplayer.ClientLevel,
+        reach: Double,
+    ): Placement? {
+        val velocity = player.deltaMovement
+        val eyeY = player.y + player.eyeHeight
+        val playerBB = player.boundingBox
+        val placeFaces = arrayOf(
+            Direction.NORTH,
+            Direction.SOUTH,
+            Direction.EAST,
+            Direction.WEST,
+            Direction.DOWN,
+        )
+
+        var best: Placement? = null
+        val horizontalSpeed = sqrt(velocity.x * velocity.x + velocity.z * velocity.z)
+        val maxLead = if (horizontalSpeed > 0.6) 8 else 6
+
+        for (lead in 0..maxLead) {
+            val predictedX = player.x + velocity.x * lead
+            val predictedY = player.y + velocity.y.coerceAtMost(0.0) * lead
+            val predictedZ = player.z + velocity.z * lead
+            val baseX = floor(predictedX).toInt()
+            val baseY = floor(predictedY).toInt() - 1
+            val baseZ = floor(predictedZ).toInt()
+            val radius = (2 + ceil(horizontalSpeed * lead).toInt()).coerceAtMost(5)
+
+            for (dy in 0 downTo -2) {
+                for (dx in -radius..radius) {
+                    for (dz in -radius..radius) {
+                        val airPos = BlockPos(baseX + dx, baseY + dy, baseZ + dz)
+                        if (!world.getBlockState(airPos).isAir) continue
+
+                        val blockBB = net.minecraft.world.phys.AABB(
+                            airPos.x.toDouble(), airPos.y.toDouble(), airPos.z.toDouble(),
+                            airPos.x + 1.0, airPos.y + 1.0, airPos.z + 1.0,
+                        )
+                        if (playerBB.intersects(blockBB)) continue
+
+                        for (dir in placeFaces) {
+                            val neighbor = airPos.relative(dir)
+                            val neighborState = world.getBlockState(neighbor)
+                            if (neighborState.isAir || !neighborState.fluidState.isEmpty) continue
+                            if (!neighborState.isCollisionShapeFullBlock(world, neighbor)) continue
+
+                            val face = dir.opposite
+                            val fx = neighbor.x + 0.5 + face.stepX * 0.45
+                            val fy = neighbor.y + 0.5 + face.stepY * 0.45
+                            val fz = neighbor.z + 0.5 + face.stepZ * 0.45
+                            val ex = fx - player.x
+                            val ey = fy - eyeY
+                            val ez = fz - player.z
+                            if (ex * ex + ey * ey + ez * ez > reach * reach) continue
+
+                            val yDev = abs(airPos.y - baseY).toDouble()
+                            val hDev = sqrt(
+                                (airPos.x + 0.5 - predictedX) * (airPos.x + 0.5 - predictedX) +
+                                        (airPos.z + 0.5 - predictedZ) * (airPos.z + 0.5 - predictedZ)
+                            )
+                            val landingSupport = horizontalOverlap(airPos, predictedX, predictedZ)
+                            val facePenalty = if (face == Direction.UP) 0.6 else 0.0
+                            val score = yDev * 22.0 + hDev * 4.0 + lead * 0.35 + facePenalty - landingSupport * 8.0
+                            if (best == null || score < best.score) {
+                                best = Placement(airPos, neighbor, face, score)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return best
+    }
+
+    private fun horizontalOverlap(pos: BlockPos, x: Double, z: Double): Double {
+        val dx = (x - (pos.x + 0.5)).let { abs(it).coerceAtMost(0.5) }
+        val dz = (z - (pos.z + 0.5)).let { abs(it).coerceAtMost(0.5) }
+        return (1.0 - dx * 2.0) * (1.0 - dz * 2.0)
+    }
+
+    private fun horizontalSpeed(player: LocalPlayer): Double {
+        val velocity = player.deltaMovement
+        return sqrt(velocity.x * velocity.x + velocity.z * velocity.z)
+    }
+
+    private fun isNearEdge(
+        player: LocalPlayer,
+        world: net.minecraft.client.multiplayer.ClientLevel,
+    ): Boolean {
+        val y = floor(player.y - 1.0).toInt()
+        val margin = 0.32
+        val points = arrayOf(
+            player.x to player.z,
+            player.x - margin to player.z,
+            player.x + margin to player.z,
+            player.x to player.z - margin,
+            player.x to player.z + margin,
+        )
+
+        return points.any { (x, z) ->
+            val pos = BlockPos(floor(x).toInt(), y, floor(z).toInt())
+            val state = world.getBlockState(pos)
+            state.isAir || !state.fluidState.isEmpty || !state.isCollisionShapeFullBlock(world, pos)
+        }
+    }
 
     private fun faceAim(player: LocalPlayer, neighbor: BlockPos, face: Direction): Pair<Float, Float> {
         val eyeY  = player.y + player.eyeHeight
@@ -301,6 +366,7 @@ object Clutch : Module("Clutch", "Bridges blocks back to safety when knocked off
         clutching          = false
         returningToCamera  = false
         moveFreezeTicks    = 0
+        postClutchBridgeTicks = 0
         isActivelyPlacing  = false
         val player = Minecraft.getInstance().player
         if (savedSlot != -1 && player != null && returnToSlot.value) {
