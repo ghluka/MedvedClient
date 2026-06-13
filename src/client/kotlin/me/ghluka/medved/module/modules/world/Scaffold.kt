@@ -19,8 +19,10 @@ import net.minecraft.core.Direction
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.world.InteractionHand
 import org.lwjgl.glfw.GLFW
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.floor
+import kotlin.math.sqrt
 
 object Scaffold : Module("Scaffold", "Automatically places blocks under you while walking", Category.WORLD) {
 
@@ -38,22 +40,25 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     private val crouchDelay = intRange("crouch delay", 45 to 55, 0, 500).also {
         it.visibleWhen = { bridgeMode.value == BridgeMode.NINJA }
     }
-    private val breezilyPeriod = int("breezily strafe ticks", 3, 2, 4).also {
-        it.visibleWhen = { bridgeMode.value == BridgeMode.BREEZILY }
-    }
-
     private val autoclickCps = intRange("autoclick cps", 4 to 6, 1, 6)
     val disableOnDeath = boolean("disable on death", true)
     val disableOnWorldChange = boolean("disable on world change", true)
 
     private var isCrouching = false
     private var crouchWaitTicks = 0
-    private var breezilyStrafeTick = 0
 
     private var autoclickAccum = 0.0f
     private var autoclickTargetCps = 0
     private var ownsRotation = false
     private var ninjaStrafeRight = true
+    private var breezilyStrafeRight = true
+
+    private data class Placement(
+        val placePos: BlockPos,
+        val neighbor: BlockPos,
+        val face: Direction,
+        val score: Double,
+    )
 
     private fun findBlockSlot(player: LocalPlayer): Int {
         val world = Minecraft.getInstance().level ?: return -1
@@ -130,6 +135,19 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             var pressRight = false
             var pressLeft  = false
 
+            fun applyBreezilyBridge() {
+                val camRad = Math.toRadians(RotationManager.getClientYaw().toDouble())
+                if (D && !A) breezilyStrafeRight = true
+                if (A && !D) breezilyStrafeRight = false
+                breezilyStrafeRight = chooseBreezilyStrafeRight(player, camRad, invertCorrection = W && !S)
+                pressRight = breezilyStrafeRight
+                pressLeft  = !breezilyStrafeRight
+                client.options.keyUp.setDown(false)
+                client.options.keyDown.setDown(true)
+                client.options.keyRight.setDown(pressRight)
+                client.options.keyLeft.setDown(pressLeft)
+            }
+
             fun sidewaysBridge() {
                 if (W && !S && !A && !D) {
                     val camRad = Math.toRadians(RotationManager.getClientYaw().toDouble())
@@ -169,14 +187,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                             sidewaysBridge()
                         }
                         BridgeMode.BREEZILY -> {
-                            breezilyStrafeTick++
-                            val strafeRight = (breezilyStrafeTick / breezilyPeriod.value) % 2 == 0
-                            pressRight = strafeRight
-                            pressLeft  = !strafeRight
-                            client.options.keyUp.setDown(false)
-                            client.options.keyDown.setDown(true)
-                            client.options.keyRight.setDown(pressRight)
-                            client.options.keyLeft.setDown(pressLeft)
+                            applyBreezilyBridge()
                         }
                     }
                 }
@@ -205,7 +216,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
 
                 ScaffoldState.UPSTACKING, ScaffoldState.TOWERING, ScaffoldState.NONE -> {
-                    breezilyStrafeTick = 0
                     pressRight = false
                     pressLeft = false
                     if (scaffoldState == ScaffoldState.UPSTACKING) {
@@ -233,7 +243,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             val aimPitch = when (scaffoldState) {
                 ScaffoldState.TOWERING -> 90.0f
 
-                ScaffoldState.UPSTACKING -> 75.6f
+                ScaffoldState.UPSTACKING -> correctedUpstackPitch(player, W, S, A, D)
                     //if (isDiagonal || hasSideKey) 75.6f else 78.5f
 
                 ScaffoldState.DIAGONAL -> 75.6f
@@ -255,6 +265,12 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 fun getForceEdgePlaceHit(): BlockHitResult? {
                     if (!player.onGround() && scaffoldState != ScaffoldState.UPSTACKING) {
                         return null
+                    }
+
+                    if (scaffoldState == ScaffoldState.UPSTACKING) {
+                        findUpstackPlacement(player, level)?.let { placement ->
+                            return placement.toHitResult()
+                        }
                     }
 
                     val lookHit = client.hitResult as? BlockHitResult ?: return null
@@ -401,17 +417,39 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     }
 
     private fun chooseNinjaStrafeRight(player: LocalPlayer, camRad: Double): Boolean {
-        val localX = player.x - floor(player.x) - 0.5
-        val localZ = player.z - floor(player.z) - 0.5
-        val rightX = -kotlin.math.cos(camRad)
-        val rightZ = -kotlin.math.sin(camRad)
-        val sideOffset = localX * rightX + localZ * rightZ
+        val sideOffset = lateralBlockOffset(player, camRad)
 
         return when {
             sideOffset > 0.08 -> true
             sideOffset < -0.08 -> false
             else -> ninjaStrafeRight
         }
+    }
+
+    private fun chooseBreezilyStrafeRight(
+        player: LocalPlayer,
+        camRad: Double,
+        invertCorrection: Boolean,
+    ): Boolean {
+        val sideOffset = if (invertCorrection) {
+            -lateralBlockOffset(player, camRad)
+        } else {
+            lateralBlockOffset(player, camRad)
+        }
+
+        return when {
+            sideOffset > 0.18 -> false
+            sideOffset < -0.18 -> true
+            else -> breezilyStrafeRight
+        }
+    }
+
+    private fun lateralBlockOffset(player: LocalPlayer, camRad: Double): Double {
+        val localX = player.x - floor(player.x) - 0.5
+        val localZ = player.z - floor(player.z) - 0.5
+        val rightX = -kotlin.math.cos(camRad)
+        val rightZ = -kotlin.math.sin(camRad)
+        return localX * rightX + localZ * rightZ
     }
 
     private fun isMovingTowardEdge(
@@ -455,6 +493,124 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         return state.isAir || !state.fluidState.isEmpty || !state.isCollisionShapeFullBlock(world, pos)
     }
 
+    private fun findUpstackPlacement(
+        player: LocalPlayer,
+        world: net.minecraft.client.multiplayer.ClientLevel,
+    ): Placement? {
+        val velocity = player.deltaMovement
+        val baseY = floor(player.y - 1.0).toInt()
+        val candidates = mutableListOf<BlockPos>()
+
+        fun addCandidate(x: Double, z: Double, yOffset: Int = 0) {
+            val pos = BlockPos(floor(x).toInt(), baseY + yOffset, floor(z).toInt())
+            if (pos !in candidates) candidates.add(pos)
+        }
+
+        addCandidate(player.x, player.z)
+        addCandidate(player.x + velocity.x * 0.6, player.z + velocity.z * 0.6)
+        addCandidate(player.x + velocity.x * 1.2, player.z + velocity.z * 1.2)
+        addCandidate(player.x, player.z, -1)
+        addCandidate(player.x + velocity.x * 0.8, player.z + velocity.z * 0.8, 1)
+        addCandidate(player.x + velocity.x * 1.4, player.z + velocity.z * 1.4, 1)
+
+        val placeFaces = arrayOf(
+            Direction.NORTH,
+            Direction.SOUTH,
+            Direction.EAST,
+            Direction.WEST,
+            Direction.DOWN,
+        )
+
+        var best: Placement? = null
+        for (placePos in candidates) {
+            if (!world.getBlockState(placePos).isAir) continue
+
+            for (dir in placeFaces) {
+                val neighbor = placePos.relative(dir)
+                val neighborState = world.getBlockState(neighbor)
+                if (neighborState.isAir || !neighborState.fluidState.isEmpty) continue
+                if (!neighborState.isCollisionShapeFullBlock(world, neighbor)) continue
+
+                val face = dir.opposite
+                val dist = squaredDistanceToFace(player, neighbor, face)
+                if (dist > 20.25) continue
+
+                val predictedX = player.x + velocity.x
+                val predictedZ = player.z + velocity.z
+                val horizontalError = sqrt(
+                    (placePos.x + 0.5 - predictedX) * (placePos.x + 0.5 - predictedX) +
+                            (placePos.z + 0.5 - predictedZ) * (placePos.z + 0.5 - predictedZ)
+                )
+                val verticalPenalty = abs(placePos.y - baseY) * 4.0
+                val facePenalty = if (face == Direction.UP) 0.8 else 0.0
+                val score = horizontalError * 4.0 + verticalPenalty + facePenalty + dist * 0.02
+
+                if (best == null || score < best.score) {
+                    best = Placement(placePos, neighbor, face, score)
+                }
+            }
+        }
+
+        return best
+    }
+
+    private fun Placement.toHitResult(): BlockHitResult {
+        val hitVec = Vec3(
+            neighbor.x + 0.5 + face.stepX * 0.45,
+            neighbor.y + 0.5 + face.stepY * 0.45,
+            neighbor.z + 0.5 + face.stepZ * 0.45,
+        )
+        return BlockHitResult(hitVec, face, neighbor, false)
+    }
+
+    private fun squaredDistanceToFace(player: LocalPlayer, neighbor: BlockPos, face: Direction): Double {
+        val eyeY = player.y + player.eyeHeight
+        val x = neighbor.x + 0.5 + face.stepX * 0.45
+        val y = neighbor.y + 0.5 + face.stepY * 0.45
+        val z = neighbor.z + 0.5 + face.stepZ * 0.45
+        return (x - player.x) * (x - player.x) +
+                (y - eyeY) * (y - eyeY) +
+                (z - player.z) * (z - player.z)
+    }
+
+    private fun correctedUpstackPitch(
+        player: LocalPlayer,
+        forward: Boolean,
+        back: Boolean,
+        left: Boolean,
+        right: Boolean,
+    ): Float {
+        val yaw = Math.toRadians(RotationManager.getClientYaw().toDouble())
+        var moveX = 0.0
+        var moveZ = 0.0
+
+        if (forward) {
+            moveX -= kotlin.math.sin(yaw)
+            moveZ += kotlin.math.cos(yaw)
+        }
+        if (back) {
+            moveX += kotlin.math.sin(yaw)
+            moveZ -= kotlin.math.cos(yaw)
+        }
+        if (right) {
+            moveX -= kotlin.math.cos(yaw)
+            moveZ -= kotlin.math.sin(yaw)
+        }
+        if (left) {
+            moveX += kotlin.math.cos(yaw)
+            moveZ += kotlin.math.sin(yaw)
+        }
+
+        val len = kotlin.math.sqrt(moveX * moveX + moveZ * moveZ)
+        if (len < 0.001) return 75.6f
+
+        val localX = player.x - floor(player.x) - 0.5
+        val localZ = player.z - floor(player.z) - 0.5
+        val movementOffset = localX * (moveX / len) + localZ * (moveZ / len)
+        val pitchCorrection = (-movementOffset * 0.35).coerceIn(-0.12, 0.12)
+        return (75.6 + pitchCorrection).toFloat()
+    }
+
     private fun isSolidSupportBlock(world: net.minecraft.client.multiplayer.ClientLevel, x: Int, y: Int, z: Int): Boolean {
         val pos = BlockPos(x, y, z)
         val state = world.getBlockState(pos)
@@ -482,7 +638,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         autoclickTargetCps = 0
         isCrouching = false
         crouchWaitTicks = 0
-        breezilyStrafeTick = 0
     }
 
     private fun blockMatchesWhitelist(blockName: String, whitelist: List<String>): Boolean {
