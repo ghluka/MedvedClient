@@ -1,41 +1,49 @@
-package me.ghluka.medved.module.modules.world
+package me.ghluka.medved.module.modules.world.scaffold
 
-import me.ghluka.medved.module.Module
+import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.config.entry.ItemListEntry
-import me.ghluka.medved.mixin.client.LocalPlayerAccessor
-import me.ghluka.medved.util.RotationManager
 import me.ghluka.medved.gui.components.itemCategories
+import me.ghluka.medved.mixin.client.LocalPlayerAccessor
+import me.ghluka.medved.module.Module
+import me.ghluka.medved.util.InputUtil
+import me.ghluka.medved.util.RotationManager
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
-import net.minecraft.client.KeyMapping
-import com.mojang.blaze3d.platform.InputConstants
-import me.ghluka.medved.util.InputUtil.isPhysicalKeyDown
+import net.minecraft.core.Direction
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.util.Mth
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.item.BlockItem
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.Vec3
-import net.minecraft.core.Direction
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.minecraft.world.InteractionHand
-import org.lwjgl.glfw.GLFW
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 object Scaffold : Module("Scaffold", "Automatically places blocks under you while walking", Category.WORLD) {
 
     enum class BridgeMode {
-        NINJA, BREEZILY
+        NINJA, BREEZILY, TELLY
     }
 
     enum class ScaffoldState {
         TOWERING, UPSTACKING, DIAGONAL, STRAIGHT, NONE
     }
 
-    private val blockWhitelist = itemList("Block Whitelist", listOf("wool_category"), defaultMode = ItemListEntry.Mode.WHITELIST, filter = ItemListEntry.Filter.BLOCKS_ONLY)
-    private val bridgeMode = enum("mode", BridgeMode.NINJA)
+    val blockWhitelist = itemList("Block Whitelist", listOf("wool_category"), defaultMode = ItemListEntry.Mode.WHITELIST, filter = ItemListEntry.Filter.BLOCKS_ONLY)
+    val bridgeMode = enum("mode", BridgeMode.NINJA)
+
+
+    val rotSpeed = float("rot speed", 100f, 60f, 120f).also {
+        it.visibleWhen = { bridgeMode.value == BridgeMode.TELLY }
+    }
 
     private val crouchDelay = intRange("crouch delay", 45 to 55, 0, 500).also {
         it.visibleWhen = { bridgeMode.value == BridgeMode.NINJA }
@@ -49,12 +57,15 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
     private var autoclickAccum = 0.0f
     private var autoclickTargetCps = 0
-    private var ownsRotation = false
+    var ownsRotation = false
     private var ninjaStrafeRight = true
     private var breezilyStrafeRight = true
     private var diagonalBreezilyStrafeTicks = 0
     private var diagonalBreezilyStrafeRight = true
     private var diagonalBreezilyAligned = false
+
+    private var telly: Telly? = null
+    private var lastBridgeMode = bridgeMode.value
 
     private data class Placement(
         val placePos: BlockPos,
@@ -71,7 +82,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             val block = (stack.item as BlockItem).block
             if (!block.defaultBlockState().isCollisionShapeFullBlock(world, BlockPos.ZERO)) continue
             if (blockWhitelist.value.isNotEmpty()) {
-                val blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).toString().lowercase()
+                val blockId = BuiltInRegistries.BLOCK.getKey(block).toString().lowercase()
                 if (!blockMatchesWhitelist(blockId, blockWhitelist.value)) continue
             }
             return i
@@ -82,8 +93,17 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     private fun hasBlocks(player: LocalPlayer): Boolean = findBlockSlot(player) != -1
 
     init {
+        telly = Telly
+        bridgeMode.onChange { newMode ->
+            if (lastBridgeMode == BridgeMode.TELLY && newMode != BridgeMode.TELLY) {
+                telly?.onDisabled()
+            }
+            lastBridgeMode = newMode
+        }
+
         ClientTickEvents.START_CLIENT_TICK.register { client ->
             if (!isEnabled()) return@register
+            if (bridgeMode.value == BridgeMode.TELLY) return@register
             val player = client.player ?: return@register
             if (!hasBlocks(player)) {
                 if (ownsRotation) {
@@ -103,21 +123,25 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             RotationManager.rotationMode = RotationManager.RotationMode.CLIENT
             RotationManager.perspective = true
 
-            val W = isPhysicalKeyDown(client.options.keyUp)
-            val S = isPhysicalKeyDown(client.options.keyDown)
-            val A = isPhysicalKeyDown(client.options.keyLeft)
-            val D = isPhysicalKeyDown(client.options.keyRight)
-            val isJumping = isPhysicalKeyDown(client.options.keyJump)
+            val W = InputUtil.isPhysicalKeyDown(client.options.keyUp)
+            val S = InputUtil.isPhysicalKeyDown(client.options.keyDown)
+            val A = InputUtil.isPhysicalKeyDown(client.options.keyLeft)
+            val D = InputUtil.isPhysicalKeyDown(client.options.keyRight)
+            val isJumping = InputUtil.isPhysicalKeyDown(client.options.keyJump)
             val movingHoriz = W || S || A || D
 
             var targetCard = RotationManager.getClientYaw()
             if (movingHoriz) {
                 val camRad = Math.toRadians(targetCard.toDouble())
                 var mx = 0.0; var mz = 0.0
-                if (W) { mx -= kotlin.math.sin(camRad); mz += kotlin.math.cos(camRad) }
-                if (S) { mx += kotlin.math.sin(camRad); mz -= kotlin.math.cos(camRad) }
-                if (D) { mx -= kotlin.math.cos(camRad); mz -= kotlin.math.sin(camRad) }
-                if (A) { mx += kotlin.math.cos(camRad); mz += kotlin.math.sin(camRad) }
+                if (W) { mx -= sin(camRad); mz += cos(camRad)
+                }
+                if (S) { mx += sin(camRad); mz -= cos(camRad)
+                }
+                if (D) { mx -= cos(camRad); mz -= sin(camRad)
+                }
+                if (A) { mx += cos(camRad); mz += sin(camRad)
+                }
 
                 val rawMoveYaw = Math.toDegrees(atan2(-mx, mz)).toFloat()
                 targetCard = Math.round(rawMoveYaw / 45.0f) * 45.0f
@@ -155,14 +179,14 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 if (W && !S && !A && !D) {
                     val camRad = Math.toRadians(RotationManager.getClientYaw().toDouble())
                     ninjaStrafeRight = chooseNinjaStrafeRight(player, camRad)
-                    var mx = -kotlin.math.sin(camRad)
-                    var mz = kotlin.math.cos(camRad)
+                    var mx = -sin(camRad)
+                    var mz = cos(camRad)
                     if (ninjaStrafeRight) {
-                        mx -= kotlin.math.cos(camRad)
-                        mz -= kotlin.math.sin(camRad)
+                        mx -= cos(camRad)
+                        mz -= sin(camRad)
                     } else {
-                        mx += kotlin.math.cos(camRad)
-                        mz += kotlin.math.sin(camRad)
+                        mx += cos(camRad)
+                        mz += sin(camRad)
                     }
                     val rawMoveYaw = Math.toDegrees(atan2(-mx, mz)).toFloat()
                     targetCard = Math.round(rawMoveYaw / 45.0f) * 45.0f
@@ -193,6 +217,8 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                         BridgeMode.BREEZILY -> {
                             applyBreezilyBridge()
                         }
+
+                        else -> {}
                     }
                 }
 
@@ -217,6 +243,8 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                             client.options.keyRight.setDown(pressRight)
                             client.options.keyLeft.setDown(pressLeft)
                         }
+
+                        else -> {}
                     }
                 }
 
@@ -258,6 +286,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 ScaffoldState.STRAIGHT -> when (bridgeMode.value) {
                     BridgeMode.NINJA -> 78.0f
                     BridgeMode.BREEZILY -> 79.9f
+                    else -> 0f
                 }
 
                 else -> if (isDiagonal || hasSideKey) 78.0f else 80f
@@ -320,7 +349,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                     val slot = findBlockSlot(player)
                     if (slot != -1) player.inventory.setSelectedSlot(slot)
                 } else if (blockWhitelist.value.isNotEmpty()) {
-                    val blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey((stack.item as BlockItem).block).toString().lowercase()
+                    val blockId = BuiltInRegistries.BLOCK.getKey((stack.item as BlockItem).block).toString().lowercase()
                     if (!blockMatchesWhitelist(blockId, blockWhitelist.value)) {
                         val slot = findBlockSlot(player)
                         if (slot != -1) player.inventory.setSelectedSlot(slot)
@@ -383,7 +412,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                     if (!nearEdge) crouchWaitTicks--
                     if (crouchWaitTicks <= 0 && !nearEdge) isCrouching = false
                 } else {
-                    val physicalShift = isPhysicalKeyDown(client.options.keyShift)
+                    val physicalShift = InputUtil.isPhysicalKeyDown(client.options.keyShift)
                     client.options.keyShift.setDown(physicalShift)
                     player.setShiftKeyDown(physicalShift)
                 }
@@ -391,14 +420,14 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             else {
                 isCrouching = false
                 crouchWaitTicks = 0
-                val physicalShift = isPhysicalKeyDown(client.options.keyShift)
+                val physicalShift = InputUtil.isPhysicalKeyDown(client.options.keyShift)
                 client.options.keyShift.setDown(physicalShift)
                 player.setShiftKeyDown(physicalShift)
             }
         }
     }
 
-    private fun isNearEdge(player: LocalPlayer, world: net.minecraft.client.multiplayer.ClientLevel): Boolean {
+    private fun isNearEdge(player: LocalPlayer, world: ClientLevel): Boolean {
         val px = player.x
         val by = floor(player.y - 1.0).toInt()
         val pz = player.z
@@ -416,7 +445,9 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
             val bx = floor(px + offset[0]).toInt()
             val bz = floor(pz + offset[1]).toInt()
             val state = world.getBlockState(BlockPos(bx, by, bz))
-            if (state.isAir || !state.fluidState.isEmpty || !state.isCollisionShapeFullBlock(world, BlockPos(bx, by, bz))) {
+            if (state.isAir || !state.fluidState.isEmpty || !state.isCollisionShapeFullBlock(world,
+                    BlockPos(bx, by, bz)
+                )) {
                 return true
             }
         }
@@ -454,8 +485,8 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     private fun lateralBlockOffset(player: LocalPlayer, camRad: Double): Double {
         val localX = player.x - floor(player.x) - 0.5
         val localZ = player.z - floor(player.z) - 0.5
-        val rightX = -kotlin.math.cos(camRad)
-        val rightZ = -kotlin.math.sin(camRad)
+        val rightX = -cos(camRad)
+        val rightZ = -sin(camRad)
         return localX * rightX + localZ * rightZ
     }
 
@@ -492,7 +523,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
     private fun isMovingTowardEdge(
         player: LocalPlayer,
-        world: net.minecraft.client.multiplayer.ClientLevel,
+        world: ClientLevel,
         forward: Boolean,
         back: Boolean,
         left: Boolean,
@@ -503,23 +534,23 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         var moveZ = 0.0
 
         if (forward) {
-            moveX -= kotlin.math.sin(yaw)
-            moveZ += kotlin.math.cos(yaw)
+            moveX -= sin(yaw)
+            moveZ += cos(yaw)
         }
         if (back) {
-            moveX += kotlin.math.sin(yaw)
-            moveZ -= kotlin.math.cos(yaw)
+            moveX += sin(yaw)
+            moveZ -= cos(yaw)
         }
         if (right) {
-            moveX -= kotlin.math.cos(yaw)
-            moveZ -= kotlin.math.sin(yaw)
+            moveX -= cos(yaw)
+            moveZ -= sin(yaw)
         }
         if (left) {
-            moveX += kotlin.math.cos(yaw)
-            moveZ += kotlin.math.sin(yaw)
+            moveX += cos(yaw)
+            moveZ += sin(yaw)
         }
 
-        val len = kotlin.math.sqrt(moveX * moveX + moveZ * moveZ)
+        val len = sqrt(moveX * moveX + moveZ * moveZ)
         if (len < 0.001) return isNearEdge(player, world)
 
         val margin = 0.42
@@ -533,7 +564,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
     private fun findUpstackPlacement(
         player: LocalPlayer,
-        world: net.minecraft.client.multiplayer.ClientLevel,
+        world: ClientLevel,
     ): Placement? {
         val velocity = player.deltaMovement
         val baseY = floor(player.y - 1.0).toInt()
@@ -623,23 +654,23 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         var moveZ = 0.0
 
         if (forward) {
-            moveX -= kotlin.math.sin(yaw)
-            moveZ += kotlin.math.cos(yaw)
+            moveX -= sin(yaw)
+            moveZ += cos(yaw)
         }
         if (back) {
-            moveX += kotlin.math.sin(yaw)
-            moveZ -= kotlin.math.cos(yaw)
+            moveX += sin(yaw)
+            moveZ -= cos(yaw)
         }
         if (right) {
-            moveX -= kotlin.math.cos(yaw)
-            moveZ -= kotlin.math.sin(yaw)
+            moveX -= cos(yaw)
+            moveZ -= sin(yaw)
         }
         if (left) {
-            moveX += kotlin.math.cos(yaw)
-            moveZ += kotlin.math.sin(yaw)
+            moveX += cos(yaw)
+            moveZ += sin(yaw)
         }
 
-        val len = kotlin.math.sqrt(moveX * moveX + moveZ * moveZ)
+        val len = sqrt(moveX * moveX + moveZ * moveZ)
         if (len < 0.001) return 75.6f
 
         val localX = player.x - floor(player.x) - 0.5
@@ -649,19 +680,21 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         return (75.6 + pitchCorrection).toFloat()
     }
 
-    private fun isSolidSupportBlock(world: net.minecraft.client.multiplayer.ClientLevel, x: Int, y: Int, z: Int): Boolean {
+    private fun isSolidSupportBlock(world: ClientLevel, x: Int, y: Int, z: Int): Boolean {
         val pos = BlockPos(x, y, z)
         val state = world.getBlockState(pos)
         return !state.isAir && state.fluidState.isEmpty && state.isCollisionShapeFullBlock(world, pos)
     }
 
     override fun onDisabled() {
+        if (telly != null && bridgeMode.value == BridgeMode.TELLY)
+            return telly!!.onDisabled()
         val opts = Minecraft.getInstance().options
-        opts.keyUp.setDown(isPhysicalKeyDown(opts.keyUp))
-        opts.keyDown.setDown(isPhysicalKeyDown(opts.keyDown))
-        opts.keyLeft.setDown(isPhysicalKeyDown(opts.keyLeft))
-        opts.keyRight.setDown(isPhysicalKeyDown(opts.keyRight))
-        opts.keyShift.setDown(isPhysicalKeyDown(opts.keyShift))
+        opts.keyUp.setDown(InputUtil.isPhysicalKeyDown(opts.keyUp))
+        opts.keyDown.setDown(InputUtil.isPhysicalKeyDown(opts.keyDown))
+        opts.keyLeft.setDown(InputUtil.isPhysicalKeyDown(opts.keyLeft))
+        opts.keyRight.setDown(InputUtil.isPhysicalKeyDown(opts.keyRight))
+        opts.keyShift.setDown(InputUtil.isPhysicalKeyDown(opts.keyShift))
 
         if (ownsRotation) {
             RotationManager.clearRotation()
@@ -691,4 +724,6 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         }
         return false
     }
+
+    override fun hudInfo(): String = bridgeMode.value.name.lowercase().replace("_", " ")
 }

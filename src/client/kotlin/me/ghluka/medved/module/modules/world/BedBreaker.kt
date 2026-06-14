@@ -1,6 +1,7 @@
 package me.ghluka.medved.module.modules.world
 
 import me.ghluka.medved.module.Module
+import me.ghluka.medved.module.modules.world.scaffold.Scaffold
 import me.ghluka.medved.util.RotationManager
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext

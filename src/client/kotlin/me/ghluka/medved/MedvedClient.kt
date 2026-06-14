@@ -15,6 +15,7 @@ import me.ghluka.medved.module.modules.render.*
 import me.ghluka.medved.module.modules.utility.*
 import me.ghluka.medved.module.modules.world.*
 import me.ghluka.medved.module.modules.minigames.*
+import me.ghluka.medved.module.modules.world.scaffold.Scaffold
 import me.ghluka.medved.update.UpdateChecker
 import me.ghluka.medved.util.LagManager
 import net.fabricmc.api.ClientModInitializer

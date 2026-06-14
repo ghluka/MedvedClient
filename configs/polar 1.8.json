@@ -510,12 +510,12 @@
         "wool_category"
       ]
     },
-    "mode": "BREEZILY",
+    "mode": "TELLY",
+    "rot speed": 100.0,
     "crouch delay": [
       75,
       115
     ],
-    "breezily strafe ticks": 2,
     "autoclick cps": [
       6,
       6
@@ -529,7 +529,6 @@
     "trigger": "ALWAYS",
     "blocks": 4.522876,
     "return to slot": true,
-    "telly": false,
     "rotation speed": 112.09151,
     "Block Whitelist": {
       "mode": "WHITELIST",

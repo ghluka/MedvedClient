@@ -2,7 +2,7 @@ package me.ghluka.medved.module.modules.combat
 
 import me.ghluka.medved.config.entry.Color
 import me.ghluka.medved.module.Module
-import me.ghluka.medved.module.modules.world.Scaffold
+import me.ghluka.medved.module.modules.world.scaffold.Scaffold
 import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RotationManager
 import net.minecraft.client.DeltaTracker

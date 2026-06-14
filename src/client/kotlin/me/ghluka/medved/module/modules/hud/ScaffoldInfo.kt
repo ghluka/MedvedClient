@@ -4,7 +4,7 @@ import me.ghluka.medved.config.entry.Color
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.modules.other.Font
 import me.ghluka.medved.module.modules.world.Clutch
-import me.ghluka.medved.module.modules.world.Scaffold
+import me.ghluka.medved.module.modules.world.scaffold.Scaffold
 import me.ghluka.medved.util.radius
 import me.ghluka.medved.util.roundedFill
 import me.ghluka.medved.util.Text
