@@ -6,6 +6,12 @@ sidebar_position: 2
 
 Displays target info and fight prediction when in combat
 
+:::warning
+This module has either been added or heavily updated in the experimental version,
+do not expect configuration options or this module to be available if you use the
+latest release.
+:::
+
 ---
 
 ### Position
@@ -13,19 +19,19 @@ Displays target info and fight prediction when in combat
 Choose whether the HUD is static or floating.
 
 - **STATIC**: fixed on-screen position
-- **FLOATING**: follows the target smoothly
+- **FLOATING**: follows the target smoothly from the side
 
 ### Design
 
 Visual style of the target HUD.
 
-- **COMPACT**: simplified display
-- **DETAILED**: full target information
-- **MINIMAL**: smallest display 
+- **GRIZZLY**: Grizzly Client's original target hud
 
-### Win chance
+![Target hud screenshot](./img/grizzly-targethud.png)
 
-Show a win probability estimate for the current fight.
+- **CAMEL**: ported version of Camel Client's target hud
+
+![Target hud screenshot](./img/camel-targethud.png)
 
 ### BG color
 
