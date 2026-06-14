@@ -52,6 +52,9 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
     private var ownsRotation = false
     private var ninjaStrafeRight = true
     private var breezilyStrafeRight = true
+    private var diagonalBreezilyStrafeTicks = 0
+    private var diagonalBreezilyStrafeRight = true
+    private var diagonalBreezilyAligned = false
 
     private data class Placement(
         val placePos: BlockPos,
@@ -182,6 +185,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
 
             when (scaffoldState) {
                 ScaffoldState.STRAIGHT -> {
+                    resetDiagonalBreezilyCorrection()
                     when (bridgeMode.value) {
                         BridgeMode.NINJA -> {
                             sidewaysBridge()
@@ -196,6 +200,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                 ScaffoldState.DIAGONAL -> {
                     when (bridgeMode.value) {
                         BridgeMode.NINJA -> {
+                            resetDiagonalBreezilyCorrection()
                             pressRight = false
                             pressLeft = false
                             client.options.keyUp.setDown(false)
@@ -204,18 +209,20 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
                             client.options.keyLeft.setDown(false)
                         }
                         BridgeMode.BREEZILY -> {
-                            pressRight = false
-                            pressLeft = false
+                            val correction = diagonalBreezilyCorrection(player, Mth.wrapDegrees(targetCard + 180f))
+                            pressRight = correction == true
+                            pressLeft = correction == false
                             client.options.keyUp.setDown(false)
                             client.options.keyDown.setDown(true)
-                            client.options.keyRight.setDown(false)
-                            client.options.keyLeft.setDown(false)
+                            client.options.keyRight.setDown(pressRight)
+                            client.options.keyLeft.setDown(pressLeft)
                         }
                     }
                 }
 
 
                 ScaffoldState.UPSTACKING, ScaffoldState.TOWERING, ScaffoldState.NONE -> {
+                    resetDiagonalBreezilyCorrection()
                     pressRight = false
                     pressLeft = false
                     if (scaffoldState == ScaffoldState.UPSTACKING) {
@@ -452,6 +459,37 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         return localX * rightX + localZ * rightZ
     }
 
+    private fun diagonalBreezilyCorrection(player: LocalPlayer, aimYaw: Float): Boolean? {
+        if (diagonalBreezilyAligned) {
+            return null
+        }
+
+        if (diagonalBreezilyStrafeTicks > 0) {
+            diagonalBreezilyStrafeTicks--
+            if (diagonalBreezilyStrafeTicks == 0) {
+                diagonalBreezilyAligned = true
+            }
+            return diagonalBreezilyStrafeRight
+        }
+
+        val sideOffset = lateralBlockOffset(player, Math.toRadians(aimYaw.toDouble()))
+        diagonalBreezilyStrafeRight = when {
+            sideOffset > 0.08 -> false
+            sideOffset < -0.08 -> true
+            else -> {
+                diagonalBreezilyAligned = true
+                return null
+            }
+        }
+        diagonalBreezilyStrafeTicks = 1
+        return diagonalBreezilyStrafeRight
+    }
+
+    private fun resetDiagonalBreezilyCorrection() {
+        diagonalBreezilyStrafeTicks = 0
+        diagonalBreezilyAligned = false
+    }
+
     private fun isMovingTowardEdge(
         player: LocalPlayer,
         world: net.minecraft.client.multiplayer.ClientLevel,
@@ -638,6 +676,7 @@ object Scaffold : Module("Scaffold", "Automatically places blocks under you whil
         autoclickTargetCps = 0
         isCrouching = false
         crouchWaitTicks = 0
+        resetDiagonalBreezilyCorrection()
     }
 
     private fun blockMatchesWhitelist(blockName: String, whitelist: List<String>): Boolean {
