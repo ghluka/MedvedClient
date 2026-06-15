@@ -102,7 +102,9 @@ object ModulesList : HudModule("Modules List", "Shows all enabled modules") {
         extractor.pose().pushMatrix()
         extractor.pose().translate(px.toFloat(), py.toFloat())
         if (sc != 1.0f) extractor.pose().scale(sc, sc)
-        renderHudElement(extractor)
+        Font.withRenderScale(sc) {
+            renderHudElement(extractor)
+        }
         extractor.pose().popMatrix()
     }
 

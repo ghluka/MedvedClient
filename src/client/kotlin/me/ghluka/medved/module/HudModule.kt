@@ -1,6 +1,7 @@
 package me.ghluka.medved.module
 
 import me.ghluka.medved.config.entry.HudEditEntry
+import me.ghluka.medved.module.modules.other.Font
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -29,7 +30,9 @@ abstract class HudModule(name: String, description: String) :
         extractor.pose().pushMatrix()
         extractor.pose().translate(px.toFloat(), py.toFloat())
         if (sc != 1.0f) extractor.pose().scale(sc, sc)
-        renderHudElement(extractor)
+        Font.withRenderScale(sc) {
+            renderHudElement(extractor)
+        }
         extractor.pose().popMatrix()
     }
 }

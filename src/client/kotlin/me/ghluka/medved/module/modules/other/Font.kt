@@ -26,15 +26,33 @@ object Font : Module("Font", "Customize the font used in GUI and HUD elements", 
     }
 
     val fontChoice = enum("font", FontChoice.MONTSERRAT)
+    private val renderScale = ThreadLocal.withInitial { 1.0f }
 
     fun getFont(): Font = Minecraft.getInstance().font
 
+    fun <T> withRenderScale(scale: Float, block: () -> T): T {
+        val previous = renderScale.get()
+        renderScale.set(previous * scale.coerceAtLeast(0.01f))
+        return try {
+            block()
+        } finally {
+            renderScale.set(previous)
+        }
+    }
+
     fun fontStyle(): Style {
         val choice = fontChoice.value
-        val desc = FontDescription.Resource(Identifier.fromNamespaceAndPath(choice.namespace, choice.path))
+        val path = choice.pathForCurrentScale()
+        val desc = FontDescription.Resource(Identifier.fromNamespaceAndPath(choice.namespace, path))
         return Style.EMPTY.withFont(desc)
     }
 
     fun styledText(text: String): Component =
         Component.literal(text).withStyle(fontStyle())
+
+    private fun FontChoice.pathForCurrentScale(): String {
+        if (namespace != "medved") return path
+        val physicalScale = Minecraft.getInstance().window.guiScale * renderScale.get()
+        return if (physicalScale >= 3.0) "${path}_hd" else path
+    }
 }

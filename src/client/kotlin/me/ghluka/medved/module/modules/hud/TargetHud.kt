@@ -135,14 +135,18 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
                 renderAbsY = py + hudHeight() * sc * (1f - animScale) * 0.5f
                 renderScale = sc * animScale
                 if (design.value == Design.CAMEL) {
-                    renderHudElement(extractor)
+                    Font.withRenderScale(renderScale) {
+                        renderHudElement(extractor)
+                    }
                     return
                 }
                 extractor.pose().pushMatrix()
                 extractor.pose().translate(px + hudWidth() * sc * 0.5f, py + hudHeight() * sc * 0.5f)
                 extractor.pose().scale(sc * animScale, sc * animScale)
                 extractor.pose().translate(-hudWidth() * 0.5f, -hudHeight() * 0.5f)
-                renderHudElement(extractor)
+                Font.withRenderScale(renderScale) {
+                    renderHudElement(extractor)
+                }
                 extractor.pose().popMatrix()
             }
             PositionMode.FLOATING -> {
@@ -194,14 +198,18 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
                 renderAbsY = smoothY + hudHeight() * sc * (1f - animScale) * 0.5f
                 renderScale = sc * animScale
                 if (design.value == Design.CAMEL) {
-                    renderHudElement(extractor)
+                    Font.withRenderScale(renderScale) {
+                        renderHudElement(extractor)
+                    }
                     return
                 }
                 extractor.pose().pushMatrix()
                 extractor.pose().translate(smoothX + hudWidth() * sc * 0.5f, smoothY + hudHeight() * sc * 0.5f)
                 extractor.pose().scale(sc * animScale, sc * animScale)
                 extractor.pose().translate(-hudWidth() * 0.5f, -hudHeight() * 0.5f)
-                renderHudElement(extractor)
+                Font.withRenderScale(renderScale) {
+                    renderHudElement(extractor)
+                }
                 extractor.pose().popMatrix()
             }
         }

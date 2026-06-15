@@ -57,7 +57,9 @@ class HudEditorScreen(
         g.pose().pushMatrix()
         g.pose().translate(px.toFloat(), py.toFloat())
         if (sc != 1.0f) g.pose().scale(sc, sc)
-        module.renderHudElement(g)
+        Font.withRenderScale(sc) {
+            module.renderHudElement(g)
+        }
         g.pose().popMatrix()
 
         g.outline(px, py, ew, eh, ACCENT)

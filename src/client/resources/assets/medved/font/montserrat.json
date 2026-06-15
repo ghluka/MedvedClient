@@ -5,7 +5,7 @@
       "file": "medved:montserrat.ttf",
       "shift": [0, 1],
       "size": 12.0,
-      "oversample": 4.0
+      "oversample": 2.0
     }
   ]
 }
