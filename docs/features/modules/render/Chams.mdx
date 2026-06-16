@@ -21,6 +21,11 @@ Controls the material used on the player model.
 - **SHADER**: replaces the player's material with a custom shader
 - **NONE**: keeps the normal player textures while removing world depth
 
+### Ignore Target Filter
+
+When enabled, Chams renders all other living players instead of using the
+global **Target Filter** rules.
+
 ### Shader
 
 Only visible in **SHADER** style. Selects the shader material used for players,
@@ -28,3 +33,9 @@ armor, and held items.
 
 - GALAXY
 - VOID
+- COLOR
+
+### Shader Color
+
+Only visible when **Style** is **SHADER** and **Shader** is **COLOR**.
+Sets the colour and alpha used by the color shader.

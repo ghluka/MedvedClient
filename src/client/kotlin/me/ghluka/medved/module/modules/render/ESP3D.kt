@@ -26,6 +26,7 @@ object ESP3D : Module(
 
     private val colorMode  = enum("color mode", ColorMode.TEAM)
     private val renderMode = enum("render mode", RenderMode.BOX)
+    private val ignoreTargetFilter = boolean("ignore target filter", false)
 
     private val staticColor = color("color", Color(255, 80, 80), allowAlpha = false).also {
         it.visibleWhen = { colorMode.value == ColorMode.STATIC || colorMode.value == ColorMode.TEAM }
@@ -68,7 +69,7 @@ object ESP3D : Module(
         RenderUtil.worldContext(ctx) { ctxPose, stack, bufferSource ->
             for (entity in level.players()) {
                 if (entity == player) continue
-                if (!TargetFilter.isValidTarget(player, entity)) continue
+                if (!shouldRenderTarget(player, entity)) continue
 
                 val color = resolveColor(player, entity) ?: continue
 
@@ -143,7 +144,7 @@ object ESP3D : Module(
         val target = entity as? Player ?: return 0
         val viewer = Minecraft.getInstance().player ?: return 0
         if (target === viewer) return 0
-        if (!TargetFilter.isValidTarget(viewer, target)) return 0
+        if (!shouldRenderTarget(viewer, target)) return 0
 
         val color = resolveColor(viewer, target) ?: return 0
         return 0xFF000000.toInt() or
@@ -172,12 +173,15 @@ object ESP3D : Module(
 
         val nearestDistance = level.players()
             .asSequence()
-            .filter { it !== viewer && TargetFilter.isValidTarget(viewer, it) }
+            .filter { it !== viewer && shouldRenderTarget(viewer, it) }
             .map { viewer.distanceTo(it).coerceAtLeast(1f) }
             .minOrNull() ?: return 1f
 
         return sqrt(4f / nearestDistance).coerceIn(0.45f, 1f)
     }
+
+    private fun shouldRenderTarget(viewer: Player, target: Player): Boolean =
+        ignoreTargetFilter.value || TargetFilter.isValidTarget(viewer, target)
 
     private fun resolveColor(viewer: Player, target: Player): Color? {
         return when (colorMode.value) {

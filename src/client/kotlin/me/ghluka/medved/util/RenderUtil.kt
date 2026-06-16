@@ -22,7 +22,8 @@ import kotlin.math.sqrt
 object RenderUtil {
     enum class ChamsShader {
         GALAXY,
-        VOID
+        VOID,
+        COLOR
     }
 
     private val CHAMS_DEPTH_STATE = DepthStencilState(
@@ -76,7 +77,7 @@ object RenderUtil {
         )
     }
 
-    private val shaderChamsPipelines = mutableMapOf<ChamsShader, RenderPipeline>()
+    private val shaderChamsPipelines = mutableMapOf<Pair<ChamsShader, Int>, RenderPipeline>()
 
     private fun shaderFragment(shader: ChamsShader): Identifier =
         Identifier.fromNamespaceAndPath(
@@ -84,20 +85,34 @@ object RenderUtil {
             when (shader) {
                 ChamsShader.GALAXY -> "core/chams_entity"
                 ChamsShader.VOID -> "core/chams_void"
+                ChamsShader.COLOR -> "core/chams_color"
             }
         )
 
-    private fun shaderChamsPipeline(shader: ChamsShader): RenderPipeline =
-        shaderChamsPipelines.getOrPut(shader) {
+    private fun shaderChamsPipeline(shader: ChamsShader, tint: Int): RenderPipeline =
+        shaderChamsPipelines.getOrPut(shader to shaderTintKey(shader, tint)) {
+            val builder = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+                .withLocation(
+                    Identifier.fromNamespaceAndPath(
+                        "medved",
+                        "shader_chams_entity_${shader.name.lowercase()}_${shaderTintKey(shader, tint).toUInt().toString(16)}"
+                    )
+                )
+                .withVertexShader(Identifier.fromNamespaceAndPath("medved", "core/chams_entity"))
+                .withFragmentShader(shaderFragment(shader))
+                .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withDepthStencilState(DepthStencilState(CompareOp.ALWAYS_PASS, true))
+                .withCull(false)
+
+            if (shader == ChamsShader.COLOR) {
+                builder.withShaderDefine("CHAMS_COLOR_R", ((tint ushr 16) and 0xFF) / 255f)
+                builder.withShaderDefine("CHAMS_COLOR_G", ((tint ushr 8) and 0xFF) / 255f)
+                builder.withShaderDefine("CHAMS_COLOR_B", (tint and 0xFF) / 255f)
+                builder.withShaderDefine("CHAMS_COLOR_A", ((tint ushr 24) and 0xFF) / 255f)
+            }
+
             RenderPipelines.register(
-                RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
-                    .withLocation(Identifier.fromNamespaceAndPath("medved", "shader_chams_entity_${shader.name.lowercase()}"))
-                    .withVertexShader(Identifier.fromNamespaceAndPath("medved", "core/chams_entity"))
-                    .withFragmentShader(shaderFragment(shader))
-                    .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
-                    .withDepthStencilState(DepthStencilState(CompareOp.ALWAYS_PASS, true))
-                    .withCull(false)
-                    .build()
+                builder.build()
             )
         }
 
@@ -112,18 +127,31 @@ object RenderUtil {
         )
     }
 
-    private val shaderItemChamsPipelines = mutableMapOf<ChamsShader, RenderPipeline>()
+    private val shaderItemChamsPipelines = mutableMapOf<Pair<ChamsShader, Int>, RenderPipeline>()
 
-    private fun shaderItemChamsPipeline(shader: ChamsShader): RenderPipeline =
-        shaderItemChamsPipelines.getOrPut(shader) {
+    private fun shaderItemChamsPipeline(shader: ChamsShader, tint: Int): RenderPipeline =
+        shaderItemChamsPipelines.getOrPut(shader to shaderTintKey(shader, tint)) {
+            val builder = RenderPipeline.builder(RenderPipelines.ITEM_SNIPPET)
+                .withLocation(
+                    Identifier.fromNamespaceAndPath(
+                        "medved",
+                        "shader_item_chams_${shader.name.lowercase()}_${shaderTintKey(shader, tint).toUInt().toString(16)}"
+                    )
+                )
+                .withVertexShader(Identifier.fromNamespaceAndPath("medved", "core/chams_entity"))
+                .withFragmentShader(shaderFragment(shader))
+                .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withDepthStencilState(DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+
+            if (shader == ChamsShader.COLOR) {
+                builder.withShaderDefine("CHAMS_COLOR_R", ((tint ushr 16) and 0xFF) / 255f)
+                builder.withShaderDefine("CHAMS_COLOR_G", ((tint ushr 8) and 0xFF) / 255f)
+                builder.withShaderDefine("CHAMS_COLOR_B", (tint and 0xFF) / 255f)
+                builder.withShaderDefine("CHAMS_COLOR_A", ((tint ushr 24) and 0xFF) / 255f)
+            }
+
             RenderPipelines.register(
-                RenderPipeline.builder(RenderPipelines.ITEM_SNIPPET)
-                    .withLocation(Identifier.fromNamespaceAndPath("medved", "shader_item_chams_${shader.name.lowercase()}"))
-                    .withVertexShader(Identifier.fromNamespaceAndPath("medved", "core/chams_entity"))
-                    .withFragmentShader(shaderFragment(shader))
-                    .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
-                    .withDepthStencilState(DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
-                    .build()
+                builder.build()
             )
         }
 
@@ -148,14 +176,17 @@ object RenderUtil {
         )
     }
 
-    private val shaderChamsEntityCache = mutableMapOf<Triple<Identifier, Boolean, ChamsShader>, RenderType>()
+    private data class ShaderEntityKey(val texture: Identifier, val outline: Boolean, val shader: ChamsShader, val tint: Int)
+    private data class ShaderItemKey(val texture: Identifier, val translucent: Boolean, val shader: ChamsShader, val tint: Int)
+
+    private val shaderChamsEntityCache = mutableMapOf<ShaderEntityKey, RenderType>()
     private val vanillaChamsEntityCache = mutableMapOf<Pair<Identifier, Boolean>, RenderType>()
     private val itemChamsCache = mutableMapOf<Pair<Identifier, Boolean>, RenderType>()
-    private val shaderItemChamsCache = mutableMapOf<Triple<Identifier, Boolean, ChamsShader>, RenderType>()
+    private val shaderItemChamsCache = mutableMapOf<ShaderItemKey, RenderType>()
 
-    fun shaderChamsEntity(texture: Identifier, outline: Boolean, shader: ChamsShader): RenderType =
-        shaderChamsEntityCache.getOrPut(Triple(texture, outline, shader)) {
-            val setup = RenderSetup.builder(shaderChamsPipeline(shader))
+    fun shaderChamsEntity(texture: Identifier, outline: Boolean, shader: ChamsShader, tint: Int = 0xFFFFFFFF.toInt()): RenderType =
+        shaderChamsEntityCache.getOrPut(ShaderEntityKey(texture, outline, shader, shaderTintKey(shader, tint))) {
+            val setup = RenderSetup.builder(shaderChamsPipeline(shader, tint))
                 .withTexture("Sampler0", texture)
                 .sortOnUpload()
                 .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
@@ -164,7 +195,7 @@ object RenderUtil {
                     else RenderSetup.OutlineProperty.NONE
                 )
                 .createRenderSetup()
-            RenderType.create("medved_shader_chams_entity_${shader.name.lowercase()}", setup)
+            RenderType.create("medved_shader_chams_entity_${shader.name.lowercase()}_${shaderTintKey(shader, tint).toUInt().toString(16)}", setup)
         }
 
     fun vanillaChamsEntity(texture: Identifier, outline: Boolean): RenderType =
@@ -196,9 +227,9 @@ object RenderUtil {
             RenderType.create(if (translucent) "medved_item_chams_translucent" else "medved_item_chams", setup)
         }
 
-    fun shaderItemChams(texture: Identifier, translucent: Boolean, shader: ChamsShader): RenderType =
-        shaderItemChamsCache.getOrPut(Triple(texture, translucent, shader)) {
-            val setup = RenderSetup.builder(shaderItemChamsPipeline(shader))
+    fun shaderItemChams(texture: Identifier, translucent: Boolean, shader: ChamsShader, tint: Int = 0xFFFFFFFF.toInt()): RenderType =
+        shaderItemChamsCache.getOrPut(ShaderItemKey(texture, translucent, shader, shaderTintKey(shader, tint))) {
+            val setup = RenderSetup.builder(shaderItemChamsPipeline(shader, tint))
                 .withTexture("Sampler0", texture)
                 .useLightmap()
                 .useOverlay()
@@ -208,11 +239,14 @@ object RenderUtil {
                 .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
                 .createRenderSetup()
             RenderType.create(
-                if (translucent) "medved_shader_item_chams_${shader.name.lowercase()}_translucent"
-                else "medved_shader_item_chams_${shader.name.lowercase()}",
+                if (translucent) "medved_shader_item_chams_${shader.name.lowercase()}_${shaderTintKey(shader, tint).toUInt().toString(16)}_translucent"
+                else "medved_shader_item_chams_${shader.name.lowercase()}_${shaderTintKey(shader, tint).toUInt().toString(16)}",
                 setup
             )
         }
+
+    private fun shaderTintKey(shader: ChamsShader, tint: Int): Int =
+        if (shader == ChamsShader.COLOR) tint else 0xFFFFFFFF.toInt()
 
     inline fun worldContext(
         ctx: LevelRenderContext,

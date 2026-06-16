@@ -22,6 +22,7 @@ object TargetESP : Module(
     category = Category.RENDER
 ) {
     private val color = color("color", Color(255, 255, 255, 210), allowAlpha = true)
+    private val ignoreTargetFilter = boolean("ignore target filter", false)
     private val speed = double("speed", 0.25, 0.25, 1.0)
     private val lineWidth = double("line width", 2.0, 0.5, 6.0)
     private val expand = double("expand", 0.12, 0.0, 0.55)
@@ -108,7 +109,7 @@ object TargetESP : Module(
     private fun isRenderableTarget(viewer: Player, target: LivingEntity): Boolean {
         if (target === viewer) return false
         if (target.isRemoved || target.isDeadOrDying) return false
-        return TargetFilter.isValidTarget(viewer, target)
+        return ignoreTargetFilter.value || TargetFilter.isValidTarget(viewer, target)
     }
 
     private fun movingHeightFactor(): Double {

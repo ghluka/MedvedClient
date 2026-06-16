@@ -32,6 +32,7 @@ object ESP2D : Module(
     enum class StatSide { LEFT, RIGHT, BELOW }
 
     private val maxDistance = double("max distance", 64.0, 8.0, 256.0)
+    private val ignoreTargetFilter = boolean("ignore target filter", false)
     private val boxStyle = enum("box style", BoxStyle.FULL)
     private val borderMode = enum("border mode", BorderMode.CUSTOM)
     private val statSide = enum("stat side", StatSide.RIGHT)
@@ -87,7 +88,7 @@ object ESP2D : Module(
             .asSequence()
             .filter { it !== viewer && !it.isRemoved && !it.isDeadOrDying }
             .filter { viewer.distanceTo(it) <= maxDistance.value }
-            .filter { TargetFilter.isValidTarget(viewer, it) }
+            .filter { shouldRenderTarget(viewer, it) }
             .mapNotNull { target ->
                 val bounds = screenBoundsFor(target, partialTick, projection) ?: return@mapNotNull null
                 EspEntry(target, bounds, viewer.distanceTo(target))
@@ -143,6 +144,9 @@ object ESP2D : Module(
             drawEquipment(g, target, x, y + h + 4, w)
         }
     }
+
+    private fun shouldRenderTarget(viewer: Player, target: Player): Boolean =
+        ignoreTargetFilter.value || TargetFilter.isValidTarget(viewer, target)
 
     private fun drawStats(g: GuiGraphicsExtractor, stats: List<StatLine>, box: ScreenBox) {
         val font = Font.getFont()

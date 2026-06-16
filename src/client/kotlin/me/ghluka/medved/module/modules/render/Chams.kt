@@ -1,5 +1,7 @@
 package me.ghluka.medved.module.modules.render
 
+import me.ghluka.medved.config.entry.Color
+import me.ghluka.medved.config.entry.ColorEntry
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RenderUtil
@@ -18,24 +20,35 @@ object Chams : Module(
     enum class Style { SHADER, NONE }
 
     private val style = enum("style", Style.SHADER)
+    private val ignoreTargetFilter = boolean("ignore target filter", false)
     private val shader = enum("shader", RenderUtil.ChamsShader.GALAXY).also {
         it.visibleWhen = { style.value == Style.SHADER }
+    }
+    private val shaderColor = color("shader color", Color(120, 210, 255, 190), allowAlpha = true).also {
+        it.visibleWhen = { style.value == Style.SHADER && shader.value == RenderUtil.ChamsShader.COLOR }
     }
 
     private val heldItemSubmitDepth = ThreadLocal.withInitial { 0 }
     private val layerSubmitDepth = ThreadLocal.withInitial { 0 }
+
+    init {
+        shaderColor.pickerMode = ColorEntry.PickerMode.THEME
+    }
 
     @JvmStatic
     fun shouldRender(state: LivingEntityRenderState): Boolean {
         if (!isEnabled()) return false
         return playerFromState(state)?.let { target ->
             val viewer = Minecraft.getInstance().player ?: return false
-            target !== viewer && TargetFilter.isValidTarget(viewer, target)
+            target !== viewer && shouldRenderTarget(viewer, target)
         } == true
     }
 
     @JvmStatic
-    fun tint(state: LivingEntityRenderState): Int = 0xFFFFFFFF.toInt()
+    fun tint(state: LivingEntityRenderState): Int {
+        return if (style.value == Style.SHADER && shader.value == RenderUtil.ChamsShader.COLOR) shaderTint()
+        else 0xFFFFFFFF.toInt()
+    }
 
     @JvmStatic
     fun modelSubmitOrder(): Int {
@@ -48,7 +61,7 @@ object Chams : Module(
     @JvmStatic
     fun renderType(state: LivingEntityRenderState, texture: Identifier, outline: Boolean): RenderType {
         return when (style.value) {
-            Style.SHADER -> RenderUtil.shaderChamsEntity(texture, outline, shader.value)
+            Style.SHADER -> RenderUtil.shaderChamsEntity(texture, outline, shader.value, shaderTint())
             Style.NONE -> RenderUtil.vanillaChamsEntity(texture, outline)
         }
     }
@@ -56,7 +69,7 @@ object Chams : Module(
     @JvmStatic
     fun itemRenderType(texture: Identifier, translucent: Boolean): RenderType {
         return when (style.value) {
-            Style.SHADER -> RenderUtil.shaderItemChams(texture, translucent, shader.value)
+            Style.SHADER -> RenderUtil.shaderItemChams(texture, translucent, shader.value, shaderTint())
             Style.NONE -> RenderUtil.itemChams(texture, translucent)
         }
     }
@@ -64,7 +77,7 @@ object Chams : Module(
     @JvmStatic
     fun armorRenderType(texture: Identifier): RenderType {
         return when (style.value) {
-            Style.SHADER -> RenderUtil.shaderChamsEntity(texture, false, shader.value)
+            Style.SHADER -> RenderUtil.shaderChamsEntity(texture, false, shader.value, shaderTint())
             Style.NONE -> RenderUtil.vanillaChamsEntity(texture, false)
         }
     }
@@ -100,4 +113,11 @@ object Chams : Module(
         val level = Minecraft.getInstance().level ?: return null
         return level.getEntity(state.id) as? Player
     }
+
+    private fun shouldRenderTarget(viewer: Player, target: Player): Boolean =
+        ignoreTargetFilter.value || TargetFilter.isValidTarget(viewer, target)
+
+    private fun shaderTint(): Int =
+        if (shader.value == RenderUtil.ChamsShader.COLOR) shaderColor.liveColor(shaderColor.value).argb
+        else 0xFFFFFFFF.toInt()
 }

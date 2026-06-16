@@ -1,6 +1,6 @@
 {
   "Silent Aura": {
-    "enabled": true,
+    "enabled": false,
     "keybind": 70,
     "mode": "CPS",
     "targeting": "SWITCH",
@@ -417,26 +417,150 @@
     "swing duration": 6,
     "cancel equip progress": true
   },
-  "Box ESP": {
+  "3D ESP": {
     "enabled": true,
     "keybind": -1,
     "color mode": "TEAM",
-    "render mode": "BOX",
+    "render mode": "GLOW",
+    "ignore target filter": false,
     "color": {
       "value": "#FFFFFFFF",
       "mode": "THEME",
-      "custom": "#FFFF5050",
+      "custom": "#FF280080",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
     },
-    "rotate": true,
+    "rotate": false,
     "team only": false,
     "fill alpha": 0.1,
-    "outline alpha": 0.0,
-    "line width": 1.0,
+    "outline alpha": 1.0,
+    "line width": 1.5980392545461655,
     "expand": 0.0,
     "corner size": 0.25
+  },
+  "2D ESP": {
+    "enabled": false,
+    "keybind": -1,
+    "max distance": 256.0,
+    "ignore target filter": false,
+    "box style": "FULL",
+    "border mode": "CUSTOM",
+    "stat side": "RIGHT",
+    "box": false,
+    "health bar": true,
+    "health side": "LEFT",
+    "health text": false,
+    "absorption": false,
+    "distance": false,
+    "armor": false,
+    "held item": false,
+    "ping": false,
+    "equipment icons": false,
+    "border color": {
+      "value": "#64000000",
+      "mode": "CUSTOM",
+      "custom": "#64000000",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "infill color": {
+      "value": "#00000000",
+      "mode": "CUSTOM",
+      "custom": "#00000000",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "text color": {
+      "value": "#FFEBEBF5",
+      "mode": "CUSTOM",
+      "custom": "#FFEBEBF5",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "health bg": {
+      "value": "#AA202020",
+      "mode": "CUSTOM",
+      "custom": "#AA202020",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "line width": 2,
+    "box padding": 4,
+    "health width": 4,
+    "text scale": 0.7777777828276158,
+    "text shadow": true
+  },
+  "Target ESP": {
+    "enabled": true,
+    "keybind": -1,
+    "color": {
+      "value": "#FFFFFFFF",
+      "mode": "THEME",
+      "custom": "#FF300054",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "ignore target filter": false,
+    "speed": 0.25,
+    "line width": 6.0,
+    "expand": 0.2516339883208275,
+    "glow rings": 2,
+    "linger ms": 700,
+    "smoothness": 160
+  },
+  "Chams": {
+    "enabled": true,
+    "keybind": -1,
+    "style": "SHADER",
+    "ignore target filter": false,
+    "shader": "GALAXY",
+    "shader color": {
+      "value": "#1000FF87",
+      "mode": "CUSTOM",
+      "custom": "#1000FF87",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    }
+  },
+  "Nametags": {
+    "enabled": true,
+    "keybind": -1,
+    "mode": "EXPLICIT_B9",
+    "max distance": 64.0,
+    "ignore target filter": false,
+    "scale": 1.0,
+    "y offset": 0.35,
+    "health": true,
+    "distance": true,
+    "health mode": "HEARTS",
+    "armor": false,
+    "durability": false,
+    "enchantments": false,
+    "background": true,
+    "bg color": {
+      "value": "#B3141414",
+      "mode": "CUSTOM",
+      "custom": "#B3141414",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "text color": {
+      "value": "#FFEBEBF5",
+      "mode": "CUSTOM",
+      "custom": "#FFEBEBF5",
+      "chromaSpeed": 0.5,
+      "chromaSaturation": 1.0,
+      "chromaBrightness": 1.0
+    },
+    "text shadow": false
   },
   "Rice Farmer": {
     "enabled": true,
@@ -514,11 +638,11 @@
       ]
     },
     "mode": "BREEZILY",
+    "rot speed": 100.0,
     "crouch delay": [
       45,
       55
     ],
-    "breezily strafe ticks": 3,
     "autoclick cps": [
       4,
       6
@@ -532,7 +656,6 @@
     "trigger": "ALWAYS",
     "blocks": 4.522876,
     "return to slot": true,
-    "telly": false,
     "rotation speed": 112.09151,
     "Block Whitelist": {
       "mode": "WHITELIST",
@@ -688,14 +811,13 @@
     "show config": true
   },
   "Target HUD": {
-    "enabled": false,
+    "enabled": true,
     "keybind": -1,
-    "hud_x": 0.57395834,
-    "hud_y": 0.53629035,
+    "hud_x": 0.5,
+    "hud_y": 0.75,
     "hud_scale": 1.0,
-    "position": "FLOATING",
-    "design": "DETAILED",
-    "win chance": true,
+    "position": "STATIC",
+    "design": "GRIZZLY",
     "bg color": {
       "value": "#A0000000",
       "mode": "CUSTOM",

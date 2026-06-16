@@ -32,6 +32,7 @@ object Nametags : Module(
 
     private val mode = enum("mode", Mode.CLEAN)
     private val maxDistance = double("max distance", 64.0, 8.0, 256.0)
+    private val ignoreTargetFilter = boolean("ignore target filter", false)
     private val scale = double("scale", 1.0, 0.65, 1.75)
     private val yOffset = double("y offset", 0.35, 0.0, 1.25)
     private val showHealth = boolean("health", true)
@@ -62,7 +63,7 @@ object Nametags : Module(
 
         val viewer = Minecraft.getInstance().player ?: return false
         if (target === viewer) return false
-        return TargetFilter.isValidTarget(viewer, target)
+        return shouldRenderTarget(viewer, target)
     }
 
     override fun onHudRender(extractor: GuiGraphicsExtractor, delta: DeltaTracker) {
@@ -82,7 +83,7 @@ object Nametags : Module(
             .asSequence()
             .filter { it !== viewer && !it.isRemoved && !it.isDeadOrDying }
             .filter { viewer.distanceTo(it) <= maxDistance.value }
-            .filter { TargetFilter.isValidTarget(viewer, it) }
+            .filter { shouldRenderTarget(viewer, it) }
             .mapNotNull { target ->
                 val pos = tagPosition(target, partialTick)
                 val screen = projectToScreen(pos, projection) ?: return@mapNotNull null
@@ -128,6 +129,9 @@ object Nametags : Module(
         g.Text(font, component, 0, 0, textColor.liveColor(textColor.value).argb, textShadow.value)
         g.pose().popMatrix()
     }
+
+    private fun shouldRenderTarget(viewer: Player, target: Player): Boolean =
+        ignoreTargetFilter.value || TargetFilter.isValidTarget(viewer, target)
 
     private fun drawExplicitB9(g: GuiGraphicsExtractor, entry: NametagEntry) {
         val font = Font.getFont()
