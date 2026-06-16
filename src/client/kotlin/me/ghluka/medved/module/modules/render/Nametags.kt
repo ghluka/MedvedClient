@@ -105,6 +105,7 @@ object Nametags : Module(
     private fun drawClean(g: GuiGraphicsExtractor, entry: NametagEntry) {
         val font = Font.getFont()
         val sc = scale.value.toFloat()
+        if (!sc.isFinite() || sc <= 0f || !entry.screen.first.isFinite() || !entry.screen.second.isFinite()) return
         val name = entry.target.name.string
         val healthText = if (showHealth.value) " ${"%.1f".format(entry.target.health)}" else ""
         val distanceText = if (showDistance.value) " ${"%.1f".format(entry.distance)}m" else ""
@@ -136,6 +137,7 @@ object Nametags : Module(
     private fun drawExplicitB9(g: GuiGraphicsExtractor, entry: NametagEntry) {
         val font = Font.getFont()
         val sc = scale.value.toFloat()
+        if (!sc.isFinite() || sc <= 0f || !entry.screen.first.isFinite() || !entry.screen.second.isFinite()) return
         val name = explicitB9Name(entry)
         val health = if (showHealth.value) explicitB9Health(entry.target) else ""
         val nameComponent = Font.styledText(name)
@@ -331,19 +333,24 @@ object Nametags : Module(
         val dx = (worldPos.x - projection.cameraPos.x).toFloat()
         val dy = (worldPos.y - projection.cameraPos.y).toFloat()
         val dz = (worldPos.z - projection.cameraPos.z).toFloat()
+        if (!dx.isFinite() || !dy.isFinite() || !dz.isFinite()) return null
+        if (!projection.screenW.isFinite() || !projection.screenH.isFinite()) return null
+        if (projection.screenW <= 0f || projection.screenH <= 0f) return null
         val mat = projection.matrix
 
         val x = mat.m00() * dx + mat.m10() * dy + mat.m20() * dz + mat.m30()
         val y = mat.m01() * dx + mat.m11() * dy + mat.m21() * dz + mat.m31()
         val w = mat.m03() * dx + mat.m13() * dy + mat.m23() * dz + mat.m33()
-        if (w <= 0.05f) return null
+        if (!x.isFinite() || !y.isFinite() || !w.isFinite() || w <= 0.05f) return null
 
         val ndcX = x / w
         val ndcY = y / w
+        if (!ndcX.isFinite() || !ndcY.isFinite()) return null
         if (ndcX < -1.4f || ndcX > 1.4f || ndcY < -1.4f || ndcY > 1.4f) return null
 
         val sx = (ndcX + 1f) * 0.5f * projection.screenW
         val sy = (1f - ndcY) * 0.5f * projection.screenH
+        if (!sx.isFinite() || !sy.isFinite()) return null
         return sx to sy
     }
 

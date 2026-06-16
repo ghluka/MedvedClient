@@ -12,3 +12,5 @@ pluginManagement {
 		id("net.fabricmc.fabric-loom") version providers.gradleProperty("loom_version")
 	}
 }
+
+rootProject.name = "medved"

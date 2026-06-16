@@ -293,6 +293,7 @@ object ESP2D : Module(
         val minY = points.minOf { it.second }
         val maxX = points.maxOf { it.first }
         val maxY = points.maxOf { it.second }
+        if (!minX.isFinite() || !minY.isFinite() || !maxX.isFinite() || !maxY.isFinite()) return null
         if (maxX < 0f || maxY < 0f || minX > projection.screenW || minY > projection.screenH) return null
 
         val left = minX.coerceIn(-32f, projection.screenW + 32f)
@@ -323,17 +324,22 @@ object ESP2D : Module(
         val dx = (worldPos.x - projection.cameraPos.x).toFloat()
         val dy = (worldPos.y - projection.cameraPos.y).toFloat()
         val dz = (worldPos.z - projection.cameraPos.z).toFloat()
+        if (!dx.isFinite() || !dy.isFinite() || !dz.isFinite()) return null
+        if (!projection.screenW.isFinite() || !projection.screenH.isFinite()) return null
+        if (projection.screenW <= 0f || projection.screenH <= 0f) return null
         val mat = projection.matrix
 
         val x = mat.m00() * dx + mat.m10() * dy + mat.m20() * dz + mat.m30()
         val y = mat.m01() * dx + mat.m11() * dy + mat.m21() * dz + mat.m31()
         val w = mat.m03() * dx + mat.m13() * dy + mat.m23() * dz + mat.m33()
-        if (w <= 0.05f) return null
+        if (!x.isFinite() || !y.isFinite() || !w.isFinite() || w <= 0.05f) return null
 
         val ndcX = x / w
         val ndcY = y / w
+        if (!ndcX.isFinite() || !ndcY.isFinite()) return null
         val sx = (ndcX + 1f) * 0.5f * projection.screenW
         val sy = (1f - ndcY) * 0.5f * projection.screenH
+        if (!sx.isFinite() || !sy.isFinite()) return null
         return sx to sy
     }
 
