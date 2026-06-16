@@ -275,6 +275,7 @@ object BedBreaker : Module(
             for (dir in Direction.values()) {
                 val pos = part.relative(dir)
                 if (pos in parts) continue
+                if (!isValidBedDefenseY(pos, parts)) continue
                 val state = level.getBlockState(pos)
                 if (isDefenseBlock(state) && miningTicks(player, level, pos) != Int.MAX_VALUE) {
                     candidates.add(pos)
@@ -295,6 +296,7 @@ object BedBreaker : Module(
             for (dir in Direction.values()) {
                 val neighbor = part.relative(dir)
                 if (neighbor in parts) continue
+                if (!isValidBedDefenseY(neighbor, parts)) continue
                 val state = level.getBlockState(neighbor)
                 if (!isDefenseBlock(state)) {
                     return part to dir
@@ -302,6 +304,11 @@ object BedBreaker : Module(
             }
         }
         return null
+    }
+
+    private fun isValidBedDefenseY(pos: BlockPos, parts: Set<BlockPos>): Boolean {
+        val bedY = parts.minOf { it.y }
+        return pos.y == bedY || pos.y == bedY + 1
     }
 
     private fun bedParts(level: ClientLevel, bedPos: BlockPos): Set<BlockPos> {
