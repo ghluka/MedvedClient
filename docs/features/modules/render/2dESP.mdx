@@ -1,0 +1,98 @@
+---
+sidebar_position: 3
+sidebar_label: ‌2D ESP
+title: 2D ESP
+---
+
+# 2D ESP
+
+Draws screen-space player boxes, health bars, equipment icons, and optional stats.
+
+:::warning
+This module has either been added or heavily updated in the experimental version,
+do not expect configuration options or this module to be available if you use the
+latest release.
+:::
+
+---
+
+### Max Distance
+
+The farthest distance a player can be before their 2D ESP stops rendering.
+
+### Box Style
+
+Controls the shape of the screen-space box.
+
+- **FULL**: draws a full rectangle around the player
+- **CORNERS**: draws corner brackets instead of complete edges
+
+### Border Mode
+
+Controls the box border colour.
+
+- **CUSTOM**: uses the configured border colour
+- **HEALTH**: shifts from green to red based on health
+- **TEAM**: uses the dyed colour of the target's helmet
+
+### Stat Side
+
+Where stat text is placed relative to the box.
+
+- **LEFT**
+- **RIGHT**
+- **BELOW**
+
+### Box
+
+Toggles the box outline.
+
+### Health Bar
+
+Draws a vertical health bar on the selected side of the box.
+
+### Health Side
+
+Chooses whether the health bar appears on the **LEFT** or **RIGHT** side.
+
+### Stats
+
+The following toggles control which stat lines are displayed:
+
+- **Health Text**
+- **Absorption**
+- **Distance**
+- **Armor**
+- **Held Item**
+- **Ping**
+
+### Equipment Icons
+
+Draws the target's equipment icons below the box.
+
+### Colours
+
+- **Border Color**: custom border colour
+- **Infill Color**: translucent fill inside the box
+- **Text Color**: stat text colour
+- **Health BG**: background behind the health bar
+
+### Line Width
+
+Thickness of the box outline.
+
+### Box Padding
+
+Expands the screen-space box outward from the projected player bounds.
+
+### Health Width
+
+Width of the health bar.
+
+### Text Scale
+
+Scales stat text and keeps it independent from distance.
+
+### Text Shadow
+
+Toggles a shadow behind stat text.

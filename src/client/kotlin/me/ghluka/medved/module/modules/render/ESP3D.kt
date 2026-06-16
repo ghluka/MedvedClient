@@ -5,28 +5,24 @@ import com.mojang.math.Axis
 import me.ghluka.medved.config.entry.Color
 import me.ghluka.medved.config.entry.ColorEntry
 import me.ghluka.medved.module.Module
-import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.TargetFilter
 import me.ghluka.medved.util.RenderUtil
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.entity.EquipmentSlot
-import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.AABB
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.math.sqrt
 
-object PlayerESP : Module(
-    name = "Box ESP",
+object ESP3D : Module(
+    name = "3D ESP",
     description = "Highlights nearby players",
     category = Category.RENDER
 ) {
     enum class ColorMode { TEAM, HEALTH, STATIC }
-    enum class RenderMode { BOX, CORNERS }
+    enum class RenderMode { BOX, CORNERS, GLOW }
 
     private val colorMode  = enum("color mode", ColorMode.TEAM)
     private val renderMode = enum("render mode", RenderMode.BOX)
@@ -41,10 +37,16 @@ object PlayerESP : Module(
         it.visibleWhen = { colorMode.value == ColorMode.TEAM }
     }
 
-    private val fillAlpha   = double("fill alpha",    0.1, 0.0,  0.4)
-    private val outlineAlpha = double("outline alpha", 0.8,  0.0,  1.0)
+    private val fillAlpha   = double("fill alpha",    0.1, 0.0,  0.4).also {
+        it.visibleWhen = { renderMode.value == RenderMode.BOX }
+    }
+    private val outlineAlpha = double("outline alpha", 0.8,  0.0,  1.0).also {
+        it.visibleWhen = { renderMode.value != RenderMode.GLOW }
+    }
     private val lineWidth   = double("line width",    1.0,  0.5,  4.0)
-    private val expand      = double("expand",        0.0, 0.0,  0.3)
+    private val expand      = double("expand",        0.0, 0.0,  0.3).also {
+        it.visibleWhen = { renderMode.value != RenderMode.GLOW }
+    }
 
     private val cornerSize  = double("corner size",   0.25, 0.05, 0.5).also {
         it.visibleWhen = { renderMode.value == RenderMode.CORNERS }
@@ -55,6 +57,8 @@ object PlayerESP : Module(
     }
 
     override fun onLevelRender(ctx: LevelRenderContext) {
+        if (renderMode.value == RenderMode.GLOW) return
+
         val mc = Minecraft.getInstance()
         val player = mc.player ?: return
         val level  = mc.level  ?: return
@@ -120,11 +124,59 @@ object PlayerESP : Module(
                             drawCorners(vc, drawPose, box, r, g, b, oa, lw)
                         }
                     }
+                    RenderMode.GLOW -> Unit
                 }
 
                 if (rotate.value) stack.popPose()
             }
         }
+    }
+
+    @JvmStatic
+    fun usesGlowOutline(): Boolean {
+        return isEnabled() && renderMode.value == RenderMode.GLOW
+    }
+
+    @JvmStatic
+    fun glowOutlineColor(entity: Entity): Int {
+        if (!usesGlowOutline()) return 0
+        val target = entity as? Player ?: return 0
+        val viewer = Minecraft.getInstance().player ?: return 0
+        if (target === viewer) return 0
+        if (!TargetFilter.isValidTarget(viewer, target)) return 0
+
+        val color = resolveColor(viewer, target) ?: return 0
+        return 0xFF000000.toInt() or
+                ((color.r and 0xFF) shl 16) or
+                ((color.g and 0xFF) shl 8) or
+                (color.b and 0xFF)
+    }
+
+    @JvmStatic
+    fun glowLineWidth(): Float {
+        if (!usesGlowOutline()) return 1f
+        return lineWidth.value.toFloat().coerceIn(0.5f, 4.0f)
+    }
+
+    @JvmStatic
+    fun glowPostRadius(): Float {
+        if (!usesGlowOutline()) return -1f
+        val baseRadius = (lineWidth.value * 2.0).toFloat().coerceIn(1f, 8f)
+        return (baseRadius * glowDistanceScale()).coerceIn(0.5f, 8f)
+    }
+
+    private fun glowDistanceScale(): Float {
+        val mc = Minecraft.getInstance()
+        val viewer = mc.player ?: return 1f
+        val level = mc.level ?: return 1f
+
+        val nearestDistance = level.players()
+            .asSequence()
+            .filter { it !== viewer && TargetFilter.isValidTarget(viewer, it) }
+            .map { viewer.distanceTo(it).coerceAtLeast(1f) }
+            .minOrNull() ?: return 1f
+
+        return sqrt(4f / nearestDistance).coerceIn(0.45f, 1f)
     }
 
     private fun resolveColor(viewer: Player, target: Player): Color? {
@@ -157,14 +209,6 @@ object PlayerESP : Module(
             }
         }
     }
-
-    private fun drawCorners(
-        vc: net.minecraft.client.renderer.rendertype.RenderType,
-        pose: PoseStack.Pose,
-        box: AABB,
-        r: Float, g: Float, b: Float, a: Float,
-        lw: Float
-    ) { }
 
     private fun drawCorners(
         vc: com.mojang.blaze3d.vertex.VertexConsumer,

@@ -3,6 +3,7 @@ package me.ghluka.medved.mixin.client;
 import me.ghluka.medved.module.modules.combat.HitSelect;
 import me.ghluka.medved.module.modules.combat.KnockbackDisplacement;
 import me.ghluka.medved.module.modules.player.FakeLag;
+import me.ghluka.medved.module.modules.render.TargetESP;
 import me.ghluka.medved.module.modules.combat.Criticals;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
@@ -53,6 +54,7 @@ public class MultiPlayerGameModeMixin {
             if (HitSwap.INSTANCE.isEnabled()) {
                 HitSwap.INSTANCE.onAttack(player, target);
             }
+            TargetESP.notifyAttack(target);
         } catch (Throwable t) {}
     }
 }

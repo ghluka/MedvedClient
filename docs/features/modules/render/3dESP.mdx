@@ -1,0 +1,62 @@
+---
+sidebar_position: 2
+sidebar_label: ‌3D ESP
+title: 3D ESP
+---
+
+# 3D ESP
+
+Highlights nearby players in the 3D world.
+
+:::warning
+This module has either been added or heavily updated in the experimental version,
+do not expect configuration options or this module to be available if you use the
+latest release.
+:::
+
+---
+
+### Render Mode
+
+How the highlight is drawn around each player.
+
+- **BOX**: a filled translucent box with a solid outline
+- **CORNERS**: only the eight corner brackets of the box, giving a bracketed look
+- **GLOW**: uses Minecraft's player outline effect instead of drawing a box
+
+### Color Mode
+
+Sets the colour used to highlight players.
+
+- **TEAM**: uses the dyed colour of the target's helmet
+- **HEALTH**: colour shifts from green at full health through yellow to red at low health
+- **STATIC**: uses a fixed colour of your choice
+
+### Fill Alpha
+
+Opacity of the filled box interior, only visible in **BOX** mode.
+
+### Outline Alpha
+
+Opacity of the box outline or corner brackets.
+
+### Line Width
+
+Thickness of drawn box/corner lines, and the base width of the glow outline.
+
+### Expand
+
+How much the bounding box is expanded outward on all sides beyond the player's actual hitbox.
+
+### Corner Size
+
+How long each corner bracket is in **CORNERS** mode.
+
+### Rotate
+
+Rotates boxes and corners to follow where each player is looking.
+
+### Team Only
+
+When enabled, players without a dyed helmet are skipped entirely in **TEAM** mode.
+When disabled, they fall back to the theme colour.

@@ -68,7 +68,11 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(Parkour)
         // render
         ModuleManager.register(Animations)
-        ModuleManager.register(PlayerESP)
+        ModuleManager.register(ESP3D)
+        ModuleManager.register(ESP2D)
+        ModuleManager.register(TargetESP)
+        ModuleManager.register(Chams)
+        ModuleManager.register(Nametags)
         ModuleManager.register(RiceFarmer)
         // player
         ModuleManager.register(FakeLag)

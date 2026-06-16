@@ -1,6 +1,10 @@
 package me.ghluka.medved.util
 
+import com.mojang.blaze3d.pipeline.BlendFunction
+import com.mojang.blaze3d.pipeline.ColorTargetState
 import com.mojang.blaze3d.pipeline.RenderPipeline
+import com.mojang.blaze3d.pipeline.DepthStencilState
+import com.mojang.blaze3d.platform.CompareOp
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
@@ -10,13 +14,22 @@ import net.minecraft.client.renderer.rendertype.LayeringTransform
 import net.minecraft.client.renderer.rendertype.OutputTarget
 import net.minecraft.client.renderer.rendertype.RenderSetup
 import net.minecraft.client.renderer.rendertype.RenderType
-import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.AABB
 import java.util.Optional
 import kotlin.math.sqrt
 
 object RenderUtil {
+    enum class ChamsShader {
+        GALAXY,
+        VOID
+    }
+
+    private val CHAMS_DEPTH_STATE = DepthStencilState(
+        CompareOp.ALWAYS_PASS,
+        true
+    )
+
     class GeometrySink(
         private val collector: SubmitNodeCollector,
         private val stack: PoseStack
@@ -62,6 +75,144 @@ object RenderUtil {
                 .createRenderSetup()
         )
     }
+
+    private val shaderChamsPipelines = mutableMapOf<ChamsShader, RenderPipeline>()
+
+    private fun shaderFragment(shader: ChamsShader): Identifier =
+        Identifier.fromNamespaceAndPath(
+            "medved",
+            when (shader) {
+                ChamsShader.GALAXY -> "core/chams_entity"
+                ChamsShader.VOID -> "core/chams_void"
+            }
+        )
+
+    private fun shaderChamsPipeline(shader: ChamsShader): RenderPipeline =
+        shaderChamsPipelines.getOrPut(shader) {
+            RenderPipelines.register(
+                RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+                    .withLocation(Identifier.fromNamespaceAndPath("medved", "shader_chams_entity_${shader.name.lowercase()}"))
+                    .withVertexShader(Identifier.fromNamespaceAndPath("medved", "core/chams_entity"))
+                    .withFragmentShader(shaderFragment(shader))
+                    .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
+                    .withDepthStencilState(DepthStencilState(CompareOp.ALWAYS_PASS, true))
+                    .withCull(false)
+                    .build()
+            )
+        }
+
+    private val VANILLA_CHAMS_PIPELINE by lazy {
+        RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath("medved", "vanilla_chams_entity"))
+                .withShaderDefine("PER_FACE_LIGHTING")
+                .withShaderDefine("ALPHA_CUTOUT", 0.1f)
+                .withDepthStencilState(CHAMS_DEPTH_STATE)
+                .build()
+        )
+    }
+
+    private val shaderItemChamsPipelines = mutableMapOf<ChamsShader, RenderPipeline>()
+
+    private fun shaderItemChamsPipeline(shader: ChamsShader): RenderPipeline =
+        shaderItemChamsPipelines.getOrPut(shader) {
+            RenderPipelines.register(
+                RenderPipeline.builder(RenderPipelines.ITEM_SNIPPET)
+                    .withLocation(Identifier.fromNamespaceAndPath("medved", "shader_item_chams_${shader.name.lowercase()}"))
+                    .withVertexShader(Identifier.fromNamespaceAndPath("medved", "core/chams_entity"))
+                    .withFragmentShader(shaderFragment(shader))
+                    .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
+                    .withDepthStencilState(DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+                    .build()
+            )
+        }
+
+    private val ITEM_CHAMS_PIPELINE by lazy {
+        RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.ITEM_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath("medved", "item_chams"))
+                .withShaderDefine("ALPHA_CUTOUT", 0.1f)
+                .withDepthStencilState(CHAMS_DEPTH_STATE)
+                .build()
+        )
+    }
+
+    private val ITEM_CHAMS_TRANSLUCENT_PIPELINE by lazy {
+        RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.ITEM_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath("medved", "item_chams_translucent"))
+                .withShaderDefine("ALPHA_CUTOUT", 0.1f)
+                .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withDepthStencilState(CHAMS_DEPTH_STATE)
+                .build()
+        )
+    }
+
+    private val shaderChamsEntityCache = mutableMapOf<Triple<Identifier, Boolean, ChamsShader>, RenderType>()
+    private val vanillaChamsEntityCache = mutableMapOf<Pair<Identifier, Boolean>, RenderType>()
+    private val itemChamsCache = mutableMapOf<Pair<Identifier, Boolean>, RenderType>()
+    private val shaderItemChamsCache = mutableMapOf<Triple<Identifier, Boolean, ChamsShader>, RenderType>()
+
+    fun shaderChamsEntity(texture: Identifier, outline: Boolean, shader: ChamsShader): RenderType =
+        shaderChamsEntityCache.getOrPut(Triple(texture, outline, shader)) {
+            val setup = RenderSetup.builder(shaderChamsPipeline(shader))
+                .withTexture("Sampler0", texture)
+                .sortOnUpload()
+                .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                .setOutline(
+                    if (outline) RenderSetup.OutlineProperty.AFFECTS_OUTLINE
+                    else RenderSetup.OutlineProperty.NONE
+                )
+                .createRenderSetup()
+            RenderType.create("medved_shader_chams_entity_${shader.name.lowercase()}", setup)
+        }
+
+    fun vanillaChamsEntity(texture: Identifier, outline: Boolean): RenderType =
+        vanillaChamsEntityCache.getOrPut(texture to outline) {
+            val setup = RenderSetup.builder(VANILLA_CHAMS_PIPELINE)
+                .withTexture("Sampler0", texture)
+                .useLightmap()
+                .useOverlay()
+                .sortOnUpload()
+                .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                .setOutline(
+                    if (outline) RenderSetup.OutlineProperty.AFFECTS_OUTLINE
+                    else RenderSetup.OutlineProperty.NONE
+                )
+                .createRenderSetup()
+            RenderType.create("medved_vanilla_chams_entity", setup)
+        }
+
+    fun itemChams(texture: Identifier, translucent: Boolean): RenderType =
+        itemChamsCache.getOrPut(texture to translucent) {
+            val setup = RenderSetup.builder(if (translucent) ITEM_CHAMS_TRANSLUCENT_PIPELINE else ITEM_CHAMS_PIPELINE)
+                .withTexture("Sampler0", texture)
+                .useLightmap()
+                .useOverlay()
+                .affectsCrumbling()
+                .sortOnUpload()
+                .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                .createRenderSetup()
+            RenderType.create(if (translucent) "medved_item_chams_translucent" else "medved_item_chams", setup)
+        }
+
+    fun shaderItemChams(texture: Identifier, translucent: Boolean, shader: ChamsShader): RenderType =
+        shaderItemChamsCache.getOrPut(Triple(texture, translucent, shader)) {
+            val setup = RenderSetup.builder(shaderItemChamsPipeline(shader))
+                .withTexture("Sampler0", texture)
+                .useLightmap()
+                .useOverlay()
+                .affectsCrumbling()
+                .sortOnUpload()
+                .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
+                .createRenderSetup()
+            RenderType.create(
+                if (translucent) "medved_shader_item_chams_${shader.name.lowercase()}_translucent"
+                else "medved_shader_item_chams_${shader.name.lowercase()}",
+                setup
+            )
+        }
 
     inline fun worldContext(
         ctx: LevelRenderContext,

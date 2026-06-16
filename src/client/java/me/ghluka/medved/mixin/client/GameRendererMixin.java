@@ -1,6 +1,7 @@
 package me.ghluka.medved.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import me.ghluka.medved.module.modules.render.ESP3D;
 import me.ghluka.medved.util.CameraOverriddenEntity;
 import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.Camera;
@@ -8,6 +9,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -30,6 +32,26 @@ public class GameRendererMixin {
     private void medved$skipPerspectiveHandBob(GameRenderer instance, CameraRenderState cameraState, PoseStack poseStack) {
         if (!RotationManager.perspective) {
             this.bobView(cameraState, poseStack);
+        }
+    }
+
+    @Inject(method = "renderLevel", at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/GameRenderer;renderItemInHand(Lnet/minecraft/client/renderer/state/level/CameraRenderState;FLorg/joml/Matrix4fc;)V"
+    ))
+    private void medved$blitGlowBeforeHand(DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (ESP3D.usesGlowOutline()) {
+            Minecraft.getInstance().levelRenderer.doEntityOutline();
+        }
+    }
+
+    @Redirect(method = "render", at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/LevelRenderer;doEntityOutline()V"
+    ))
+    private void medved$skipLateGlowBlit(LevelRenderer levelRenderer) {
+        if (!ESP3D.usesGlowOutline()) {
+            levelRenderer.doEntityOutline();
         }
     }
 
