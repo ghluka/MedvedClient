@@ -11,6 +11,10 @@ object FakeLag : Module("Fake Lag", "Delays outgoing packets to simulate real ne
     val mode  = enum("mode", Mode.LATENCY)
     val lagMs = intRange("lag (ms)", 200 to 300, 50, 2000)
 
+    val range = floatRange("max range", 3f to 3.14f, 3f, 9f, 2).also {
+        it.visibleWhen = { mode.value == Mode.DYNAMIC }
+    }
+
     @Volatile var isCurrentlyLagging = false
         private set
 
@@ -22,12 +26,10 @@ object FakeLag : Module("Fake Lag", "Delays outgoing packets to simulate real ne
             val mc = Minecraft.getInstance()
             val player = mc.player ?: return false
             val level  = mc.level  ?: return false
-            val reachModule = me.ghluka.medved.module.modules.combat.Reach
-            val maxReach = if (reachModule.enabled.value) reachModule.customRange.value.second else 3.0f
-            val triggerDist = maxReach + 0.14f
             level.players().any { e ->
                 if (e === player || e.isDeadOrDying) return@any false
-                if (player.distanceTo(e) > triggerDist) return@any false
+                if (player.distanceTo(e) < range.min ||
+                    player.distanceTo(e) > range.max) return@any false
                 val dx = e.x - player.x
                 val dz = e.z - player.z
                 val yaw = Math.toDegrees(kotlin.math.atan2(-dx, dz)).toFloat()

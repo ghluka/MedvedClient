@@ -1,0 +1,44 @@
+---
+sidebar_position: 3
+sidebar_label: Spin
+title: Spin
+---
+
+# Spin
+
+Makes you spin fast to confuse your opponents.
+
+:::warning
+This module has either been added or heavily updated in the experimental version,
+do not expect configuration options or this module to be available if you use the
+latest release.
+:::
+
+---
+
+### Speed
+
+How fast your server-side yaw spins, in degrees per second.
+
+### Direction
+
+Controls whether the spin moves to the **RIGHT** or **LEFT**.
+
+### Pitch
+
+The server-side pitch used while spinning.
+
+### Movement Correction
+
+Remaps movement input so holding a key continues moving relative to your client camera,
+even while your server-side yaw spins.
+
+### Jump Timing
+
+When enabled, jump input is delayed until the spin is close enough to the direction
+you are trying to move. This helps sprint jumps go forward instead of launching
+off at the current spin angle.
+
+### Jump Window
+
+How close the server yaw must be to your intended movement direction before jump is allowed.

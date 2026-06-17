@@ -9,6 +9,8 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 
 object RotationManager {
+    private const val EXTERNAL_ROTATION_OWNER = "external"
+    const val SPIN_ROTATION_OWNER = "spin"
 
     private var targetYaw: Float? = null
     private var targetPitch: Float? = null
@@ -41,7 +43,11 @@ object RotationManager {
 
     @JvmField var suppressJump: Boolean = false
 
-    fun setTargetRotation(yaw: Float, pitch: Float) {
+    private var rotationOwner: String? = null
+    private var rotationOwnerTicks = 0
+
+    fun setTargetRotation(yaw: Float, pitch: Float, owner: String = EXTERNAL_ROTATION_OWNER) {
+        claimRotation(owner)
         val player = Minecraft.getInstance().player
 
         if (perspective && firstTime && player is me.ghluka.medved.util.CameraOverriddenEntity) {
@@ -60,7 +66,8 @@ object RotationManager {
         targetPitch = pitch
     }
 
-    fun clearRotation() {
+    fun clearRotation(owner: String? = null) {
+        if (owner != null && rotationOwner != null && rotationOwner != owner) return
         //perspective = false
         targetYaw = null
         targetPitch = null
@@ -85,6 +92,27 @@ object RotationManager {
             }
         }
         perspective = false
+        if (owner == null || rotationOwner == owner) {
+            rotationOwner = null
+            rotationOwnerTicks = 0
+        }
+    }
+
+    fun ownsRotation(owner: String): Boolean = rotationOwner == owner
+
+    fun hasExternalRotation(owner: String): Boolean = rotationOwner != null && rotationOwner != owner
+
+    fun onClientTickEnd() {
+        if (rotationOwnerTicks > 0) rotationOwnerTicks -= 1
+        if (rotationOwnerTicks <= 0) {
+            rotationOwner = null
+            rotationOwnerTicks = 0
+        }
+    }
+
+    private fun claimRotation(owner: String) {
+        rotationOwner = owner
+        rotationOwnerTicks = 1
     }
 
     @JvmStatic

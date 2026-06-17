@@ -1,5 +1,6 @@
 package me.ghluka.medved.mixin.client;
 
+import me.ghluka.medved.module.modules.movement.Spin;
 import me.ghluka.medved.util.RotationManager;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
@@ -28,5 +29,8 @@ public abstract class KeyboardInputMixin extends ClientInput {
             );
         }
 
+        Input input = this.keyPresses;
+        this.keyPresses = Spin.correctInput(input);
+        this.moveVector = Spin.correctMoveVector(input);
     }
 }

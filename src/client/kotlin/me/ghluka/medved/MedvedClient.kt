@@ -18,6 +18,7 @@ import me.ghluka.medved.module.modules.minigames.*
 import me.ghluka.medved.module.modules.world.scaffold.Scaffold
 import me.ghluka.medved.update.UpdateChecker
 import me.ghluka.medved.util.LagManager
+import me.ghluka.medved.util.RotationManager
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.loader.api.FabricLoader
@@ -60,6 +61,7 @@ object MedvedClient : ClientModInitializer {
         // movement
         ModuleManager.register(Sprint)
         ModuleManager.register(Speed)
+        ModuleManager.register(Spin)
         ModuleManager.register(Flight)
         ModuleManager.register(Timer)
         ModuleManager.register(NoFall)
@@ -114,6 +116,7 @@ object MedvedClient : ClientModInitializer {
             val down = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_INSERT) == GLFW.GLFW_PRESS
             if (down && !insertWasDown) ClickGui.toggle()
             insertWasDown = down
+            RotationManager.onClientTickEnd()
         }
     }
 }
