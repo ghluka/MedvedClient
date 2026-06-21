@@ -1,0 +1,26 @@
+---
+sidebar_label: Quakecraft Rage
+title: Quakecraft Rage
+---
+
+# Quakecraft Rage
+
+Snaps to visible Quakecraft players and right-clicks the railgun when slot 1 has lore containing `Right-click to shoot!`.
+
+It aims at the best visible point inside an expanded player hitbox, which matches Quakecraft's forgiving hit detection more closely than aiming only at the head.
+
+The visibility check is intentionally strict: any non-air block along the ray to the chosen hitbox point blocks the shot, including partial blocks like stairs and slabs.
+
+## Settings
+
+- **Range**: Maximum player scan distance.
+- **Hitbox scale**: Multiplies the target box used for aim point checks.
+- **Prediction**: Aims at a future hitbox position based on recent target movement.
+- **Prediction ticks**: How many ticks of target movement to lead.
+- **Aim speed**: Rotation speed for snapping to the target.
+- **Fire tolerance**: Maximum yaw/pitch error before a shot is allowed.
+- **Settle ticks**: How many aimed ticks are required before shooting.
+- **Shoot cooldown**: Ticks to wait between shot attempts. Clamped internally so it cannot spam use packets faster than Quakecraft's railgun cooldown.
+- **Target filter**: Uses the shared Target Filter rules. Off by default for Quakecraft because minigame players can trip anti-bot checks.
+- **Debug gun detection**: Prints slot 1 item/lore detection changes in chat.
+- **Debug targets**: Prints why target acquisition is failing or which target is currently being aimed at.

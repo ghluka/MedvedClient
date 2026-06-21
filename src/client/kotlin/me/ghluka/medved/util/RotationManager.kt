@@ -345,7 +345,7 @@ object RotationManager {
     @JvmStatic
     fun applyOverride(player: LocalPlayer) {
         if (targetYaw == null) {
-            pendingFireAction?.let { it.run(); pendingFireAction = null }
+            runPendingFireAction()
             return
         }
 
@@ -355,6 +355,7 @@ object RotationManager {
 
         if ((rotationMode == RotationMode.CLIENT && movementMode == MovementMode.CLIENT) ||
             perspective) {
+            runPendingFireAction()
             return
         }
 
@@ -427,7 +428,14 @@ object RotationManager {
             }
         }
 
-        pendingFireAction?.let { it.run(); pendingFireAction = null }
+        runPendingFireAction()
+    }
+
+    private fun runPendingFireAction() {
+        pendingFireAction?.let {
+            pendingFireAction = null
+            it.run()
+        }
     }
 
     @JvmStatic

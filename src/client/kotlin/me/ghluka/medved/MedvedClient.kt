@@ -106,6 +106,7 @@ object MedvedClient : ClientModInitializer {
         ModuleManager.register(InventoryManager)
         // minigames
         ModuleManager.register(PartyGames)
+        ModuleManager.register(QuakecraftRage)
 
         ModuleManager.init()
         UpdateChecker.init()

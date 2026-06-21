@@ -237,7 +237,7 @@
     "mode": "LAG",
     "delay (ms)": 350,
     "lag window (ms)": [
-      130,
+      0,
       130
     ],
     "only players": true,
@@ -360,6 +360,16 @@
     "mode": "BHOP",
     "multiplier": 1.6928105
   },
+  "Spin": {
+    "enabled": false,
+    "keybind": 89,
+    "speed": 619.80396,
+    "direction": "RIGHT",
+    "pitch": 90.0,
+    "movement correction": true,
+    "jump timing": true,
+    "jump window": 35.0
+  },
   "Flight": {
     "enabled": false,
     "keybind": -1,
@@ -420,13 +430,13 @@
   "3D ESP": {
     "enabled": true,
     "keybind": -1,
-    "color mode": "TEAM",
+    "color mode": "STATIC",
     "render mode": "GLOW",
     "ignore target filter": false,
     "color": {
-      "value": "#FFFFFFFF",
-      "mode": "THEME",
-      "custom": "#FF280080",
+      "value": "#FF220068",
+      "mode": "CUSTOM",
+      "custom": "#FF220068",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
@@ -435,19 +445,19 @@
     "team only": false,
     "fill alpha": 0.1,
     "outline alpha": 1.0,
-    "line width": 1.5980392545461655,
+    "line width": 2.101307198405266,
     "expand": 0.0,
     "corner size": 0.25
   },
   "2D ESP": {
-    "enabled": false,
+    "enabled": true,
     "keybind": -1,
     "max distance": 256.0,
-    "ignore target filter": false,
+    "ignore target filter": true,
     "box style": "FULL",
     "border mode": "CUSTOM",
     "stat side": "RIGHT",
-    "box": false,
+    "box": true,
     "health bar": true,
     "health side": "LEFT",
     "health text": false,
@@ -458,17 +468,17 @@
     "ping": false,
     "equipment icons": false,
     "border color": {
-      "value": "#64000000",
+      "value": "#E6000000",
       "mode": "CUSTOM",
-      "custom": "#64000000",
+      "custom": "#E6000000",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
     },
     "infill color": {
-      "value": "#00000000",
+      "value": "#64000000",
       "mode": "CUSTOM",
-      "custom": "#00000000",
+      "custom": "#64000000",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
@@ -490,8 +500,8 @@
       "chromaBrightness": 1.0
     },
     "line width": 2,
-    "box padding": 4,
-    "health width": 4,
+    "box padding": 8,
+    "health width": 3,
     "text scale": 0.7777777828276158,
     "text shadow": true
   },
@@ -499,8 +509,8 @@
     "enabled": true,
     "keybind": -1,
     "color": {
-      "value": "#FFFFFFFF",
-      "mode": "THEME",
+      "value": "#FF300054",
+      "mode": "CUSTOM",
       "custom": "#FF300054",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
@@ -510,7 +520,7 @@
     "speed": 0.25,
     "line width": 6.0,
     "expand": 0.2516339883208275,
-    "glow rings": 2,
+    "glow rings": 8,
     "linger ms": 700,
     "smoothness": 160
   },
@@ -518,12 +528,12 @@
     "enabled": true,
     "keybind": -1,
     "style": "SHADER",
-    "ignore target filter": false,
-    "shader": "GALAXY",
+    "ignore target filter": true,
+    "shader": "VOID",
     "shader color": {
-      "value": "#1000FF87",
+      "value": "#AFFF0000",
       "mode": "CUSTOM",
-      "custom": "#1000FF87",
+      "custom": "#AFFF0000",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
@@ -534,15 +544,15 @@
     "keybind": -1,
     "mode": "EXPLICIT_B9",
     "max distance": 64.0,
-    "ignore target filter": false,
+    "ignore target filter": true,
     "scale": 1.0,
     "y offset": 0.35,
     "health": true,
     "distance": true,
     "health mode": "HEARTS",
-    "armor": false,
+    "armor": true,
     "durability": false,
-    "enchantments": false,
+    "enchantments": true,
     "background": true,
     "bg color": {
       "value": "#B3141414",
@@ -574,25 +584,25 @@
     "shade": true,
     "color mode": "RAINBOW",
     "color": {
-      "value": "#FFFFFFFF",
-      "mode": "THEME",
+      "value": "#FF090909",
+      "mode": "CUSTOM",
       "custom": "#FF090909",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
     },
     "color start": {
-      "value": "#FFFFFFFF",
-      "mode": "THEME",
-      "custom": "#FF000000",
+      "value": "#FFFF00FF",
+      "mode": "CUSTOM",
+      "custom": "#FFFF00FF",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
     },
     "color end": {
-      "value": "#FF000000",
+      "value": "#FF5A0AFF",
       "mode": "CUSTOM",
-      "custom": "#FF000000",
+      "custom": "#FF5A0AFF",
       "chromaSpeed": 0.5,
       "chromaSaturation": 1.0,
       "chromaBrightness": 1.0
@@ -605,6 +615,10 @@
     "lag (ms)": [
       90,
       90
+    ],
+    "max range": [
+      3.0,
+      3.16
     ]
   },
   "Blink": {
@@ -637,7 +651,7 @@
         "wool_category"
       ]
     },
-    "mode": "BREEZILY",
+    "mode": "NINJA",
     "rot speed": 100.0,
     "crouch delay": [
       45,
@@ -652,8 +666,8 @@
   },
   "Clutch": {
     "enabled": false,
-    "keybind": -1,
-    "trigger": "ALWAYS",
+    "keybind": 72,
+    "trigger": "ON_LETHAL_FALL",
     "blocks": 4.522876,
     "return to slot": true,
     "rotation speed": 112.09151,
@@ -708,7 +722,7 @@
   "Bed Breaker": {
     "enabled": false,
     "keybind": 78,
-    "mode": "LEGIT",
+    "mode": "HYPIXEL",
     "rotations": "SERVER",
     "range": 4.5,
     "blatant range": 5.0588236,
@@ -811,12 +825,12 @@
     "show config": true
   },
   "Target HUD": {
-    "enabled": true,
+    "enabled": false,
     "keybind": -1,
     "hud_x": 0.5,
     "hud_y": 0.75,
     "hud_scale": 1.0,
-    "position": "STATIC",
+    "position": "FLOATING",
     "design": "GRIZZLY",
     "bg color": {
       "value": "#A0000000",
@@ -919,7 +933,7 @@
   },
   "Party Games": {
     "enabled": false,
-    "keybind": 89,
+    "keybind": -1,
     "Animal Slaughter AIO": true,
     "Animal ESP": true,
     "Block wrong clicks": true,
