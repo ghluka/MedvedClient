@@ -44,10 +44,10 @@ const config = {
   },
 
   // Set the production url of your site here
-  url: 'https://ghluka.github.io',
+  url: 'https://grizzly.luka.onl',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/MedvedClient/',
+  baseUrl: '/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -151,7 +151,7 @@ const config = {
             items: [
               {
                 label: 'Homepage',
-                to: 'https://ghluka.github.io/medved',
+                to: 'https://grizzly.luka.onl',
               },
               {
                 label: 'GitHub',
