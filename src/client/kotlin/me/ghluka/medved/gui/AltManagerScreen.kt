@@ -28,7 +28,14 @@ import org.lwjgl.util.tinyfd.TinyFileDialogs
 
 class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("Alt Manager")) {
 
-    private enum class State { LIST, CHOOSE_TYPE, ADD_CRACKED, ADD_TOKEN, ADD_MICROSOFT, ADD_COOKIE }
+    private enum class State {
+        LIST,
+        CHOOSE_TYPE,
+        ADD_CRACKED,
+        ADD_TOKEN,
+        ADD_MICROSOFT,
+        ADD_COOKIE,
+    }
     private var state = State.LIST
 
     private var listScroll = 0
@@ -241,7 +248,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             State.LIST          -> drawList(g, px, py, dmx, dmy)
             State.CHOOSE_TYPE   -> drawChooseType(g, px, py, dmx, dmy)
             State.ADD_CRACKED,
-            State.ADD_TOKEN     -> drawAddForm(g, px, py, dmx, dmy)
+            State.ADD_TOKEN -> drawAddForm(g, px, py, dmx, dmy)
             State.ADD_MICROSOFT -> drawMicrosoft(g, px, py, dmx, dmy)
             State.ADD_COOKIE    -> drawCookie(g, px, py, dmx, dmy)
         }
@@ -352,7 +359,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         val btnW   = 180
         val btnGap = 6
         var by     = cy + 18
-        for (label in listOf("Cracked (Offline)", "Access Token", "Microsoft", "Cookie")) {
+        for (label in listOf("Cracked (Offline)", "Token", "Microsoft", "Cookie")) {
             drawBtn(g, cx - btnW / 2, by, btnW, BTN_H + 4, label, mx, my)
             by += BTN_H + 4 + btnGap
         }
@@ -368,7 +375,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
         val header = when (state) {
             State.ADD_CRACKED -> "Add Cracked Account"
-            State.ADD_TOKEN   -> "Add MC Token Account"
+            State.ADD_TOKEN   -> "Add Token Account"
             else              -> ""
         }
         g.TextCentered(FONT, styled(header), px + PNL_W / 2, fy, argb(220, 200, 200, 220))
@@ -376,7 +383,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
 
         val fieldDefs = when (state) {
             State.ADD_CRACKED -> listOf("Username")
-            State.ADD_TOKEN   -> listOf("MC Access Token (mctoken)")
+            State.ADD_TOKEN   -> listOf("Access or refresh token")
             else              -> emptyList()
         }
         for ((idx, label) in fieldDefs.withIndex()) {
@@ -547,7 +554,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             State.LIST          -> handleListClick(mx, my, px, py)
             State.CHOOSE_TYPE   -> handleChooseTypeClick(mx, my, px, py)
             State.ADD_CRACKED,
-            State.ADD_TOKEN     -> handleFormClick(mx, my, px, py)
+            State.ADD_TOKEN -> handleFormClick(mx, my, px, py)
             State.ADD_MICROSOFT -> handleMicrosoftClick(mx, my, px, py)
             State.ADD_COOKIE    -> handleCookieClick(mx, my, px, py)
         }
@@ -641,7 +648,12 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         val btnH = BTN_H + 4
         val gap  = 6
         var by   = py + TITLE_H + 20 + 18
-        for (nextState in listOf(State.ADD_CRACKED, State.ADD_TOKEN, State.ADD_MICROSOFT, State.ADD_COOKIE)) {
+        for (nextState in listOf(
+            State.ADD_CRACKED,
+            State.ADD_TOKEN,
+            State.ADD_MICROSOFT,
+            State.ADD_COOKIE,
+        )) {
             if (isOver(mx, my, cx - btnW / 2, by, btnW, btnH)) {
                 state = nextState
                 if (nextState == State.ADD_MICROSOFT) startMicrosoftAuth()
@@ -659,7 +671,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         if (isOver(mx, my, px + 8, bby, BTN_W, BTN_H))                   { state = State.CHOOSE_TYPE; clearForm(); return }
         if (isOver(mx, my, px + PNL_W - BTN_W - 8, bby, BTN_W, BTN_H))   { submitForm(); return }
 
-        val fieldCount = when (state) { State.ADD_CRACKED -> 1; State.ADD_TOKEN -> 3; else -> 0 }
+        val fieldCount = formFieldCount()
         var fy = py + TITLE_H + 16 + 16
         for (i in 0 until fieldCount) {
             fy += 10
@@ -702,7 +714,8 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
                     val prof = msProfile
                     if (prof != null) {
                         val acc = AltAccount(type = AltType.MICROSOFT, username = prof.username,
-                            token = prof.accessToken, uuid = prof.uuid.toString())
+                            token = prof.accessToken, uuid = prof.uuid.toString(),
+                            refreshToken = prof.refreshToken)
                         AltManager.addAccount(acc)
                         AltManager.login(acc)
                     }
@@ -728,7 +741,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         }
 
         if (activeInput >= 0 && event.button() == 0) {
-            val count = when (state) { State.ADD_CRACKED -> 1; State.ADD_TOKEN -> 3; else -> 0 }
+            val count = formFieldCount()
             if (activeInput < count) {
                 val relX = mx - panelX - 16 - 4
                 fields[activeInput].apply { cursor = posFromPixel(relX); clampScroll(PNL_W - 40) }
@@ -818,7 +831,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             ctrl && key == GLFW.GLFW_KEY_X -> { val s = f.cut();  if (s.isNotEmpty()) minecraft.keyboardHandler.clipboard = s }
             ctrl && key == GLFW.GLFW_KEY_V -> {
                 val clip  = minecraft.keyboardHandler.clipboard ?: ""
-                val value = if (state == State.ADD_TOKEN && activeInput == 2) parseMcToken(clip) else clip
+                val value = if (state == State.ADD_TOKEN && activeInput == 0) normalizeTokenInput(clip) else clip
                 f.insert(value)
             }
             key == GLFW.GLFW_KEY_BACKSPACE -> if (ctrl) f.backspaceWord() else f.backspace()
@@ -828,7 +841,7 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
             key == GLFW.GLFW_KEY_HOME      -> f.home(shift)
             key == GLFW.GLFW_KEY_END       -> f.end(shift)
             key == GLFW.GLFW_KEY_TAB -> {
-                val maxInputs = when (state) { State.ADD_CRACKED -> 1; else -> 3 }
+                val maxInputs = formFieldCount().coerceAtLeast(1)
                 activeInput = (activeInput + if (shift) maxInputs - 1 else 1) % maxInputs
                 return true
             }
@@ -855,16 +868,31 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
         return false
     }
 
-    private fun parseMcToken(raw: String): String {
-        val s     = raw.trim()
-        val match = Regex("mctoken\\s*[=:]\\s*", RegexOption.IGNORE_CASE).find(s)
-        return if (match != null) s.substring(match.range.last + 1).trim() else s
+    private fun normalizeTokenInput(raw: String): String {
+        val line = raw.lineSequence()
+            .map(String::trim)
+            .firstOrNull { it.isNotEmpty() }
+            .orEmpty()
+        if (line.isEmpty()) return ""
+
+        val namedToken = Regex("mctoken\\s*[=:]\\s*", RegexOption.IGNORE_CASE).find(line)
+        if (namedToken != null) return line.substring(namedToken.range.last + 1).trim()
+
+        val tokenStart = listOf(line.indexOf("M."), line.indexOf("eyJ"))
+            .filter { it >= 0 }
+            .minOrNull()
+        if (tokenStart != null) return line.substring(tokenStart).trim()
+
+        return line.substringAfter(':', line).trim()
     }
 
     private fun submitForm() {
         formError = ""
         val username = fields[0].get().trim()
-        if (username.isBlank() && state != State.ADD_TOKEN) { formError = "Username cannot be empty"; return }
+        if (username.isBlank() && state != State.ADD_TOKEN) {
+            formError = "Username cannot be empty"
+            return
+        }
 
         when (state) {
             State.ADD_CRACKED -> {
@@ -872,33 +900,49 @@ class AltManagerScreen(private val parent: Screen?) : Screen(Component.literal("
                 clearForm(); state = State.LIST
             }
             State.ADD_TOKEN -> {
-                val token     = fields[0].get().trim()
-                if (token.isBlank()) { formError = "Access token cannot be empty"; return }
-                formError = "Fetching profile\u2026"
+                val token = normalizeTokenInput(fields[0].get())
+                if (token.isBlank()) { formError = "Token cannot be empty"; return }
+                formError = "Checking token\u2026"
                 Thread {
                     try {
-                        val resolvedName: String
-                        val resolvedUuid: String
-                        try {
-                            val fetched = MicrosoftAuth.fetchMcProfile(token)
-                            if (fetched == null) { formError = "Cannot fetch profile \u2013 enter username manually"; return@Thread }
-                            resolvedName = fetched.first
-                            resolvedUuid = fetched.second.toString()
-                        } catch (_:Exception) {
-                            formError = "Error: Failed to resolve username"
-                            return@Thread
+                        val directProfile = MicrosoftAuth.fetchMcProfile(token)
+                        val account = if (directProfile != null) {
+                            AltAccount(
+                                type = AltType.ACCESS_TOKEN,
+                                username = directProfile.first,
+                                uuid = directProfile.second.toString(),
+                                token = token,
+                            )
+                        } else {
+                            val profile = MicrosoftAuth.authenticateRefreshToken(token)
+                            AltAccount(
+                                type = AltType.MICROSOFT,
+                                username = profile.username,
+                                uuid = profile.uuid.toString(),
+                                token = profile.accessToken,
+                                refreshToken = profile.refreshToken,
+                            )
                         }
-                        val acc = AltAccount(type = AltType.ACCESS_TOKEN, username = resolvedName,
-                            uuid = resolvedUuid, token = token)
-                        AltManager.addAccount(acc)
-                        minecraft!!.execute { clearForm(); state = State.LIST }
+                        AltManager.addAccount(account)
+                        minecraft.execute { clearForm(); state = State.LIST }
                     } catch (e: Exception) {
-                        formError = "Error: ${e.message?.take(60) ?: "unknown"}"
+                        minecraft.execute {
+                            formError = e.message?.take(80) ?: "Token authentication failed"
+                        }
                     }
-                }.also { it.isDaemon = true }.start()
+                }.also {
+                    it.isDaemon = true
+                    it.name = "medved-token-import"
+                    it.start()
+                }
             }
             else -> {}
         }
+    }
+
+    private fun formFieldCount(): Int = when (state) {
+        State.ADD_CRACKED, State.ADD_TOKEN -> 1
+        else -> 0
     }
 
     private fun clearForm() {
