@@ -67,6 +67,27 @@ class MinecraftUiRenderer(private val g: GuiGraphicsExtractor) : UiRenderer {
         }
     }
 
+    override fun text(
+        text: String,
+        x: Float,
+        y: Float,
+        color: Int,
+        font: String?,
+        shadow: Boolean,
+        scale: Float,
+    ) {
+        g.pose().pushMatrix()
+        g.pose().translate(x, y)
+        if (scale != 1f) g.pose().scale(scale, scale)
+        if (font == "minecraft") {
+            g.Text(vanillaFont, text, 0, 0, color, shadow)
+        } else {
+            val styledText = Font.withRenderScale(scale) { Font.styledText(text) }
+            g.Text(this.font, styledText, 0, 0, color, shadow)
+        }
+        g.pose().popMatrix()
+    }
+
     override fun item(name: String, rect: UiRect) {
         val item = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(name)) ?: return
         g.item(item.defaultInstance, rect.x.roundToInt(), rect.y.roundToInt())

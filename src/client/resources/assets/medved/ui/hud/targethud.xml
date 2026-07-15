@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui>
+    <template name="target-hud-grizzly">
+        <panel w="150" h="{{hud.height}}" bg="{{hud.background}}" radius="5">
+            <target-face overlay="true" relative="true"
+                         x="{{face.x}}" y="{{face.y}}" w="{{face.size}}" h="{{face.size}}"
+                         radius="5" hurt="{{target.hurt}}" />
+
+            <row overlay="true" relative="true"
+                 x="54" y="5" w="86" h="9"
+                 text="{{target.name}}" fg="{{hud.text}}" shadow="{{hud.shadow}}" />
+
+            <row overlay="true" relative="true"
+                 x="54" y="{{hp.y}}" w="{{hp.labelW}}" h="9"
+                 text="HP" fg="{{hud.muted}}" shadow="{{hud.shadow}}" />
+            <box overlay="true" relative="true"
+                 x="{{hp.barX}}" y="{{hp.barY}}" w="{{hp.barW}}" h="7"
+                 bg="{{hud.barBack}}" radius="3" />
+            <box overlay="true" relative="true"
+                 x="{{hp.barX}}" y="{{hp.barY}}" w="{{hp.fillW}}" h="7"
+                 bg="{{hp.color}}" radius="3" />
+            <row overlay="true" relative="true"
+                 x="{{hp.valueX}}" y="{{hp.y}}" w="{{hp.valueW}}" h="9"
+                 text="{{hp.value}}" fg="{{hp.color}}" shadow="{{hud.shadow}}" />
+
+            <slot name="absorption" />
+
+            <row overlay="true" relative="true"
+                 x="54" y="{{distance.y}}" w="86" h="9"
+                 text="{{distance.text}}" fg="{{hud.muted}}" shadow="{{hud.shadow}}" />
+            <row overlay="true" relative="true"
+                 x="54" y="{{win.y}}" w="86" h="9"
+                 text="{{win.text}}" fg="{{win.color}}" shadow="{{hud.shadow}}" />
+        </panel>
+    </template>
+
+    <template name="target-hud-absorption">
+        <box>
+            <row overlay="true" relative="true"
+                 x="54" y="{{abs.y}}" w="{{abs.labelW}}" h="9"
+                 text="Abs" fg="#FFFFDD44" shadow="{{hud.shadow}}" />
+            <box overlay="true" relative="true"
+                 x="{{abs.barX}}" y="{{abs.barY}}" w="{{abs.barW}}" h="7"
+                 bg="{{hud.barBack}}" radius="3" />
+            <box overlay="true" relative="true"
+                 x="{{abs.barX}}" y="{{abs.barY}}" w="{{abs.fillW}}" h="7"
+                 bg="#FFFFDD44" radius="3" />
+        </box>
+    </template>
+
+    <template name="target-hud-camel">
+        <panel w="122" h="58" bg="{{hud.background}}" radius="8">
+            <target-entity overlay="true" relative="true" x="-4" y="4" w="46" h="54" />
+            <row overlay="true" relative="true"
+                 x="36" y="6" w="81" h="12"
+                 text="{{target.name}}" fg="{{hud.text}}" shadow="{{hud.shadow}}" textScale="1.33" />
+            <box overlay="true" relative="true"
+                 x="36" y="20" w="77" h="12" bg="{{hud.barBack}}" radius="4" />
+            <box overlay="true" relative="true"
+                 x="36" y="20" w="{{hp.fillW}}" h="12" bg="#FFFF1010" radius="4" />
+            <row overlay="true" relative="true"
+                 x="36" y="37" w="81" h="18"
+                 text="{{hp.whole}}" fg="#FFFF1010" shadow="{{hud.shadow}}" textScale="1.95" />
+        </panel>
+    </template>
+</ui>

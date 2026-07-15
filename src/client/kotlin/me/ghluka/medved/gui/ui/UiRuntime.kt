@@ -1,6 +1,9 @@
 package me.ghluka.medved.gui.ui
 
-class UiRuntime(private val renderer: UiRenderer) {
+class UiRuntime(
+    private val renderer: UiRenderer,
+    private val customNodeRenderer: ((UiNode) -> Boolean)? = null,
+) {
     fun layout(document: UiDocument, viewport: UiRect) {
         measure(document.root, viewport.width, viewport.height)
         place(document.root, viewport.x, viewport.y, viewport.width, viewport.height)
@@ -51,8 +54,9 @@ class UiRuntime(private val renderer: UiRenderer) {
         val flowChildren = node.children.zip(measuredChildren)
             .filterNot { (child, _) -> child.attributes["overlay"] == "true" }
         val nodeFont = node.attributes["font"]
-        val textW = node.text?.let { renderer.textWidth(it, nodeFont) } ?: 0f
-        val textH = if (node.text != null) renderer.fontHeight(nodeFont) else 0f
+        val textScale = node.textScale()
+        val textW = node.text?.let { renderer.textWidth(it, nodeFont) * textScale } ?: 0f
+        val textH = if (node.text != null) renderer.fontHeight(nodeFont) * textScale else 0f
         val gapTotal = node.style.gap * (flowChildren.size - 1).coerceAtLeast(0)
 
         val childrenW = when (node.axis) {
@@ -255,18 +259,28 @@ class UiRuntime(private val renderer: UiRenderer) {
             "alpha-bar" -> renderAlphaBar(node)
             "item-icon" -> renderItemIcon(node)
             "dropdown-arrow" -> renderDropdownArrow(node)
+            else -> customNodeRenderer?.invoke(node)
         }
 
         if (node.type != "text-input") node.text?.let { text ->
             val nodeFont = node.attributes["font"]
+            val textScale = node.textScale()
             val color = foregroundColor(node)
             val textX = when (node.style.align) {
                 UiTextAlign.LEFT -> node.bounds.x + node.style.padding.left
-                UiTextAlign.CENTER -> node.bounds.x + (node.bounds.width - renderer.textWidth(text, nodeFont)) / 2f
-                UiTextAlign.RIGHT -> node.bounds.right - node.style.padding.right - renderer.textWidth(text, nodeFont)
+                UiTextAlign.CENTER -> node.bounds.x + (node.bounds.width - renderer.textWidth(text, nodeFont) * textScale) / 2f
+                UiTextAlign.RIGHT -> node.bounds.right - node.style.padding.right - renderer.textWidth(text, nodeFont) * textScale
             }
-            val textY = node.bounds.y + (node.bounds.height - renderer.fontHeight(nodeFont)) / 2f
-            renderer.text(text, textX, textY, color, nodeFont)
+            val textY = node.bounds.y + (node.bounds.height - renderer.fontHeight(nodeFont) * textScale) / 2f
+            renderer.text(
+                text,
+                textX,
+                textY,
+                color,
+                nodeFont,
+                node.attributes["shadow"] == "true",
+                textScale,
+            )
         }
 
         val childRoundedClips = if (node.style.radius > 0f) {
@@ -594,4 +608,7 @@ class UiRuntime(private val renderer: UiRenderer) {
 
     private fun UiNode.scrollOffset(): Float =
         attributes["scrollY"]?.toFloatOrNull() ?: attributes["scroll"]?.toFloatOrNull() ?: 0f
+
+    private fun UiNode.textScale(): Float =
+        attributes["textScale"]?.toFloatOrNull()?.coerceAtLeast(0.01f) ?: 1f
 }

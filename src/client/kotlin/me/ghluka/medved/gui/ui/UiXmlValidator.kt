@@ -106,7 +106,7 @@ internal object UiXmlValidator {
                 errors += "$path has invalid size '$attr=$value'"
             }
         }
-        listOf("x", "y", "gap", "radius", "borderWidth", "scrollAmount", "scrollY").forEach { attr ->
+        listOf("x", "y", "gap", "radius", "borderWidth", "scrollAmount", "scrollY", "textScale").forEach { attr ->
             val value = node.attributes[attr] ?: return@forEach
             if (!containsToken(value) && value.toFloatOrNull() == null) {
                 errors += "$path has invalid number '$attr=$value'"

@@ -53,6 +53,6 @@ object Font : Module("Font", "Customize the font used in GUI and HUD elements", 
     private fun FontChoice.pathForCurrentScale(): String {
         if (namespace != "medved") return path
         val physicalScale = Minecraft.getInstance().window.guiScale * renderScale.get()
-        return if (physicalScale >= 3.0) "${path}_hd" else path
+        return if (physicalScale > 2.0f) "${path}_hd" else path
     }
 }

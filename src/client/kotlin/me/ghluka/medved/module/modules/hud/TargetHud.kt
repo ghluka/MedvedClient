@@ -1,11 +1,13 @@
 package me.ghluka.medved.module.modules.hud
 
 import me.ghluka.medved.config.entry.Color
+import me.ghluka.medved.gui.ui.HudUiResources
+import me.ghluka.medved.gui.ui.MinecraftUiRenderer
+import me.ghluka.medved.gui.ui.UiDocument
+import me.ghluka.medved.gui.ui.UiRect
+import me.ghluka.medved.gui.ui.UiRuntime
 import me.ghluka.medved.module.HudModule
 import me.ghluka.medved.module.modules.other.Font
-import me.ghluka.medved.util.radius
-import me.ghluka.medved.util.roundedFill
-import me.ghluka.medved.util.Text
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -268,72 +270,47 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
 
     override fun renderHudElement(g: GuiGraphicsExtractor) {
         val tgt  = displayTarget ?: target ?: return
-        val font = Font.getFont()
-
-        val w = hudWidth()
-        val h = hudHeight()
-
-        when (design.value) {
-            Design.GRIZZLY -> renderGrizzly(g, tgt, font, w, h)
-            Design.CAMEL    -> renderCamel(g, tgt, font, w, h)
+        val document = buildHudDocument(tgt)
+        val runtime = UiRuntime(MinecraftUiRenderer(g)) { node ->
+            when (node.type) {
+                "target-face" -> {
+                    renderPlayerFace(
+                        g,
+                        tgt,
+                        node.bounds.x.roundToInt(),
+                        node.bounds.y.roundToInt(),
+                        node.bounds.width.roundToInt(),
+                        damagePulse(tgt),
+                    )
+                    true
+                }
+                "target-entity" -> {
+                    g.pose().popMatrix()
+                    renderCamelAvatar(g, tgt, node.bounds)
+                    g.pose().pushMatrix()
+                    g.pose().translate(renderAbsX, renderAbsY)
+                    if (renderScale != 1f) g.pose().scale(renderScale, renderScale)
+                    true
+                }
+                else -> false
+            }
         }
+
+        if (design.value == Design.CAMEL) {
+            g.pose().pushMatrix()
+            g.pose().translate(renderAbsX, renderAbsY)
+            if (renderScale != 1f) g.pose().scale(renderScale, renderScale)
+        }
+        runtime.layout(document, UiRect(0f, 0f, hudWidth().toFloat(), hudHeight().toFloat()))
+        runtime.render(document, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY)
+        if (design.value == Design.CAMEL) g.pose().popMatrix()
     }
 
-    private fun renderCamel(
-        g: GuiGraphicsExtractor, tgt: LivingEntity,
-        font: net.minecraft.client.gui.Font, w: Int, h: Int
-    ) {
-        val bgC = bgColor.liveColor(bgColor.value).argb
-        val textC = readableTextColor(bgC)
-        g.pose().pushMatrix()
-        g.pose().translate(renderAbsX, renderAbsY)
-        if (renderScale != 1.0f) g.pose().scale(renderScale, renderScale)
-        g.roundedFill(0, 0, w, h, 8, bgC)
-        g.pose().popMatrix()
-
-        renderCamelAvatar(g, tgt, -4, 4)
-
-        val nameScale = 1.33f
-        val textX = 36f
-        val nameAvail = ((w - textX - 5) / nameScale).toInt()
-        val name = fitName(tgt.name.string, nameAvail, font)
-        g.pose().pushMatrix()
-        g.pose().translate(renderAbsX, renderAbsY)
-        if (renderScale != 1.0f) g.pose().scale(renderScale, renderScale)
-        g.pose().translate(textX, 6f)
-        g.pose().scale(nameScale, nameScale)
-        g.Text(font, Font.styledText(name), 0, 0, textC, textShadow.value)
-        g.pose().popMatrix()
-
-        val barX = 36
-        val barY = 20
-        val barW = 77
-        val barH = 12
-        g.pose().pushMatrix()
-        g.pose().translate(renderAbsX, renderAbsY)
-        if (renderScale != 1.0f) g.pose().scale(renderScale, renderScale)
-        g.roundedFill(barX, barY, barW, barH, 4, barBackColor(bgC))
-        val filled = (barW * (tgt.health / tgt.maxHealth).coerceIn(0f, 1f)).toInt()
-        if (filled > 0) {
-            g.roundedFill(barX, barY, filled, barH, 4, 0xFFFF1010.toInt())
-        }
-        g.pose().popMatrix()
-
-        val healthText = kotlin.math.ceil(tgt.health.toDouble()).toInt().coerceAtLeast(0).toString()
-        g.pose().pushMatrix()
-        g.pose().translate(renderAbsX, renderAbsY)
-        if (renderScale != 1.0f) g.pose().scale(renderScale, renderScale)
-        g.pose().translate(textX, 37f)
-        g.pose().scale(1.95f, 1.95f)
-        g.Text(font, Font.styledText(healthText), 0, 0, 0xFFFF1010.toInt(), textShadow.value)
-        g.pose().popMatrix()
-    }
-
-    private fun renderCamelAvatar(g: GuiGraphicsExtractor, tgt: LivingEntity, x: Int, y: Int) {
-        val sx0 = (renderAbsX + x * renderScale).roundToInt()
-        val sy0 = (renderAbsY + y * renderScale).roundToInt()
-        val sx1 = (renderAbsX + (x + 46) * renderScale).roundToInt()
-        val sy1 = (renderAbsY + (y + 54) * renderScale).roundToInt()
+    private fun renderCamelAvatar(g: GuiGraphicsExtractor, tgt: LivingEntity, bounds: UiRect) {
+        val sx0 = (renderAbsX + bounds.x * renderScale).roundToInt()
+        val sy0 = (renderAbsY + bounds.y * renderScale).roundToInt()
+        val sx1 = (renderAbsX + bounds.right * renderScale).roundToInt()
+        val sy1 = (renderAbsY + bounds.bottom * renderScale).roundToInt()
         val state = Minecraft.getInstance().entityRenderDispatcher.extractEntity(tgt, 1f)
         state.shadowPieces.clear()
         state.outlineColor = 0
@@ -365,77 +342,118 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         )
     }
 
-    private fun renderGrizzly(
-        g: GuiGraphicsExtractor, tgt: LivingEntity,
-        font: net.minecraft.client.gui.Font, w: Int, h: Int
-    ) {
-        val lh      = font.lineHeight
-        val rowStep = lh + 1          // typically 10  (consistent row-to-row spacing)
+    private fun buildHudDocument(tgt: LivingEntity): UiDocument {
+        val templates = HudUiResources.templates()
+        val font = Font.getFont()
+        val bg = bgColor.liveColor(bgColor.value).argb
+        val text = readableTextColor(bg)
+        val muted = mutedTextColor(bg)
+        val barBack = barBackColor(bg)
+        val shadow = textShadow.value.toString()
+        val hpFraction = (tgt.health / tgt.maxHealth).coerceIn(0f, 1f)
 
-        val bgC = bgColor.liveColor(bgColor.value).argb
-        val textC = readableTextColor(bgC)
-        val mutedC = mutedTextColor(bgC)
-        val barBackC = barBackColor(bgC)
-        val faceSize = 34
-        val padX = 10
-        val faceX = padX
-        val faceY = ((h - faceSize) / 2).coerceAtLeast(5)
-        val hurtPulse = damagePulse(tgt)
-        val faceDrawSize = (faceSize * (1f + 0.1f * hurtPulse)).roundToInt()
-        val faceDrawX = faceX - (faceDrawSize - faceSize) / 2
-        val faceDrawY = faceY - (faceDrawSize - faceSize) / 2
-        val contentX = faceX + faceSize + 10
-        val contentRight = w - padX
-        g.roundedFill(0, 0, w, h, radius, bgC)
-        renderPlayerFace(g, tgt, faceDrawX, faceDrawY, faceDrawSize, hurtPulse)
+        if (design.value == Design.CAMEL) {
+            val nameScale = 1.33f
+            val name = fitName(tgt.name.string, ((122f - 36f - 5f) / nameScale).toInt(), font)
+            return UiDocument(templates.instantiate(
+                "target-hud-camel",
+                mapOf(
+                    "hud.background" to bg.xmlColor(),
+                    "hud.text" to text.xmlColor(),
+                    "hud.barBack" to barBack.xmlColor(),
+                    "hud.shadow" to shadow,
+                    "target.name" to name,
+                    "hp.fillW" to (77f * hpFraction).toInt().toString(),
+                    "hp.whole" to kotlin.math.ceil(tgt.health.toDouble()).toInt().coerceAtLeast(0).toString(),
+                ),
+            ))
+        }
 
-        val nameY = 5
-        g.Text(font, Font.styledText(tgt.name.string), contentX, nameY, textC, textShadow.value)
-
+        val h = hudHeight()
+        val rowStep = font.lineHeight + 1
         val mc = Minecraft.getInstance()
         val player = mc.player
         val hpValStr  = "%.1f".format(tgt.health)
         val hpValComp = Font.styledText(hpValStr)
         val hpValW    = font.width(hpValComp) + 4
         val hpLabelComp = Font.styledText("HP")
-        val hpBarX = contentX + font.width(hpLabelComp) + 3
+        val hpLabelW = font.width(hpLabelComp)
+        val hpBarX = 54 + hpLabelW + 3
         val statRows = 2 +
                 (if (tgt.absorptionAmount > 0f) 1 else 0) +
                 (if (player != null) 1 else 0)
-        var row = ((h - statRows * rowStep) / 2).coerceAtLeast(nameY + lh + 2)
-
-        g.Text(font, hpLabelComp, contentX, row, mutedC, textShadow.value)
-        renderBar(g, hpBarX, row + 1, contentRight - hpBarX - hpValW, lh - 2, tgt.health / tgt.maxHealth, hpColor(tgt), barBackC)
-        g.Text(font, hpValComp, contentRight - hpValW + 3, row, hpColor(tgt), textShadow.value)
+        var row = ((h - statRows * rowStep) / 2).coerceAtLeast(5 + font.lineHeight + 2)
+        val hpBarW = (140 - hpBarX - hpValW).coerceAtLeast(0)
+        val hpColor = hpColor(tgt)
+        val faceSize = 34
+        val faceY = ((h - faceSize) / 2).coerceAtLeast(5)
+        val faceDrawSize = (faceSize * (1f + 0.1f * damagePulse(tgt))).roundToInt()
+        val values = mutableMapOf(
+            "hud.height" to h.toString(),
+            "hud.background" to bg.xmlColor(),
+            "hud.text" to text.xmlColor(),
+            "hud.muted" to muted.xmlColor(),
+            "hud.barBack" to barBack.xmlColor(),
+            "hud.shadow" to shadow,
+            "target.name" to tgt.name.string,
+            "target.hurt" to damagePulse(tgt).toString(),
+            "face.x" to (10 - (faceDrawSize - faceSize) / 2).toString(),
+            "face.y" to (faceY - (faceDrawSize - faceSize) / 2).toString(),
+            "face.size" to faceDrawSize.toString(),
+            "hp.y" to row.toString(),
+            "hp.labelW" to hpLabelW.toString(),
+            "hp.barX" to hpBarX.toString(),
+            "hp.barY" to (row + 1).toString(),
+            "hp.barW" to hpBarW.toString(),
+            "hp.fillW" to (hpBarW * hpFraction).toInt().toString(),
+            "hp.value" to hpValStr,
+            "hp.valueX" to (143 - hpValW).toString(),
+            "hp.valueW" to hpValW.toString(),
+            "hp.color" to hpColor.xmlColor(),
+        )
         row += rowStep
 
-        val abs = tgt.absorptionAmount
-        if (abs > 0f) {
-            val absLabelComp = Font.styledText("Abs")
-            val absBarX = contentX + font.width(absLabelComp) + 3
-            g.Text(font, absLabelComp, contentX, row, 0xFFFFDD44.toInt(), textShadow.value)
-            renderBar(g, absBarX, row + 1, contentRight - absBarX, lh - 2, (abs / 20f).coerceIn(0f, 1f), 0xFFFFDD44.toInt(), barBackC)
+        val absorptionNodes = if (tgt.absorptionAmount > 0f) {
+            val absLabelW = font.width(Font.styledText("Abs"))
+            val absBarX = 54 + absLabelW + 3
+            val absBarW = (140 - absBarX).coerceAtLeast(0)
+            val absValues = values + mapOf(
+                "abs.y" to row.toString(),
+                "abs.labelW" to absLabelW.toString(),
+                "abs.barX" to absBarX.toString(),
+                "abs.barY" to (row + 1).toString(),
+                "abs.barW" to absBarW.toString(),
+                "abs.fillW" to (absBarW * (tgt.absorptionAmount / 20f).coerceIn(0f, 1f)).toInt().toString(),
+            )
             row += rowStep
+            listOf(templates.instantiate("target-hud-absorption", absValues))
+        } else {
+            emptyList()
         }
 
-        if (player != null) {
-            val dist = "%.1fm".format(player.distanceTo(tgt))
-            g.Text(font, Font.styledText("Dist: $dist"), contentX, row, mutedC, textShadow.value)
-            row += rowStep
-        }
+        val distanceText = player?.let { "Dist: ${"%.1fm".format(it.distanceTo(tgt))}" }.orEmpty()
+        values["distance.y"] = row.toString()
+        values["distance.text"] = distanceText
+        if (player != null) row += rowStep
 
-        if (player != null) {
-            val chance  = calcWinChance(player, tgt)
-            val chStr   = if (chance >= 0) "Win: ${"%.0f".format(chance)}%" else "Win: ?"
-            val chColor = when {
-                chance < 0   -> mutedC
-                chance >= 60 -> 0xFF55FF55.toInt()
-                chance >= 40 -> 0xFFFFAA00.toInt()
-                else         -> 0xFFFF5555.toInt()
-            }
-            g.Text(font, Font.styledText(chStr), contentX, row, chColor, textShadow.value)
-        }
+        val chance = player?.let { calcWinChance(it, tgt) } ?: -1f
+        values["win.y"] = row.toString()
+        values["win.text"] = if (player == null) "" else if (chance >= 0) "Win: ${"%.0f".format(chance)}%" else "Win: ?"
+        values["win.color"] = when {
+            chance < 0 -> muted
+            chance >= 60 -> 0xFF55FF55.toInt()
+            chance >= 40 -> 0xFFFFAA00.toInt()
+            else -> 0xFFFF5555.toInt()
+        }.xmlColor()
+
+        return UiDocument(templates.instantiate(
+            "target-hud-grizzly",
+            values,
+            mapOf("absorption" to absorptionNodes),
+        ))
     }
+
+    private fun Int.xmlColor(): String = "#%08X".format(this)
 
     private fun renderPlayerFace(
         g: GuiGraphicsExtractor,
@@ -529,19 +547,6 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         }
     }
 
-    private fun renderBar(
-        g: GuiGraphicsExtractor,
-        x: Int, y: Int, w: Int, h: Int,
-        fraction: Float,
-        filledColor: Int,
-        emptyColor: Int
-    ) {
-        val r = h / 2
-        g.roundedFill(x, y, w, h, r, emptyColor)
-        val filled = (w * fraction.coerceIn(0f, 1f)).toInt()
-        if (filled > 0) g.roundedFill(x, y, filled, h, r, filledColor)
-    }
-    
     private fun hpColor(entity: LivingEntity): Int {
         val pct = entity.health / entity.maxHealth
         return when {
@@ -633,14 +638,6 @@ object TargetHud : HudModule("Target HUD", "Displays target info and fight predi
         val g = (argb ushr 8) and 0xFF
         val b = argb and 0xFF
         return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 150.0
-    }
-
-    private fun darken(argb: Int, factor: Float): Int {
-        val a = (argb ushr 24) and 0xFF
-        val r = ((argb ushr 16) and 0xFF) * factor
-        val g = ((argb ushr 8)  and 0xFF) * factor
-        val b = (argb            and 0xFF) * factor
-        return (a shl 24) or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
     }
 
     init {
