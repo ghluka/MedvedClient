@@ -10,7 +10,6 @@ import me.ghluka.medved.module.modules.other.Colour
 import me.ghluka.medved.module.modules.other.Font
 import me.ghluka.medved.util.*
 import me.ghluka.medved.util.Text
-import me.ghluka.medved.util.TextCentered
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -18,19 +17,32 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.FontDescription
-import net.minecraft.network.chat.Style
-import net.minecraft.resources.Identifier
 import com.mojang.blaze3d.platform.InputConstants
-import me.ghluka.medved.gui.components.*
+import me.ghluka.medved.gui.helpers.ITEM_LIST_DROPDOWN_MAX_H
 import me.ghluka.medved.gui.helpers.InputHelper
-import me.ghluka.medved.gui.modes.DropdownMode
-import me.ghluka.medved.gui.modes.SidebarMode
+import me.ghluka.medved.gui.helpers.commitEditingColor
+import me.ghluka.medved.gui.helpers.filteredItemListRowsFor
+import me.ghluka.medved.gui.helpers.findItemByName
+import me.ghluka.medved.gui.helpers.getAllItems
+import me.ghluka.medved.gui.helpers.hsvToRgb
+import me.ghluka.medved.gui.helpers.itemCategories
+import me.ghluka.medved.gui.helpers.liveColorFor
+import me.ghluka.medved.gui.helpers.pickerRowIconName
+import me.ghluka.medved.gui.helpers.pickerRowId
+import me.ghluka.medved.gui.helpers.pickerRowLabel
+import me.ghluka.medved.gui.helpers.rgbToHsv
+import me.ghluka.medved.gui.ui.ClickGuiUiFactory
+import me.ghluka.medved.gui.ui.MinecraftUiRenderer
+import me.ghluka.medved.gui.ui.UiDocument
+import me.ghluka.medved.gui.ui.UiRect
+import me.ghluka.medved.gui.ui.UiRuntime
+import me.ghluka.medved.gui.ui.ClickGuiUiFactory.Companion.sliderT
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
 
 class ClickGui : Screen(Component.literal("Medved")) {
+    private val uiController = ClickGuiUiController(this)
 
         val collapsed = mutableSetOf<Module.Category>()
         val positions = mutableMapOf<Module.Category, Pair<Int, Int>>()
@@ -38,7 +50,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
         var expandedColorEntry: ColorEntry? = null
         var expandedEnum: EnumEntry<*>? = null
         val renderOrder = mutableListOf<Module.Category?>()
-        val scrollTimes = mutableMapOf<Module, Long>()
         var presetNameBuffer = "default"
         var cfgPanelX = -1
         var cfgPanelY = -1
@@ -66,7 +77,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
             }
             positions.clear()
             renderOrder.clear()
-            renderOrder.add(null) // null = CONFIGS panel; last = on top initially
+            renderOrder.add(null)
             renderOrder.addAll(Module.Category.entries)
             collapsed.addAll(Module.Category.entries)
             val gap = 6; val margin = 10; val pnlW = 160; val hdrH = 18
@@ -86,20 +97,19 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
 
     internal var selectedCategory: Module.Category? = null
-    internal var sidebarTab = 0 // 0=Modules, 1=Config
-    internal var sidebarDetailMod: Module? = null // module whose config page is open
+    internal var sidebarTab = 0
+    internal var sidebarDetailMod: Module? = null
     internal var draggingSidebar = false
     internal var sidebarDragOffX = 0
     internal var sidebarDragOffY = 0
     internal var sidebarScroll = 0f
-    internal var sidebarScrollMax = 0f
     internal var sidebarConfigScroll = 0f
-    internal var sidebarConfigScrollMax = 0f
 
     internal var editingString: StringEntry? = null
     internal val entryField = TextField()
     internal var draggingStringEntry = false
     internal var entryFieldTextX = 0
+    internal var entryFieldVisibleW = 60
     internal var listeningKeybind: KeybindEntry? = null
     internal var itemListSearch = TextField()
     internal var draggingCat: Module.Category? = null
@@ -107,6 +117,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
     internal var dragOffY = 0
     internal var hoveredMod: Module? = null
     internal var draggingSlider: SliderDrag? = null
+    internal var draggingXmlSlider: XmlSliderDrag? = null
     internal var editingColorEntry: ColorEntry? = null
     internal var editingColorChannel: Int? = null
     internal var editingColorHex = false
@@ -119,6 +130,8 @@ class ClickGui : Screen(Component.literal("Medved")) {
     internal var cfgDragOffX = 0
     internal var cfgDragOffY = 0
     internal var draggingPresetField = false
+    internal var presetFieldTextX = 0
+    internal var presetFieldVisibleW = 150
     internal val cursorVisible get() = (System.currentTimeMillis() / 530) % 2 == 0L
 
     internal var enumDropdownX = 0
@@ -138,8 +151,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
     internal sealed interface SliderDrag {
         val barX: Int
         val barW: Int
-        data class Numeric(val entry: ConfigEntry<*>, override val barX: Int, override val barW: Int) : SliderDrag
-        data class ColorChannel(val entry: ColorEntry, val channel: Int, override val barX: Int, override val barW: Int) : SliderDrag
         data class ColorMap(val entry: ColorEntry, val mapX: Int, val mapY: Int, val mapW: Int, val mapH: Int) : SliderDrag {
             override val barX: Int get() = mapX
             override val barW: Int get() = mapW
@@ -147,48 +158,29 @@ class ClickGui : Screen(Component.literal("Medved")) {
         data class ColorHue(val entry: ColorEntry, override val barX: Int, override val barW: Int, val barY: Int, val barH: Int) : SliderDrag
         data class ColorAlpha(val entry: ColorEntry, override val barX: Int, override val barW: Int, val barY: Int, val barH: Int) : SliderDrag
         data class ChromaSpeed(val entry: ColorEntry, override val barX: Int, override val barW: Int, val barY: Int, val barH: Int) : SliderDrag
-        data class Range(val entry: IntRangeEntry, val isHigh: Boolean, override val barX: Int, override val barW: Int) : SliderDrag
-        data class FloatRange(val entry: FloatRangeEntry, val isHigh: Boolean, override val barX: Int, override val barW: Int) : SliderDrag
+    }
+
+    internal sealed interface XmlSliderDrag {
+        val bounds: UiRect
+        data class IntValue(val entry: IntEntry, override val bounds: UiRect) : XmlSliderDrag
+        data class FloatValue(val entry: FloatEntry, override val bounds: UiRect) : XmlSliderDrag
+        data class DoubleValue(val entry: DoubleEntry, override val bounds: UiRect) : XmlSliderDrag
+        data class IntRangeValue(val entry: IntRangeEntry, val high: Boolean, override val bounds: UiRect) : XmlSliderDrag
+        data class FloatRangeValue(val entry: FloatRangeEntry, val high: Boolean, override val bounds: UiRect) : XmlSliderDrag
     }
 
     internal val PNL_W = 160  // panel width
     internal val HDR_H = 18   // header bar height
     internal val MOD_H = 16   // module row height
     internal val ENT_H = 13   // config entry row height
-    internal val SLI_X = 78   // slider bar x offset within entry row
 
     internal fun argb(a: Int, r: Int, g: Int, b: Int) =
         (a shl 24) or (r shl 16) or (g shl 8) or b
 
-    internal fun shade(base: Int, mix: Float, alpha: Int = 255): Int {
-        val c = Colour.bg.liveColor(Colour.bg.value)
-        val r = (base + (c.r - base) * mix).toInt().coerceIn(0, 255)
-        val g = (base + (c.g - base) * mix).toInt().coerceIn(0, 255)
-        val b = (base + (c.b - base) * mix).toInt().coerceIn(0, 255)
-        return argb(alpha, r, g, b)
-    }
-
-    internal val BG       get() = shade(9, 0.06f, 115)
-    internal val PNL_BG   get() = shade(20, 0.10f, 242)
-    internal val HDR_BG   get() = shade(24, 0.18f)
-    internal val HDR_ACC  get() = Colour.bg.liveColor(Colour.bg.value).argb
-    internal val MOD_NORM get() = shade(24, 0.08f)
-    internal val MOD_HOV  get() = shade(38, 0.13f)
     internal val ACCENT   get() = Colour.accent.liveColor(Colour.accent.value).argb
-    internal val ENT_BG   get() = shade(21, 0.07f)
-    internal val SLI_BG   get() = shade(38, 0.14f)
-    internal val SLI_FG   get() = with(Colour.accent.liveColor(Colour.accent.value)) { argb(255, (r * 0.8).toInt(), (g * 0.8).toInt(), (b * 0.8).toInt()) }
-    internal val BTN_BG   get() = shade(42, 0.14f)
-    internal val BTN_ON   = argb(255,  50, 175,  60)
-    internal val BTN_OFF  = argb(255, 170,  55,  55)
     internal val TEXT     = argb(255, 215, 215, 228)
-    internal val TEXT_DIM = argb(255, 118, 118, 140)
     internal val guiFont  get() = Font.getFont()
     internal fun styled(text: String) = Font.styledText(text)
-    internal fun plain(text: String): Component = Component.literal(text)
-    internal fun jbMono(text: String): Component = Component.literal(text).withStyle(
-        Style.EMPTY.withFont(FontDescription.Resource(
-            Identifier.fromNamespaceAndPath("medved", "jetbrains_mono"))))
 
     override fun init() {
         super.init()
@@ -230,13 +222,11 @@ class ClickGui : Screen(Component.literal("Medved")) {
         if (sidebarPaneX < 0) { sidebarPaneX = (width - 480) / 2; sidebarPaneY = (height - 320) / 2 }
         if (renderOrder.isEmpty()) {
             renderOrder.addAll(Module.Category.entries)
-            renderOrder.add(null) // null = CONFIGS panel
+            renderOrder.add(null)
         }
         if (null !in renderOrder) renderOrder.add(null)
-
         dropdownScroll = 0
 
-        scrollTimes.clear()
         presetField.text = presetNameBuffer
         presetField.end(false)
     }
@@ -246,23 +236,19 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
     override fun extractBackground(g: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
         hoveredMod = null
-        if (ClickGui.currentMode.value == ClickGui.Mode.DROPDOWN) {
-            DropdownMode.render(this, g, mx, my)
-        } else {
-            SidebarMode.render(this, g, mx, my)
-        }
+        uiController.renderMain(g, mx, my)
         // draw dropdown overlay (always above panels)
         val enumExp = expandedEnum
         if (enumExp != null) {
-            drawEnumDropdown(g, enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)
+            renderXmlEnumDropdown(g, enumExp, mx, my)
         }
         val colorExp = expandedColorEntry
         if (colorExp != null) {
-            drawColorPicker(g, colorExp, colorPickerX, colorPickerY, colorPickerW, mx, my)
+            renderXmlColorPicker(g, colorExp, mx, my)
         }
         val listExp = expandedItemList
         if (listExp != null) {
-            drawItemListDropdown(g, listExp, itemListDropdownX, itemListDropdownY, itemListDropdownW, mx, my)
+            renderXmlItemListDropdown(g, listExp, mx, my)
         }
         val hov = hoveredMod
         if (hov != null && ClickGui.showDescriptions.value && hov.description.isNotBlank() &&
@@ -287,25 +273,29 @@ class ClickGui : Screen(Component.literal("Medved")) {
         var selAnchor = -1
         var scrollPx  = 0
 
-        val selMin get() = if (selAnchor < 0) cursor else minOf(cursor, selAnchor)
-        val selMax get() = if (selAnchor < 0) cursor else maxOf(cursor, selAnchor)
+        val selMin get() = if (selAnchor < 0) cursor.coerceIn(0, text.length) else minOf(cursor, selAnchor).coerceIn(0, text.length)
+        val selMax get() = if (selAnchor < 0) cursor.coerceIn(0, text.length) else maxOf(cursor, selAnchor).coerceIn(0, text.length)
         val hasSelection get() = selAnchor >= 0 && selAnchor != cursor
 
         fun set(s: String) { text = s; cursor = s.length; selAnchor = -1; scrollPx = 0 }
         fun insert(s: String) {
+            clampCursor()
             if (hasSelection) { text = text.removeRange(selMin, selMax); cursor = selMin; selAnchor = -1 }
             text = text.substring(0, cursor) + s + text.substring(cursor)
             cursor += s.length
         }
         fun backspace() {
+            clampCursor()
             if (hasSelection) { text = text.removeRange(selMin, selMax); cursor = selMin; selAnchor = -1 }
             else if (cursor > 0) { text = text.removeRange(cursor - 1, cursor); cursor-- }
         }
         fun deleteForward() {
+            clampCursor()
             if (hasSelection) { text = text.removeRange(selMin, selMax); cursor = selMin; selAnchor = -1 }
             else if (cursor < text.length) { text = text.removeRange(cursor, cursor + 1) }
         }
         fun backspaceWord() {
+            clampCursor()
             if (hasSelection) { backspace(); return }
             var start = cursor
             while (start > 0 && text[start - 1] == ' ') start--
@@ -336,6 +326,7 @@ class ClickGui : Screen(Component.literal("Medved")) {
         fun copy() = if (hasSelection) text.substring(selMin, selMax) else ""
         fun cut()  = copy().also { if (hasSelection) { text = text.removeRange(selMin, selMax); cursor = selMin; selAnchor = -1 } }
         fun posFromPixel(relPx: Int): Int {
+            clampCursor()
             val adjusted = relPx + scrollPx
             if (adjusted <= 0 || text.isEmpty()) return 0
             for (i in 1..text.length) {
@@ -345,15 +336,16 @@ class ClickGui : Screen(Component.literal("Medved")) {
             return text.length
         }
         fun clampScroll(visWidth: Int) {
+            clampCursor()
             val curPx = guiFont.width(styled(text.substring(0, cursor)))
             if (curPx - scrollPx < 0)        scrollPx = curPx
             if (curPx - scrollPx > visWidth) scrollPx = curPx - visWidth
             scrollPx = scrollPx.coerceAtLeast(0)
         }
-    }
-
-    internal fun drawSidebarMode(g: GuiGraphicsExtractor, mx: Int, my: Int) {
-        SidebarMode.render(this, g, mx, my)
+        private fun clampCursor() {
+            cursor = cursor.coerceIn(0, text.length)
+            if (selAnchor >= 0) selAnchor = selAnchor.coerceIn(0, text.length)
+        }
     }
 
     internal fun fullPanelHeight(cat: Module.Category): Int {
@@ -363,150 +355,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
             if (mod in expandedModules) {
                 val entries = configEntries(mod)
                 h += configEntriesHeight(entries)
-                val colorExp = entries.firstOrNull { it == expandedColorEntry } as? ColorEntry
-                if (colorExp != null) {
-                    // overlay picker does not reserve inline height
-                }
-                val enumExp = entries.firstOrNull { it == expandedEnum } as? EnumEntry<*>
             }
         }
         return h
-    }
-
-    internal fun drawModuleName(
-        g: GuiGraphicsExtractor, mod: Module,
-        x: Int, rowY: Int, availW: Int, textColor: Int
-    ) {
-        val textY = rowY + (MOD_H - 8) / 2
-        val comp  = styled(mod.name)
-        val textW = guiFont.width(comp)
-        if (textW <= availW) {
-            g.Text(guiFont, comp, x, textY, textColor)
-            scrollTimes.remove(mod)
-            return
-        }
-        val now     = System.currentTimeMillis()
-        val startMs = scrollTimes.getOrPut(mod) { now }
-        val elapsed = (now - startMs) / 1000f
-        val gap         = 20            // px between the two looping copies
-        val slotW       = textW + gap   // one full scroll cycle in pixels
-        val scrollSpeed = 25f
-        val pauseStart  = 1.5f
-        val offsetX = if (elapsed < pauseStart) {
-            0f
-        } else {
-            ((elapsed - pauseStart) * scrollSpeed) % slotW
-        }.toInt()
-        g.enableScissor(x, rowY, x + availW, rowY + MOD_H)
-        g.Text(guiFont, comp, x - offsetX,        textY, textColor)  // primary copy
-        g.Text(guiFont, comp, x - offsetX + slotW, textY, textColor) // trailing copy
-        g.disableScissor()
-    }
-
-    internal fun drawEntry(
-        g: GuiGraphicsExtractor,
-        entry: ConfigEntry<*>,
-        x: Int,
-        y: Int,
-        w: Int,
-        mx: Int,
-        my: Int,
-        bottomRounded: Boolean = false,
-    ) {
-        val hovered = mx in x until x + w && my in y until y + ENT_H
-        if (entry is HudEditEntry) {
-            drawControlSurface(g, x, y, w, ENT_H, hovered = hovered)
-            g.TextCentered(guiFont, styled("Edit Position"), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
-            return
-        }
-        if (entry is ButtonEntry) {
-            drawControlSurface(g, x, y, w, ENT_H, hovered = hovered)
-            g.TextCentered(guiFont, styled(entry.label), x + w / 2, y + (ENT_H - 8) / 2, TEXT)
-            return
-        }
-        val selected = entry == expandedColorEntry || entry == expandedEnum || entry == listeningKeybind || entry == expandedItemList
-        drawRowSurface(g, x, y, w, selected = selected, hovered = hovered, bottomRounded = bottomRounded)
-        g.Text(guiFont, styled(fmtLabel(entry.name)), x + 4, y + (ENT_H - 8) / 2, TEXT_DIM)
-
-        when (entry) {
-            is BooleanEntry -> {
-                val bx = x + w - 26
-                drawToggle(g, bx, y, entry.value)
-            }
-            is IntEntry -> {
-                drawValueText(g, "${entry.value}", x, y, w)
-            }
-            is FloatEntry -> {
-                val v = entry.value
-                val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
-                drawValueText(g, txt, x, y, w)
-            }
-            is DoubleEntry -> {
-                val v = entry.value.toFloat()
-                val txt = if (v == v.toLong().toFloat()) "${v.toLong()}" else "%.2f".format(v)
-                drawValueText(g, txt, x, y, w)
-            }
-            is StringEntry -> {
-                val fx = x + w - 66
-                val textX = fx + 2
-                val active = entry == editingString
-                drawControlSurface(g, fx, y + 1, 64, ENT_H - 2, active = active)
-                g.enableScissor(textX, y + 1, fx + 64, y + ENT_H - 1)
-                if (active && entryField.hasSelection) {
-                    val sx = textX - entryField.scrollPx + guiFont.width(styled(entryField.text.substring(0, entryField.selMin)))
-                    val ex = textX - entryField.scrollPx + guiFont.width(styled(entryField.text.substring(0, entryField.selMax)))
-                    g.fill(sx, y + 2, ex, y + ENT_H - 2, argb(170, 60, 110, 210))
-                }
-                val displayText = if (active) entryField.text else entry.value
-                g.Text(guiFont, styled(displayText), textX - (if (active) entryField.scrollPx else 0), y + (ENT_H - 8) / 2, TEXT)
-                if (active && cursorVisible) {
-                    val cx = textX - entryField.scrollPx + guiFont.width(styled(entryField.text.substring(0, entryField.cursor)))
-                    g.fill(cx, y + 2, cx + 1, y + ENT_H - 2, TEXT)
-                }
-                g.disableScissor()
-            }
-            is ColorEntry -> {
-                val sx = x + w - 16
-                val swatch = if (entry.pickerMode == ColorEntry.PickerMode.CHROMA) liveColorFor(entry) else entry.value
-                drawControlSurface(g, sx - 1, y + 1, 15, ENT_H - 2, active = entry == expandedColorEntry)
-                g.fill(sx + 1, y + 3, sx + 12, y + ENT_H - 3, swatch.argb)
-                if (entry == expandedColorEntry)
-                    g.Text(guiFont, jbMono("\u25bc"), sx - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
-            }
-            is KeybindEntry -> {
-                val kx = x + w - 50
-                val listening = entry == listeningKeybind
-                drawControlSurface(g, kx, y + 1, 48, ENT_H - 2, active = listening)
-                g.TextCentered(guiFont, styled(if (listening) "..." else keyName(entry.value)), kx + 24, y + (ENT_H - 8) / 2, TEXT)
-            }
-            is EnumEntry<*> -> {
-                val ew = enumButtonWidth(entry)
-                val ex = x + w - ew
-                val isOpen = entry == expandedEnum
-                drawControlSurface(g, ex, y + 1, ew, ENT_H - 2, active = isOpen)
-                val label = fmtLabel(entry.value.name)
-                g.Text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
-                g.Text(guiFont, jbMono(if (isOpen) "\u25bc" else "\u25b2"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
-            }
-            is IntRangeEntry -> {
-                val txt = "${entry.value.first} - ${entry.value.second}"
-                drawValueText(g, txt, x, y, w)
-            }
-            is FloatRangeEntry -> {
-                val fmt = "%.${entry.decimals}f"
-                val txt = "$fmt - $fmt".format(entry.value.first, entry.value.second)
-                drawValueText(g, txt, x, y, w)
-            }
-            is me.ghluka.medved.config.entry.ItemListEntry -> {
-                val label = "${entry.value.size}"
-                val ew = guiFont.width(styled(label)) + 16
-                val ex = x + w - ew
-                val isOpen = expandedItemList == entry
-                drawControlSurface(g, ex, y + 1, ew, ENT_H - 2, active = isOpen)
-                g.Text(guiFont, styled(label), ex + 3, y + (ENT_H - 8) / 2, TEXT)
-                g.Text(guiFont, jbMono(if (isOpen) "\u25bc" else "\u25b2"), ex + ew - 9, y + (ENT_H - 8) / 2, TEXT_DIM)
-            }
-        }
     }
 
     internal fun configEntriesHeight(entries: List<ConfigEntry<*>>): Int {
@@ -530,42 +381,22 @@ class ClickGui : Screen(Component.literal("Medved")) {
     internal fun shouldDrawGroupHeader(entry: ConfigEntry<*>, previousGroup: ConfigGroup?): Boolean =
         entry.group != null && entry.group !== previousGroup
 
-    internal fun drawGroupHeader(g: GuiGraphicsExtractor, group: ConfigGroup, x: Int, y: Int, w: Int) {
-        g.fill(x, y, x + w, y + ENT_H, shade(18, 0.07f))
-        g.fill(x + 4, y + ENT_H / 2, x + 18, y + ENT_H / 2 + 1, shade(255, 0.10f))
-        g.Text(guiFont, styled(fmtLabel(group.name)), x + 22, y + (ENT_H - 8) / 2, TEXT_DIM)
-        val labelW = guiFont.width(styled(fmtLabel(group.name)))
-        g.fill(x + 26 + labelW, y + ENT_H / 2, x + w - 4, y + ENT_H / 2 + 1, shade(255, 0.07f))
-    }
-
     override fun mouseClicked(event: MouseButtonEvent, inBounds: Boolean): Boolean {
         val mx = event.x().toInt(); val my = event.y().toInt(); val btn = event.button()
 
         if (editingString != null) { editingString!!.value = entryField.text; editingString = null }
         if (editingColorEntry != null) { commitEditingColor(); editingColorEntry = null; editingColorChannel = null; editingColorHex = false }
+        presetFieldActive = false
 
         val enumExp = expandedEnum
         if (enumExp != null) {
-            // Only handle dropdown clicks if the dropdown is visible in the current mode
-            val isSidebar = ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR
-            val dropdownInSidebar = isSidebar && enumDropdownY >= sidebarPaneY && enumDropdownY < sidebarPaneY + 320
-            val dropdownInFloating = !isSidebar && enumDropdownY < 10000 // always true for floating, adjust if needed
-            if ((isSidebar && dropdownInSidebar) || (!isSidebar && dropdownInFloating)) {
-                if (handleEnumDropdownClick(enumExp, enumDropdownX, enumDropdownY, enumDropdownW, mx, my)) return true
-                // clicked outside dropdown, close it.
-                expandedEnum = null
-                return true
-            } else {
-                // Dropdown is not visible in this mode, ignore click
-                expandedEnum = null
-            }
+            return handleXmlEnumDropdownClick(enumExp, mx, my, btn)
         }
 
         val colorExp = expandedColorEntry
         if (colorExp != null) {
             if (mx in colorPickerX until colorPickerX + colorPickerW && my in colorPickerY until colorPickerY + colorPickerH) {
-                handleColorClick(colorExp, colorPickerX, colorPickerY, colorPickerW, mx, my)
-                return true
+                return handleXmlColorPickerClick(colorExp, mx, my, btn)
             }
             expandedColorEntry = null
             return true
@@ -573,9 +404,9 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
         val listExp = expandedItemList
         if (listExp != null) {
-            val h = itemListDropdownHeight(listExp)
+            val h = xmlItemListDropdownHeight(listExp)
             if (mx in itemListDropdownX until itemListDropdownX + itemListDropdownW && my in itemListDropdownY until itemListDropdownY + h) {
-                if (handleItemListDropdownClick(listExp, itemListDropdownX, itemListDropdownY, itemListDropdownW, mx, my)) return true
+                if (handleXmlItemListDropdownClick(listExp, mx, my, btn)) return true
             }
             expandedItemList = null
             editingItemListSearch = false
@@ -583,108 +414,299 @@ class ClickGui : Screen(Component.literal("Medved")) {
             itemListAddedScroll = 0
             return true
         }
-        if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR) {
-            if (SidebarMode.handleMouseClick(this, mx, my, btn)) return true
-        } else {
-            if (DropdownMode.handleMouseClick(this, mx, my, btn)) return true
-        }
+
+        if (uiController.handleMainClick(mx, my, btn)) return true
         return super.mouseClicked(event, inBounds)
     }
+
+    private fun renderXmlEnumDropdown(g: GuiGraphicsExtractor, entry: EnumEntry<*>, mx: Int, my: Int) {
+        val renderer = MinecraftUiRenderer(g)
+        val runtime = UiRuntime(renderer)
+        val document = ClickGuiUiFactory().enumDropdownDocument(entry, enumDropdownX, enumDropdownY, enumDropdownW)
+        runtime.layout(document, UiRect(0f, 0f, width.toFloat(), height.toFloat()))
+        runtime.render(document, mx.toFloat(), my.toFloat())
+    }
+
+    private fun handleXmlEnumDropdownClick(entry: EnumEntry<*>, mx: Int, my: Int, btn: Int): Boolean {
+        if (btn != 0) {
+            expandedEnum = null
+            return true
+        }
+        val renderer = object : me.ghluka.medved.gui.ui.UiRenderer {
+            override val fontHeight: Float get() = guiFont.lineHeight.toFloat()
+            override fun textWidth(text: String): Float = guiFont.width(styled(text)).toFloat()
+            override fun fill(rect: UiRect, color: Int, radius: Float) {}
+            override fun border(rect: UiRect, color: Int, width: Float, radius: Float) {}
+            override fun text(text: String, x: Float, y: Float, color: Int) {}
+            override fun clip(rect: UiRect) {}
+            override fun unclip() {}
+        }
+        val runtime = UiRuntime(renderer)
+        val document = ClickGuiUiFactory().enumDropdownDocument(entry, enumDropdownX, enumDropdownY, enumDropdownW)
+        runtime.layout(document, UiRect(0f, 0f, width.toFloat(), height.toFloat()))
+        val handled = runtime.mouseClicked(document, mx.toFloat(), my.toFloat(), btn)
+        expandedEnum = null
+        return handled || (mx in enumDropdownX until enumDropdownX + enumDropdownW &&
+            my in enumDropdownY until enumDropdownY + entry.constants.size * ENT_H)
+    }
+
+    private fun renderXmlColorPicker(g: GuiGraphicsExtractor, entry: ColorEntry, mx: Int, my: Int) {
+        val document = buildXmlColorPickerDocument(entry)
+        val runtime = UiRuntime(MinecraftUiRenderer(g))
+        runtime.layout(document, UiRect(0f, 0f, width.toFloat(), height.toFloat()))
+        runtime.render(document, mx.toFloat(), my.toFloat())
+    }
+
+    private fun buildXmlColorPickerDocument(entry: ColorEntry): UiDocument {
+        val size = xmlColorPickerSize(entry)
+        colorPickerW = size.first
+        colorPickerH = size.second
+        val document = ClickGuiUiFactory().colorPickerDocument(
+            entry = entry,
+            x = colorPickerX,
+            y = colorPickerY,
+            width = colorPickerW,
+            height = colorPickerH,
+            modeExpanded = colorPickerModeExpanded,
+            editingChannel = if (editingColorEntry == entry && !editingColorHex) editingColorChannel else null,
+            editingHex = editingColorEntry == entry && editingColorHex,
+            editingText = entryField.text,
+        )
+        document.onClick("color:mode") {
+            colorPickerModeExpanded = !colorPickerModeExpanded
+            true
+        }
+        ColorEntry.PickerMode.entries.forEach { mode ->
+            document.onClick("color:mode:${mode.name}") {
+                if (mode == ColorEntry.PickerMode.THEME && !supportsThemeMode(entry)) return@onClick true
+                entry.pickerMode = mode
+                colorPickerMode = when (mode) {
+                    ColorEntry.PickerMode.CUSTOM -> ColorPickerMode.CUSTOM
+                    ColorEntry.PickerMode.THEME -> ColorPickerMode.THEME
+                    ColorEntry.PickerMode.CHROMA -> ColorPickerMode.CHROMA
+                }
+                colorPickerModeExpanded = false
+                applyDynamicColorState(entry)
+                true
+            }
+        }
+        document.onClick("color:map") { event ->
+            applyColorMapClick(entry, event)
+            draggingSlider = SliderDrag.ColorMap(entry, event.node.bounds.x.toInt(), event.node.bounds.y.toInt(), event.node.bounds.width.toInt(), event.node.bounds.height.toInt())
+            true
+        }
+        document.onClick("color:hue") { event ->
+            if (entry.pickerMode != ColorEntry.PickerMode.CHROMA) {
+                applyColorHueClick(entry, event)
+                draggingSlider = SliderDrag.ColorHue(entry, event.node.bounds.x.toInt(), event.node.bounds.width.toInt(), event.node.bounds.y.toInt(), event.node.bounds.height.toInt())
+            }
+            true
+        }
+        document.onClick("color:alpha") { event ->
+            applyColorAlphaClick(entry, event)
+            draggingSlider = SliderDrag.ColorAlpha(entry, event.node.bounds.x.toInt(), event.node.bounds.width.toInt(), event.node.bounds.y.toInt(), event.node.bounds.height.toInt())
+            true
+        }
+        document.onClick("color:speed") { event ->
+            applyColorSpeedClick(entry, event)
+            draggingSlider = SliderDrag.ChromaSpeed(entry, event.node.bounds.x.toInt(), event.node.bounds.width.toInt(), event.node.bounds.y.toInt(), event.node.bounds.height.toInt())
+            true
+        }
+        repeat(colorChannelCount(entry)) { channel ->
+            document.onClick("color:channel:$channel") {
+                editingColorEntry = entry
+                editingColorChannel = channel
+                editingColorHex = false
+                entryField.set(listOf(entry.customValue.r, entry.customValue.g, entry.customValue.b, entry.customValue.a)[channel].toString())
+                entryField.cursor = entryField.text.length
+                entryField.selAnchor = -1
+                true
+            }
+        }
+        document.onClick("color:hex") {
+            editingColorEntry = entry
+            editingColorHex = true
+            editingColorChannel = null
+            entryField.set("#%02X%02X%02X%02X".format(entry.value.a, entry.value.r, entry.value.g, entry.value.b))
+            entryField.cursor = entryField.text.length
+            entryField.selAnchor = -1
+            true
+        }
+        return document
+    }
+
+    private fun handleXmlColorPickerClick(entry: ColorEntry, mx: Int, my: Int, btn: Int): Boolean {
+        if (btn != 0) return true
+        val runtime = UiRuntime(noopUiRenderer())
+        val document = buildXmlColorPickerDocument(entry)
+        runtime.layout(document, UiRect(0f, 0f, width.toFloat(), height.toFloat()))
+        return runtime.mouseClicked(document, mx.toFloat(), my.toFloat(), btn)
+    }
+
+    private fun xmlColorPickerSize(entry: ColorEntry): Pair<Int, Int> {
+        val maxW = (width - colorPickerX - 8).coerceAtLeast(160)
+        val upperW = maxW.coerceAtMost(240).coerceAtLeast(160)
+        val actualW = colorPickerW.coerceIn(minOf(180, upperW), upperW)
+        val base = when (entry.pickerMode) {
+            ColorEntry.PickerMode.THEME -> 6 + 14 + 6 + guiFont.lineHeight + 4 + 16 + 6
+            ColorEntry.PickerMode.CHROMA -> 6 + 14 + 6 + 65 + 6 + guiFont.lineHeight + 2 + 14 + 6
+            ColorEntry.PickerMode.CUSTOM -> 6 + 14 + 6 + 65 + 6 + 14 + 4 + 14 + 6
+        }
+        return actualW to base
+    }
+
+    private fun applyColorMapClick(entry: ColorEntry, event: me.ghluka.medved.gui.ui.UiPointerEvent) {
+        val bounds = event.node.bounds
+        val saturation = ((event.x - bounds.x) / (bounds.width - 1f).coerceAtLeast(1f)).coerceIn(0f, 1f)
+        val value = 1f - ((event.y - bounds.y) / (bounds.height - 1f).coerceAtLeast(1f)).coerceIn(0f, 1f)
+        if (entry.pickerMode == ColorEntry.PickerMode.CHROMA) {
+            entry.chromaSaturation = saturation
+            entry.chromaBrightness = value
+        } else {
+            val (hue, _, _) = rgbToHsv(entry.customValue)
+            entry.customValue = hsvToRgb(hue, saturation, value).copy(a = entry.customValue.a)
+            colorPickerCustomValue = entry.customValue
+        }
+        applyDynamicColorState(entry)
+    }
+
+    private fun applyColorHueClick(entry: ColorEntry, event: me.ghluka.medved.gui.ui.UiPointerEvent) {
+        val bounds = event.node.bounds
+        val hue = ((event.y - bounds.y) / (bounds.height - 1f).coerceAtLeast(1f)).coerceIn(0f, 1f) * 360f
+        val (_, saturation, value) = rgbToHsv(entry.customValue)
+        entry.customValue = hsvToRgb(hue, saturation, value).copy(a = entry.customValue.a)
+        colorPickerCustomValue = entry.customValue
+        applyDynamicColorState(entry)
+    }
+
+    private fun applyColorAlphaClick(entry: ColorEntry, event: me.ghluka.medved.gui.ui.UiPointerEvent) {
+        val bounds = event.node.bounds
+        val alpha = (255f * (1f - ((event.y - bounds.y) / (bounds.height - 1f).coerceAtLeast(1f)).coerceIn(0f, 1f))).roundToInt().coerceIn(0, 255)
+        entry.customValue = entry.customValue.copy(a = alpha)
+        colorPickerCustomValue = entry.customValue
+        applyDynamicColorState(entry)
+    }
+
+    private fun applyColorSpeedClick(entry: ColorEntry, event: me.ghluka.medved.gui.ui.UiPointerEvent) {
+        val bounds = event.node.bounds
+        val t = ((event.x - bounds.x) / bounds.width.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        entry.chromaSpeed = 0.05f + t * (8f - 0.05f)
+        applyDynamicColorState(entry)
+    }
+
+    private fun renderXmlItemListDropdown(g: GuiGraphicsExtractor, entry: ItemListEntry, mx: Int, my: Int) {
+        val document = buildXmlItemListDocument(entry)
+        val runtime = UiRuntime(MinecraftUiRenderer(g))
+        runtime.layout(document, UiRect(0f, 0f, width.toFloat(), height.toFloat()))
+        runtime.render(document, mx.toFloat(), my.toFloat())
+    }
+
+    private fun buildXmlItemListDocument(entry: ItemListEntry): UiDocument {
+        val rows = filteredItemListRowsFor(itemListSearch.text, entry.filter)
+        val addedSet = entry.value.map { it.lowercase() }.toHashSet()
+        val overlayRows = rows.map { row ->
+            val id = pickerRowId(row)
+            ClickGuiUiFactory.ItemListOverlayRow(
+                id = id,
+                label = pickerRowLabel(row),
+                iconName = pickerRowIconName(row),
+                added = id.lowercase() in addedSet,
+            )
+        }
+        val document = ClickGuiUiFactory().itemListDropdownDocument(
+            x = itemListDropdownX,
+            y = itemListDropdownY,
+            width = itemListDropdownW,
+            height = xmlItemListDropdownHeight(entry),
+            header = "${entry.value.size} items (${entry.mode.name.lowercase().replaceFirstChar { it.uppercase() }})",
+            search = itemListSearch.text,
+            searchActive = editingItemListSearch,
+            searchCursor = itemListSearch.cursor,
+            searchScroll = itemListSearch.scrollPx,
+            rows = overlayRows,
+            addedItems = xmlAddedItemIcons(entry),
+            rowScroll = itemListScroll * 18,
+            listHeight = xmlItemListListHeight(entry),
+        )
+        document.onClick("item-list:search") { event ->
+            itemListSearch.cursor = itemListSearch.posFromPixel((event.x - event.node.bounds.x - 3f).roundToInt())
+            editingItemListSearch = true
+            true
+        }
+        overlayRows.forEach { row ->
+            document.onClick("item-list:row:${row.id}") {
+                if (entry.value.any { it.equals(row.id, ignoreCase = true) }) entry.remove(row.id) else entry.add(row.id)
+                true
+            }
+        }
+        entry.value.forEach { id ->
+            document.onClick("item-list:remove:$id") {
+                entry.remove(id)
+                true
+            }
+        }
+        return document
+    }
+
+    private fun handleXmlItemListDropdownClick(entry: ItemListEntry, mx: Int, my: Int, btn: Int): Boolean {
+        if (btn != 0) return true
+        val runtime = UiRuntime(noopUiRenderer())
+        val document = buildXmlItemListDocument(entry)
+        runtime.layout(document, UiRect(0f, 0f, width.toFloat(), height.toFloat()))
+        return runtime.mouseClicked(document, mx.toFloat(), my.toFloat(), btn)
+    }
+
+    private fun handleXmlItemListScroll(entry: ItemListEntry, mx: Float, my: Float, scrollY: Float): Boolean {
+        val runtime = UiRuntime(noopUiRenderer())
+        val document = buildXmlItemListDocument(entry)
+        runtime.layout(document, UiRect(0f, 0f, width.toFloat(), height.toFloat()))
+        return runtime.mouseScrolled(document, mx, my, scrollY) { key, value, _ ->
+            if (key == "item-list.rows") itemListScroll = (value / 18f).roundToInt().coerceAtLeast(0)
+        }
+    }
+
+    private fun xmlItemListDropdownHeight(entry: ItemListEntry): Int =
+        (6 + 10 + 4 + 14 + 4 + (if (entry.value.isNotEmpty()) 16 + 4 else 0) + xmlItemListListHeight(entry) + 6)
+            .coerceAtMost(ITEM_LIST_DROPDOWN_MAX_H)
+
+    private fun xmlItemListListHeight(entry: ItemListEntry): Int {
+        val rows = filteredItemListRowsFor(itemListSearch.text, entry.filter).size.coerceAtLeast(1)
+        val top = 6 + 10 + 4 + 14 + 4 + (if (entry.value.isNotEmpty()) 16 + 4 else 0) + 6
+        return ((ITEM_LIST_DROPDOWN_MAX_H - top) / 18).coerceAtLeast(1).coerceAtMost(rows) * 18
+    }
+
+    private fun xmlAddedItemIcons(entry: ItemListEntry): List<Pair<String, String>> =
+        entry.value.mapNotNull { id ->
+            val icon = if (id.endsWith("_category")) {
+                val categoryId = id.removeSuffix("_category")
+                val category = itemCategories.firstOrNull { it.id == categoryId }
+                getAllItems().firstOrNull { category?.matches(it.first) == true }?.first
+            } else {
+                findItemByName(id)?.first
+            }
+            icon?.let { id to it }
+        }
+
+    private fun noopUiRenderer(): me.ghluka.medved.gui.ui.UiRenderer =
+        object : me.ghluka.medved.gui.ui.UiRenderer {
+            override val fontHeight: Float get() = guiFont.lineHeight.toFloat()
+            override fun textWidth(text: String): Float = guiFont.width(styled(text)).toFloat()
+            override fun fill(rect: UiRect, color: Int, radius: Float) {}
+            override fun border(rect: UiRect, color: Int, width: Float, radius: Float) {}
+            override fun text(text: String, x: Float, y: Float, color: Int) {}
+            override fun clip(rect: UiRect) {}
+            override fun unclip() {}
+        }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
         val mx = mouseX.toInt(); val my = mouseY.toInt()
         val listExp = expandedItemList
         if (listExp != null) {
-            val x = itemListDropdownX
-            val y = itemListDropdownY
-            val w = itemListDropdownW
-            val h = itemListDropdownHeight(listExp)
-            if (mx in x until x + w && my in y until y + h) {
-                val iconSize = 16
-                
-                val addedStrip = itemListAddedStripYRange(y, listExp)
-                if (addedStrip != null && my in addedStrip) {
-                    val totalAddedWidth = listExp.value.size * (iconSize + 6)
-                    val topBarW = w - 12
-                    val maxAddedScroll = (totalAddedWidth - topBarW).coerceAtLeast(0)
-                    val delta = (scrollY.toInt() * 3).coerceIn(-10, 10)
-                    itemListAddedScroll = (itemListAddedScroll - delta).coerceIn(0, maxAddedScroll)
-                    return true
-                }
-                
-                val maxScroll = itemListMaxScroll(listExp)
-
-                val delta = scrollY.toInt()
-                itemListScroll = (itemListScroll - delta).coerceIn(0, maxScroll)
-                return true
-            }
+            if (handleXmlItemListScroll(listExp, mouseX.toFloat(), mouseY.toFloat(), scrollY.toFloat())) return true
         }
-        if (ClickGui.currentMode.value == ClickGui.Mode.SIDEBAR) {
-            if (SidebarMode.handleScroll(this, mouseX, mouseY, scrollY)) return true
-        } else {
-            if (DropdownMode.handleScroll(this, mouseY, scrollY)) return true
-        }
+        if (uiController.handleMainScroll(mouseX.toFloat(), mouseY.toFloat(), scrollY.toFloat())) return true
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
     }
-
-    internal fun handleEntryClick(entry: ConfigEntry<*>, x: Int, y: Int, w: Int, mx: Int, btn: Int) {
-        when (entry) {
-            is BooleanEntry -> entry.value = !entry.value
-            is StringEntry  -> {
-                editingString = entry
-                entryField.set(entry.value)
-                val fx = x + w - 66
-                entryFieldTextX = fx + 2
-                entryField.cursor = entryField.posFromPixel(mx - (fx + 2))
-                entryField.selAnchor = entryField.cursor
-                draggingStringEntry = true
-                entryField.clampScroll(60)
-            }
-            is ColorEntry   -> {
-                expandedColorEntry = if (expandedColorEntry == entry) null else entry
-                if (expandedColorEntry == entry) {
-                    colorPickerMode = when (entry.pickerMode) {
-                        ColorEntry.PickerMode.CUSTOM -> ColorPickerMode.CUSTOM
-                        ColorEntry.PickerMode.THEME -> ColorPickerMode.THEME
-                        ColorEntry.PickerMode.CHROMA -> ColorPickerMode.CHROMA
-                    }
-                    colorPickerModeExpanded = false
-                    colorPickerCustomValue = entry.customValue
-                } else {
-                    colorPickerModeExpanded = false
-                    editingColorEntry = null
-                    editingColorChannel = null
-                    editingColorHex = false
-                }
-            }
-            is KeybindEntry -> listeningKeybind   = if (listeningKeybind  == entry) null else entry
-            is EnumEntry<*> -> expandedEnum = if (expandedEnum == entry) null else entry
-            is ButtonEntry  -> entry.action()
-            is me.ghluka.medved.config.entry.ItemListEntry -> {
-                expandedItemList = if (expandedItemList == entry) null else entry
-                if (expandedItemList == entry) {
-                    itemListSearch.set("")
-                    editingItemListSearch = true
-                    itemListScroll = 0
-                    itemListCategory = null
-                } else {
-                    editingItemListSearch = false
-                }
-            }
-        }
-    }
-
-
-
-
-
-
-
-
-
-
-
-
 
     override fun keyPressed(event: KeyEvent): Boolean {
         if (InputHelper.handleKeyPressed(this, event)) return true
@@ -708,20 +730,38 @@ class ClickGui : Screen(Component.literal("Medved")) {
     }
 
     override fun mouseDragged(event: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
+        val xmlSlider = draggingXmlSlider
+        if (xmlSlider != null) {
+            val t = sliderT(xmlSlider.bounds, event.x().toFloat())
+            when (xmlSlider) {
+                is XmlSliderDrag.IntValue ->
+                    xmlSlider.entry.value = (xmlSlider.entry.min + t * (xmlSlider.entry.max - xmlSlider.entry.min)).roundToInt()
+                is XmlSliderDrag.FloatValue ->
+                    xmlSlider.entry.value = xmlSlider.entry.min + t * (xmlSlider.entry.max - xmlSlider.entry.min)
+                is XmlSliderDrag.DoubleValue ->
+                    xmlSlider.entry.value = xmlSlider.entry.min + t.toDouble() * (xmlSlider.entry.max - xmlSlider.entry.min)
+                is XmlSliderDrag.IntRangeValue -> {
+                    val value = (xmlSlider.entry.min + t * (xmlSlider.entry.max - xmlSlider.entry.min)).roundToInt()
+                    val (lo, hi) = xmlSlider.entry.value
+                    xmlSlider.entry.value =
+                        if (xmlSlider.high) lo to value.coerceAtLeast(lo)
+                        else value.coerceAtMost(hi) to hi
+                }
+                is XmlSliderDrag.FloatRangeValue -> {
+                    val scale = Math.pow(10.0, xmlSlider.entry.decimals.toDouble()).toFloat()
+                    val value = (Math.round((xmlSlider.entry.min + t * (xmlSlider.entry.max - xmlSlider.entry.min)) * scale).toFloat()) / scale
+                    val (lo, hi) = xmlSlider.entry.value
+                    xmlSlider.entry.value =
+                        if (xmlSlider.high) lo to value.coerceAtLeast(lo)
+                        else value.coerceAtMost(hi) to hi
+                }
+            }
+            return true
+        }
+
         val slider = draggingSlider
         if (slider != null) {
-            val mx = event.x().toInt()
-            val t = ((mx - slider.barX).toFloat() / slider.barW).coerceIn(0f, 1f)
             when (slider) {
-                is SliderDrag.Numeric -> when (val e = slider.entry) {
-                    is IntEntry   -> e.value = (e.min + t * (e.max - e.min)).roundToInt()
-                    is FloatEntry -> e.value = e.min + t * (e.max - e.min)
-                    is DoubleEntry -> e.value = e.min + t * (e.max - e.min)
-                }
-                is SliderDrag.ColorChannel -> {
-                    val v = (t * 255).roundToInt()
-                    applyColorChannel(slider.entry, slider.channel, v)
-                }
                 is SliderDrag.ColorAlpha -> {
                     val py = (event.y().toInt() - slider.barY).coerceIn(0, slider.barH - 1)
                     val alpha = (255f * (1f - (py.toFloat() / (slider.barH - 1).coerceAtLeast(1)))).roundToInt().coerceIn(0, 255)
@@ -762,29 +802,16 @@ class ClickGui : Screen(Component.literal("Medved")) {
                     slider.entry.chromaSpeed = 0.05f + tX * (8f - 0.05f)
                     applyDynamicColorState(slider.entry)
                 }
-                is SliderDrag.Range -> {
-                    val e = slider.entry
-                    val v = (e.min + t * (e.max - e.min)).roundToInt()
-                    val (lo, hi) = e.value
-                    e.value = if (slider.isHigh) lo to v.coerceAtLeast(lo) else v.coerceAtMost(hi) to hi
-                }
-                is SliderDrag.FloatRange -> {
-                    val e = slider.entry
-                    val scale = Math.pow(10.0, e.decimals.toDouble()).toFloat()
-                    val v = (Math.round((e.min + t * (e.max - e.min)) * scale).toFloat()) / scale
-                    val (lo, hi) = e.value
-                    e.value = if (slider.isHigh) lo to v.coerceAtLeast(lo) else v.coerceAtMost(hi) to hi
-                }
             }
             return true
         }
         if (draggingPresetField) {
-            val relX = event.x().toInt() - cfgPanelX - 5
-            presetField.apply { cursor = posFromPixel(relX); clampScroll(PNL_W - 10) }
+            val relX = event.x().toInt() - presetFieldTextX
+            presetField.apply { cursor = posFromPixel(relX); clampScroll(presetFieldVisibleW) }
             return true
         }
         if (draggingStringEntry && editingString != null) {
-            entryField.apply { cursor = posFromPixel(event.x().toInt() - entryFieldTextX); clampScroll(60) }
+            entryField.apply { cursor = posFromPixel(event.x().toInt() - entryFieldTextX); clampScroll(entryFieldVisibleW) }
             return true
         }
         if (draggingSidebar) {
@@ -805,11 +832,12 @@ class ClickGui : Screen(Component.literal("Medved")) {
     override fun mouseReleased(event: MouseButtonEvent): Boolean {
         draggingCat = null
         draggingSlider = null
+        draggingXmlSlider = null
         draggingCfgPanel = false
         draggingSidebar = false
         draggingPresetField = false
         draggingStringEntry = false
-        constrainDropdownScroll()
+        constrainXmlDropdownScroll()
         return super.mouseReleased(event)
     }
 
@@ -826,21 +854,29 @@ class ClickGui : Screen(Component.literal("Medved")) {
 
     internal fun colorChannelCount(entry: ColorEntry) = if (entry.allowAlpha) 4 else 3
 
-    internal fun applyColorChannel(entry: ColorEntry, channel: Int, v: Int) {
-        val col = entry.customValue
-        entry.customValue = when (channel) {
-            0 -> col.copy(r = v)
-            1 -> col.copy(g = v)
-            2 -> col.copy(b = v)
-            else -> col.copy(a = v)
-        }
-        applyDynamicColorState(entry)
-    }
-
     internal fun supportsThemeMode(entry: ColorEntry) = entry !== Colour.accent
+
+    internal fun constrainXmlDropdownScroll() {
+        if (ClickGui.currentMode.value != ClickGui.Mode.DROPDOWN) return
+        val categoryBottom = Module.Category.entries.maxOfOrNull { category ->
+            val y = positions[category]?.second ?: return@maxOfOrNull 0
+            y + if (category in collapsed) HDR_H else fullPanelHeight(category)
+        } ?: 0
+        val configBottom = cfgPanelY + if (cfgPanelCollapsed) HDR_H else HDR_H + cfgPanelBodyH()
+        val maxExpandedY = maxOf(categoryBottom, configBottom)
+        val viewHeight = height - 50
+        val maxScrollOffset = (maxExpandedY - viewHeight).coerceAtLeast(0)
+        dropdownScroll = dropdownScroll.coerceIn(0, maxScrollOffset)
+    }
 
     internal fun applyDynamicColorState(entry: ColorEntry) {
         entry.applyDynamicColor(Colour.accent.liveColor(Colour.accent.value), ColorEntry.chromaTimeSeconds(), supportsThemeMode(entry))
+    }
+
+    internal fun toggleExpand(mod: Module) {
+        if (mod in expandedModules) expandedModules.remove(mod) else expandedModules.add(mod)
+        expandedColorEntry = null
+        expandedEnum = null
     }
 
     internal fun bringToFront(cat: Module.Category) {
@@ -851,12 +887,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
     internal fun bringConfigToFront() {
         renderOrder.remove(null)
         renderOrder.add(null)
-    }
-
-    internal fun toggleExpand(mod: Module) {
-        if (mod in expandedModules) expandedModules.remove(mod) else expandedModules.add(mod)
-        expandedColorEntry = null
-        expandedEnum = null
     }
 
     internal fun drawTooltip(g: GuiGraphicsExtractor, text: String, mx: Int, my: Int) {
@@ -871,32 +901,6 @@ class ClickGui : Screen(Component.literal("Medved")) {
         g.fill(tx, ty, tx + bw, ty + bh, argb(230, 10, 10, 20))
         g.fill(tx, ty, tx + 1, ty + bh, ACCENT)
         g.Text(guiFont, styledTooltip, tx + pad, ty + pad, TEXT)
-    }
-
-    internal fun fmtLabel(name: String) =
-        name.replace('_', ' ').replaceFirstChar { it.uppercase() }
-
-    internal fun keyName(keyCode: Int): String = when (keyCode) {
-        GLFW.GLFW_KEY_UNKNOWN       -> "None"
-        GLFW.GLFW_KEY_SPACE         -> "Space"
-        GLFW.GLFW_KEY_ESCAPE        -> "Esc"
-        GLFW.GLFW_KEY_ENTER,
-        GLFW.GLFW_KEY_KP_ENTER      -> "Enter"
-        GLFW.GLFW_KEY_BACKSPACE     -> "Back"
-        GLFW.GLFW_KEY_TAB           -> "Tab"
-        GLFW.GLFW_KEY_INSERT        -> "Insert"
-        GLFW.GLFW_KEY_DELETE        -> "Del"
-        GLFW.GLFW_KEY_HOME          -> "Home"
-        GLFW.GLFW_KEY_END           -> "End"
-        GLFW.GLFW_KEY_PAGE_UP       -> "PgUp"
-        GLFW.GLFW_KEY_PAGE_DOWN     -> "PgDn"
-        GLFW.GLFW_KEY_LEFT_SHIFT    -> "LShift"
-        GLFW.GLFW_KEY_RIGHT_SHIFT   -> "RShift"
-        GLFW.GLFW_KEY_LEFT_CONTROL,
-        GLFW.GLFW_KEY_RIGHT_CONTROL -> "Ctrl"
-        GLFW.GLFW_KEY_LEFT_ALT,
-        GLFW.GLFW_KEY_RIGHT_ALT     -> "Alt"
-        else -> GLFW.glfwGetKeyName(keyCode, 0)?.uppercase() ?: "K$keyCode"
     }
 
     companion object {

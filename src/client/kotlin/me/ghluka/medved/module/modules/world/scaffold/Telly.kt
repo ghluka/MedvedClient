@@ -1,7 +1,7 @@
 package me.ghluka.medved.module.modules.world.scaffold
 
 import me.ghluka.medved.util.RotationManager
-import me.ghluka.medved.gui.components.itemCategories
+import me.ghluka.medved.gui.helpers.itemCategories
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft

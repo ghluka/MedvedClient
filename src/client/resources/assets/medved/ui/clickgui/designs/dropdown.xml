@@ -1,0 +1,78 @@
+<templates>
+    <template name="dropdown-mode">
+        <scroll w="fill" h="fill" bg="{{theme.bg}}" scrollKey="dropdown" scrollY="{{scroll.dropdown}}" scrollAmount="24" scrollbarTrackBg="{{theme.entryBg}}" scrollbarThumbBg="{{theme.textDim}}">
+            <component name="config-panel" />
+            <for each="categories">
+                <component name="category-panel" />
+            </for>
+        </scroll>
+    </template>
+
+    <template name="config-panel">
+        <panel x="{{config.x}}" y="{{config.y}}" w="160" padding="0" gap="0" radius="5" bg="{{theme.panelBg}}">
+            <row id="config:header" axis="horizontal" w="fill" h="18" fg="{{theme.text}}" bg="{{theme.headerBg}}" padding="0" gap="0" radius="5" corners="top">
+                <row w="18" h="18" bg="{{theme.transparent}}" padding="0" />
+                <row text="CONFIGS" w="fill" h="18" fg="{{theme.text}}" bg="{{theme.transparent}}" align="center" padding="0" />
+                <row text="{{config.sign}}" w="18" h="18" fg="{{theme.textDim}}" bg="{{theme.transparent}}" align="center" padding="0" font="minecraft" />
+            </row>
+            <if condition="config.expanded">
+                <box w="fill" padding="0" gap="0">
+                    <text-input id="config:preset-input" text="{{preset.input}}" w="fill" h="13" fg="{{theme.text}}" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="5 2" active="{{preset.active}}" cursor="{{preset.cursor}}" scroll="{{preset.scroll}}" />
+                    <box axis="horizontal" w="fill" h="16" padding="0" gap="0">
+                        <row id="config:save" text="Save" w="53" h="16" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" align="center" />
+                        <row id="config:load" text="Load" w="53" h="16" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" align="center" />
+                        <row id="config:folder" text="Folder" w="54" h="16" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" align="center" />
+                    </box>
+                    <if condition="presets.empty">
+                        <row text="(no presets saved)" w="fill" h="13" fg="{{theme.textDim}}" bg="{{theme.entryBg}}" padding="7 2" />
+                    </if>
+                    <if condition="presets.present">
+                        <for each="presets">
+                            <row id="{{preset.id}}" text="{{preset.name}}" w="fill" h="13" fg="{{preset.fg}}" bg="{{preset.bg}}" hoverBg="{{theme.entryHoverBg}}" padding="7 2" />
+                        </for>
+                    </if>
+                </box>
+            </if>
+        </panel>
+    </template>
+
+    <template name="category-panel">
+        <panel x="{{category.x}}" y="{{category.y}}" w="160" padding="0" gap="0" radius="5" bg="{{theme.panelBg}}">
+            <row id="{{category.id}}" axis="horizontal" w="fill" h="18" fg="{{theme.text}}" bg="{{theme.headerBg}}" padding="0" gap="0" radius="5" corners="top">
+                <row w="18" h="18" bg="{{theme.transparent}}" padding="0" />
+                <row text="{{category.name}}" w="fill" h="18" fg="{{theme.text}}" bg="{{theme.transparent}}" align="center" padding="0" />
+                <row text="{{category.sign}}" w="18" h="18" fg="{{theme.textDim}}" bg="{{theme.transparent}}" align="center" padding="0" font="minecraft" />
+            </row>
+            <if condition="category.expanded">
+                <box w="fill" padding="0" gap="0">
+                    <for each="modules">
+                        <component name="module-row" />
+                        <if condition="module.expanded">
+                            <box w="fill" padding="0 0 0 3" gap="0">
+                                <for each="settings">
+                                    <component name="{{setting.template}}" />
+                                </for>
+                            </box>
+                        </if>
+                    </for>
+                </box>
+            </if>
+        </panel>
+    </template>
+
+    <template name="module-row">
+        <row id="{{module.id}}" axis="horizontal" w="fill" h="16" bg="{{module.bg}}" hoverBg="{{theme.moduleHoverBg}}" padding="0" gap="0">
+            <component name="{{module.accentTemplate}}" />
+            <row text="{{module.name}}" w="fill" h="16" fg="{{module.fg}}" bg="{{theme.transparent}}" padding="5 3" />
+            <row text="{{module.sign}}" w="14" h="16" fg="{{theme.textDim}}" bg="{{theme.transparent}}" align="center" padding="0" font="minecraft" />
+        </row>
+    </template>
+
+    <template name="module-accent">
+        <box w="2" h="fill" bg="{{module.accent}}" />
+    </template>
+
+    <template name="module-accent-bottom">
+        <box w="2" h="fill" bg="{{module.accent}}" radius="5" corners="bottom-left" />
+    </template>
+</templates>

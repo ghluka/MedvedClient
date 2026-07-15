@@ -1,0 +1,14 @@
+<templates>
+    <template name="enum-dropdown">
+        <panel x="{{enum.x}}" y="{{enum.y}}" w="{{enum.w}}" h="{{enum.h}}" padding="0" gap="0" radius="3" bg="{{theme.panelBg}}">
+            <for each="enum-options">
+                <component name="enum-option" />
+            </for>
+            <box w="fill" h="4" bg="{{theme.panelBg}}" />
+        </panel>
+    </template>
+
+    <template name="enum-option">
+        <row id="{{enum.option.id}}" text="{{enum.option.name}}" w="fill" h="13" fg="{{enum.option.fg}}" bg="{{enum.option.bg}}" hoverBg="{{theme.entryHoverBg}}" padding="5 2" />
+    </template>
+</templates>

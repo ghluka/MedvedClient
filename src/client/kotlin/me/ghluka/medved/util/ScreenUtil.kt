@@ -9,7 +9,9 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FormattedText
 import net.minecraft.util.ARGB
 import net.minecraft.util.FormattedCharSequence
+import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 const val radius = 5
 
@@ -80,10 +82,13 @@ private fun GuiGraphicsExtractor.drawRoundedCornerPixels(
     val baseA = (color ushr 24) and 0xFF
     val rgb = color and 0x00FFFFFF
     val radiusPx = (r * scale).roundToInt().coerceAtLeast(1)
-    val radiusPxF = radiusPx.toFloat()
+    val scanlines = RoundedCornerScanlineCache.get(radiusPx)
 
-    pose().pushMatrix()
-    if (scale != 1f) pose().scale(1f / scale, 1f / scale)
+    val scaled = scale != 1f
+    if (scaled) {
+        pose().pushMatrix()
+        pose().scale(1f / scale, 1f / scale)
+    }
 
     fun guiToPixel(value: Int): Int = (value * scale).roundToInt()
 
@@ -99,28 +104,20 @@ private fun GuiGraphicsExtractor.drawRoundedCornerPixels(
     val bottomPx = guiToPixel(y + h - r)
 
     fun drawCorner(originX: Int, originY: Int, flipX: Boolean, flipY: Boolean) {
-        for (j in 0 until radiusPx) {
-            val yCenter = j + 0.5f
-            val yDistance = radiusPxF - yCenter
-            val boundary = radiusPxF - kotlin.math.sqrt(
-                (radiusPxF * radiusPxF - yDistance * yDistance).coerceAtLeast(0f).toDouble()
-            ).toFloat()
-            val firstFull = kotlin.math.ceil(boundary + 0.5f).toInt().coerceIn(0, radiusPx)
-            val rowY = if (flipY) originY + radiusPx - 1 - j else originY + j
+        for (line in scanlines) {
+            val rowY = if (flipY) originY + radiusPx - 1 - line.y else originY + line.y
 
-            if (firstFull < radiusPx) {
+            if (line.firstFull < radiusPx) {
                 if (flipX) {
-                    fill(originX, rowY, originX + radiusPx - firstFull, rowY + 1, color)
+                    fill(originX, rowY, originX + radiusPx - line.firstFull, rowY + 1, color)
                 } else {
-                    fill(originX + firstFull, rowY, originX + radiusPx, rowY + 1, color)
+                    fill(originX + line.firstFull, rowY, originX + radiusPx, rowY + 1, color)
                 }
             }
 
-            val aaIndex = firstFull - 1
-            if (aaIndex >= 0) {
-                val coverage = (aaIndex + 0.5f - boundary + 0.5f).coerceIn(0f, 1f)
-                val rowX = if (flipX) originX + radiusPx - 1 - aaIndex else originX + aaIndex
-                drawPixel(rowX, rowY, coverage)
+            if (line.aaIndex >= 0) {
+                val rowX = if (flipX) originX + radiusPx - 1 - line.aaIndex else originX + line.aaIndex
+                drawPixel(rowX, rowY, line.coverage)
             }
         }
     }
@@ -130,8 +127,39 @@ private fun GuiGraphicsExtractor.drawRoundedCornerPixels(
     if (doBL) drawCorner(leftPx, bottomPx, flipX = false, flipY = true)
     if (doBR) drawCorner(rightPx, bottomPx, flipX = true, flipY = true)
 
-    pose().popMatrix()
+    if (scaled) pose().popMatrix()
 }
+
+private object RoundedCornerScanlineCache {
+    private val cache = mutableMapOf<Int, List<RoundedCornerScanline>>()
+
+    fun get(radiusPx: Int): List<RoundedCornerScanline> =
+        cache.getOrPut(radiusPx) {
+            val radiusPxF = radiusPx.toFloat()
+            List(radiusPx) { y ->
+                val yCenter = y + 0.5f
+                val yDistance = radiusPxF - yCenter
+                val boundary = radiusPxF - sqrt(
+                    (radiusPxF * radiusPxF - yDistance * yDistance).coerceAtLeast(0f).toDouble()
+                ).toFloat()
+                val firstFull = ceil(boundary + 0.5f).toInt().coerceIn(0, radiusPx)
+                val aaIndex = firstFull - 1
+                val coverage = if (aaIndex >= 0) {
+                    (aaIndex + 1f - boundary).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+                RoundedCornerScanline(y, firstFull, aaIndex, coverage)
+            }
+        }
+}
+
+private data class RoundedCornerScanline(
+    val y: Int,
+    val firstFull: Int,
+    val aaIndex: Int,
+    val coverage: Float,
+)
 
 fun GuiGraphicsExtractor.TextHighlight(x0: Int, y0: Int, x1: Int, y1: Int, invertText: Boolean) {
     if (invertText) {

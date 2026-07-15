@@ -1,0 +1,86 @@
+<templates>
+    <template name="entry-row">
+        <row id="{{entry.id}}" axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 2" gap="4">
+            <row text="{{entry.label}}" w="fill" h="11" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+            <row text="{{entry.value}}" w="70" h="9" fg="{{theme.text}}" bg="{{theme.transparent}}" align="right" padding="0" />
+        </row>
+    </template>
+
+    <template name="boolean-entry">
+        <row id="{{entry.id}}" axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 2" gap="4">
+            <row text="{{entry.label}}" w="fill" h="11" fg="{{entry.fg}}" bg="{{theme.transparent}}" padding="0" />
+            <toggle w="22" h="10" on="{{entry.on}}" onBg="{{theme.accent}}" offBg="{{theme.sliderBg}}" knobBg="{{theme.text}}" />
+        </row>
+    </template>
+
+    <template name="number-entry">
+        <box id="{{entry.id}}" w="fill" h="26" padding="0" gap="0">
+            <row axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 2" gap="4">
+                <row text="{{entry.label}}" w="fill" h="9" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+                <row text="{{entry.value}}" w="54" h="9" fg="{{theme.text}}" bg="{{theme.transparent}}" align="right" padding="0" />
+            </row>
+            <slider w="fill" h="13" progress="{{entry.progress}}" bg="{{theme.entryBg}}" trackBg="{{theme.sliderBg}}" fillBg="{{theme.sliderFg}}" knobBg="{{theme.text}}" />
+        </box>
+    </template>
+
+    <template name="range-entry">
+        <box id="{{entry.id}}" w="fill" h="26" padding="0" gap="0">
+            <row axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 2" gap="4">
+                <row text="{{entry.label}}" w="fill" h="9" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+                <row text="{{entry.value}}" w="76" h="9" fg="{{theme.text}}" bg="{{theme.transparent}}" align="right" padding="0" />
+            </row>
+            <range-slider w="fill" h="13" low="{{entry.low}}" high="{{entry.high}}" bg="{{theme.entryBg}}" trackBg="{{theme.sliderBg}}" fillBg="{{theme.sliderFg}}" knobBg="{{theme.text}}" />
+        </box>
+    </template>
+
+    <template name="enum-entry">
+        <row axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 1" gap="4">
+            <row text="{{entry.label}}" w="fill" h="9" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+            <row id="{{entry.id}}" axis="horizontal" w="{{entry.enumWidth}}" h="11" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" padding="3 0" gap="2" radius="2">
+                <row text="{{entry.value}}" w="fill" h="11" fg="{{theme.text}}" bg="{{theme.transparent}}" align="center" padding="0" />
+                <dropdown-arrow w="10" h="11" fg="{{theme.textDim}}" open="{{entry.open}}" font="minecraft" />
+            </row>
+        </row>
+    </template>
+
+    <template name="keybind-entry">
+        <row id="{{entry.id}}" axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 1" gap="4">
+            <row text="{{entry.label}}" w="fill" h="11" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+            <row text="{{entry.value}}" w="48" h="11" fg="{{theme.text}}" bg="{{theme.controlBg}}" align="center" padding="0" radius="2" />
+        </row>
+    </template>
+
+    <template name="string-entry">
+        <row axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 1" gap="4">
+            <row text="{{entry.label}}" w="70" h="11" fg="{{theme.text}}" bg="{{theme.transparent}}" padding="0" />
+            <text-input id="{{entry.id}}" text="{{entry.value}}" w="fill" h="11" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" padding="3 1" radius="2" active="{{entry.active}}" cursor="{{entry.cursor}}" scroll="{{entry.scroll}}" />
+        </row>
+    </template>
+
+    <template name="color-entry">
+        <row id="{{entry.id}}" axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 1" gap="4">
+            <row text="{{entry.label}}" w="fill" h="11" fg="{{theme.text}}" bg="{{theme.transparent}}" padding="0" />
+            <swatch color="{{entry.color}}" w="18" h="11" radius="2" border="{{theme.text}}" borderWidth="1" />
+        </row>
+    </template>
+
+    <template name="item-list-entry">
+        <row id="{{entry.id}}" axis="horizontal" w="fill" h="13" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="4 1" gap="4">
+            <row text="{{entry.label}}" w="fill" h="11" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+            <row axis="horizontal" w="38" h="11" fg="{{theme.text}}" bg="{{theme.controlBg}}" align="center" padding="3 0" gap="2" radius="2">
+                <row text="{{entry.count}}" w="fill" h="11" fg="{{theme.text}}" bg="{{theme.transparent}}" align="center" padding="0" />
+                <dropdown-arrow w="10" h="11" fg="{{theme.textDim}}" open="{{entry.open}}" font="minecraft" />
+            </row>
+        </row>
+    </template>
+
+    <template name="button-entry">
+        <box w="fill" h="15" padding="0 3 2 0">
+            <row id="{{entry.id}}" text="{{entry.value}}" w="fill" h="13" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" align="center" padding="4 2" />
+        </box>
+    </template>
+
+    <template name="group-header">
+        <row text="{{group.name}}" w="fill" h="13" fg="{{theme.textDim}}" bg="{{theme.entryBg}}" padding="4 2" />
+    </template>
+</templates>

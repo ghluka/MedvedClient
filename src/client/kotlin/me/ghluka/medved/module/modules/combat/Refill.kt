@@ -7,7 +7,7 @@ import net.minecraft.world.item.Items
 import net.minecraft.world.item.ItemStack
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import java.util.Locale
-import me.ghluka.medved.gui.components.itemCategories
+import me.ghluka.medved.gui.helpers.itemCategories
 import me.ghluka.medved.util.SilentScreen
 
 object Refill : Module("Refill", "Automatically refills your hotbar with healing items", Category.COMBAT) {

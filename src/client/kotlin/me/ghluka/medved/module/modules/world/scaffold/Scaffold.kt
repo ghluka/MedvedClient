@@ -2,7 +2,7 @@ package me.ghluka.medved.module.modules.world.scaffold
 
 import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.config.entry.ItemListEntry
-import me.ghluka.medved.gui.components.itemCategories
+import me.ghluka.medved.gui.helpers.itemCategories
 import me.ghluka.medved.mixin.client.LocalPlayerAccessor
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.util.InputUtil

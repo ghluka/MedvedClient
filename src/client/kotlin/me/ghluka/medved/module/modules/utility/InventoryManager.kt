@@ -3,7 +3,7 @@ package me.ghluka.medved.module.modules.utility
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.util.SilentScreen
 import me.ghluka.medved.config.entry.ItemListEntry
-import me.ghluka.medved.gui.components.itemCategories
+import me.ghluka.medved.gui.helpers.itemCategories
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.tags.ItemTags

@@ -1,0 +1,94 @@
+<templates>
+    <template name="color-picker">
+        <panel x="{{overlay.x}}" y="{{overlay.y}}" w="{{overlay.w}}" h="{{overlay.h}}" padding="6" gap="6" radius="6" bg="{{theme.panelBg}}" clip="true">
+            <row id="color:mode" text="{{color.mode}}" w="fill" h="14" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entryHoverBg}}" padding="6 2" />
+            <slot name="body" />
+            <slot name="options" />
+        </panel>
+    </template>
+
+    <template name="color-map-body">
+        <box axis="horizontal" w="fill" h="65" gap="4">
+            <color-map id="color:map" w="fill" h="65" hue="{{color.hue}}" saturation="{{color.saturation}}" value="{{color.value}}" />
+            <hue-bar id="color:hue" w="10" h="65" hue="{{color.hue}}" />
+            <slot name="alpha" />
+        </box>
+    </template>
+
+    <template name="color-alpha-bar">
+        <alpha-bar id="color:alpha" w="10" h="65" color="{{color.preview}}" alpha="{{color.alpha}}" />
+    </template>
+
+    <template name="color-theme-body">
+        <box w="fill" gap="4">
+            <row text="Using theme color" w="fill" h="10" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+            <swatch color="{{color.preview}}" w="fill" h="16" radius="2" />
+        </box>
+    </template>
+
+    <template name="color-channel-row">
+        <box axis="horizontal" w="fill" h="14" gap="4">
+            <slot name="fields" />
+        </box>
+    </template>
+
+    <template name="color-channel-field">
+        <row id="{{field.id}}" text="{{field.label}} {{field.value}}" w="fill" h="14" fg="{{theme.text}}" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" align="center" padding="1 2" />
+    </template>
+
+    <template name="color-hex-row">
+        <box axis="horizontal" w="fill" h="14" gap="4">
+            <row id="color:hex" text="HEX {{color.hex}}" w="fill" h="14" fg="{{theme.text}}" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="3 2" />
+            <swatch color="{{color.preview}}" w="20" h="14" radius="2" />
+        </box>
+    </template>
+
+    <template name="color-speed-body">
+        <box w="fill" gap="2">
+            <row text="Speed {{color.speed}}" w="fill" h="10" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+            <slider id="color:speed" w="fill" h="14" progress="{{color.speedProgress}}" trackBg="{{theme.sliderBg}}" fillBg="{{theme.sliderFg}}" knobBg="{{theme.text}}" />
+        </box>
+    </template>
+
+    <template name="color-mode-option">
+        <row id="{{mode.id}}" text="{{mode.label}}" w="fill" h="14" fg="{{mode.fg}}" bg="{{mode.bg}}" hoverBg="{{theme.entryHoverBg}}" padding="6 2" />
+    </template>
+
+    <template name="color-mode-options">
+        <box x="0" y="20" relative="true" overlay="true" w="fill" h="{{mode.optionsH}}" gap="0" bg="{{theme.panelBg}}">
+            <slot name="options" />
+        </box>
+    </template>
+
+    <template name="item-list-dropdown">
+        <panel x="{{overlay.x}}" y="{{overlay.y}}" w="{{overlay.w}}" h="{{overlay.h}}" padding="6" gap="4" radius="6" bg="{{theme.panelBg}}">
+            <row text="{{item.header}}" h="10" fg="{{theme.text}}" bg="{{theme.transparent}}" padding="0" />
+            <text-input id="item-list:search" text="{{item.search}}" w="fill" h="14" fg="{{item.searchFg}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entryHoverBg}}" padding="3 1" radius="2" active="{{item.searchActive}}" cursor="{{item.searchCursor}}" scroll="{{item.searchScroll}}" />
+            <slot name="added" />
+            <scroll h="{{item.listH}}" w="fill" gap="0" scrollKey="item-list.rows" scrollY="{{item.scroll}}" scrollAmount="18" scrollbarTrackBg="{{theme.entryBg}}" scrollbarThumbBg="{{theme.textDim}}">
+                <slot name="rows" />
+            </scroll>
+        </panel>
+    </template>
+
+    <template name="item-list-added-strip">
+        <scroll h="16" w="fill" axis="horizontal" gap="6" scrollKey="item-list.added" scrollY="0" scrollbar="false">
+            <slot name="items" />
+        </scroll>
+    </template>
+
+    <template name="item-list-added-item">
+        <box id="{{item.removeId}}" w="22" h="16">
+            <item-icon item="{{item.name}}" w="16" h="16" />
+            <row text="-" x="10" y="0" w="6" h="6" fg="{{theme.text}}" bg="{{theme.accent}}" align="center" padding="0" />
+        </box>
+    </template>
+
+    <template name="item-list-row">
+        <row id="{{item.rowId}}" axis="horizontal" h="18" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="2 1" gap="6">
+            <item-icon item="{{item.name}}" w="16" h="16" />
+            <row text="{{item.label}}" w="fill" h="16" fg="{{theme.text}}" bg="{{theme.transparent}}" padding="0" />
+            <row text="{{item.action}}" w="18" h="14" fg="{{theme.text}}" bg="{{item.actionBg}}" align="center" padding="0" radius="2" />
+        </row>
+    </template>
+</templates>

@@ -3,7 +3,7 @@ package me.ghluka.medved.module.modules.combat
 import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.module.Module
 import me.ghluka.medved.config.entry.ItemListEntry
-import me.ghluka.medved.gui.components.itemCategories
+import me.ghluka.medved.gui.helpers.itemCategories
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents

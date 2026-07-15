@@ -1,0 +1,81 @@
+<templates>
+    <template name="sidebar-mode">
+        <panel x="{{sidebar.x}}" y="{{sidebar.y}}" w="480" h="320" padding="0" gap="0" radius="5" bg="{{theme.panelBg}}">
+            <row id="sidebar:drag" text="GRIZZLY" w="fill" h="24" fg="{{theme.text}}" bg="{{theme.sidebarHeaderBg}}" align="center" radius="5" corners="top" />
+            <box axis="horizontal" w="fill" h="24" padding="0" gap="0">
+                <row id="sidebar:tab:modules" text="Modules" w="240" h="24" fg="{{sidebar.modulesFg}}" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" align="center" />
+                <row id="sidebar:tab:config" text="Config" w="240" h="24" fg="{{sidebar.configFg}}" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" align="center" />
+            </box>
+            <if condition="sidebar.modules-tab" w="fill" h="fill">
+                <box axis="horizontal" w="fill" h="fill" padding="0" gap="0">
+                    <panel w="110" h="fill" padding="5 6" gap="2" radius="0" bg="{{theme.sidebarRailBg}}">
+                        <for each="categories">
+                            <row id="{{category.id}}" text="{{category.name}}" w="fill" h="18" fg="{{category.fg}}" bg="{{category.bg}}" hoverBg="{{theme.entryHoverBg}}" padding="7 3" />
+                        </for>
+                    </panel>
+                    <box w="1" h="fill" bg="{{theme.sidebarDividerBg}}" />
+                    <if condition="sidebar.module-list" w="fill" h="fill">
+                        <scroll w="fill" h="fill" padding="6" radius="0" bg="{{theme.transparent}}" scrollKey="sidebar.modules" scrollY="{{scroll.sidebar.modules}}" scrollAmount="32" scrollbarTrackBg="{{theme.entryBg}}" scrollbarThumbBg="{{theme.textDim}}">
+                            <for each="selected-modules" gap="6">
+                                <component name="module-card" />
+                            </for>
+                        </scroll>
+                    </if>
+                    <if condition="sidebar.detail" w="fill" h="fill">
+                        <scroll w="fill" h="fill" padding="6" gap="3" radius="0" bg="{{theme.transparent}}" scrollKey="sidebar.modules" scrollY="{{scroll.sidebar.modules}}" scrollAmount="32" scrollbarTrackBg="{{theme.entryBg}}" scrollbarThumbBg="{{theme.textDim}}">
+                            <row id="sidebar:detail:back" text="&lt; Back" w="wrap" h="18" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="6 3" />
+                            <row text="{{detail.name}}" w="fill" h="16" fg="{{theme.text}}" bg="{{theme.transparent}}" padding="6 2" />
+                            <row text="{{detail.description}}" w="fill" h="24" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="6 2" clip="true" />
+                            <row axis="horizontal" w="fill" h="18" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="6 4" gap="4">
+                                <row text="Enabled" w="fill" h="10" fg="{{theme.text}}" bg="{{theme.transparent}}" padding="0" />
+                                <toggle id="{{detail.toggleId}}" w="22" h="10" on="{{detail.on}}" onBg="{{theme.accentSoft}}" offBg="{{theme.sliderBg}}" knobBg="{{detail.toggleKnob}}" />
+                            </row>
+                            <for each="detail-settings">
+                                <component name="{{setting.template}}" />
+                            </for>
+                        </scroll>
+                    </if>
+                </box>
+            </if>
+            <if condition="sidebar.config-tab" w="fill" h="fill">
+                <scroll w="fill" h="fill" padding="6" gap="0" radius="0" bg="{{theme.transparent}}" scrollKey="sidebar.config" scrollY="{{scroll.sidebar.config}}" scrollAmount="24" scrollbarTrackBg="{{theme.entryBg}}" scrollbarThumbBg="{{theme.textDim}}">
+                    <text-input id="config:preset-input" text="{{preset.input}}" w="fill" h="15" fg="{{theme.text}}" bg="{{theme.entryBg}}" hoverBg="{{theme.entryHoverBg}}" padding="5 2" active="{{preset.active}}" cursor="{{preset.cursor}}" scroll="{{preset.scroll}}" />
+                    <box axis="horizontal" w="fill" h="18" padding="0" gap="0">
+                        <row id="config:save" text="Save" w="fill" h="18" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" align="center" />
+                        <row id="config:load" text="Load" w="fill" h="18" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" align="center" />
+                        <row id="config:folder" text="Folder" w="fill" h="18" fg="{{theme.text}}" bg="{{theme.controlBg}}" hoverBg="{{theme.entrySelectedBg}}" align="center" />
+                    </box>
+                    <if condition="presets.empty">
+                        <row text="(no presets saved)" w="fill" h="15" fg="{{theme.textDim}}" bg="{{theme.entryBg}}" padding="7 3" />
+                    </if>
+                    <if condition="presets.present">
+                        <for each="presets">
+                            <row id="{{preset.id}}" text="{{preset.name}}" w="fill" h="15" fg="{{preset.fg}}" bg="{{preset.bg}}" hoverBg="{{theme.entryHoverBg}}" padding="7 3" />
+                        </for>
+                    </if>
+                </scroll>
+            </if>
+        </panel>
+    </template>
+
+    <template name="module-card">
+        <panel id="{{module.cardId}}" axis="horizontal" w="fill" h="{{module.cardH}}" padding="0" gap="0" radius="5" bg="{{module.cardBg}}" hoverBg="{{module.cardHoverBg}}">
+            <box w="3" h="fill" bg="{{module.accent}}" radius="5" corners="left" />
+            <box w="fill" h="fill" padding="8 9" gap="6" bg="{{module.cardOverlay}}">
+                <row text="{{module.name}}" w="fill" h="11" fg="{{theme.text}}" bg="{{theme.transparent}}" padding="0" />
+                <box w="fill" gap="1" bg="{{theme.transparent}}">
+                    <for each="module-description-lines">
+                        <row text="{{module.descriptionLine}}" w="fill" h="11" fg="{{theme.textDim}}" bg="{{theme.transparent}}" padding="0" />
+                    </for>
+                </box>
+            </box>
+            <box w="46" h="fill" padding="0" gap="0" bg="{{module.cardOverlay}}">
+                <row w="fill" h="16" bg="{{theme.transparent}}" />
+                <toggle id="{{module.toggleId}}" w="22" h="10" on="{{module.on}}" onBg="{{theme.accentSoft}}" offBg="{{theme.sliderBg}}" knobBg="{{module.toggleKnob}}" />
+                <if condition="module.has-settings">
+                    <row text="..." w="22" h="12" fg="{{theme.textDim}}" bg="{{theme.transparent}}" align="center" padding="0" font="minecraft" />
+                </if>
+            </box>
+        </panel>
+    </template>
+</templates>

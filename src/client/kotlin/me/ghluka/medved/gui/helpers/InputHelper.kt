@@ -2,7 +2,7 @@ package me.ghluka.medved.gui.helpers
 
 import com.mojang.blaze3d.platform.InputConstants
 import me.ghluka.medved.gui.ClickGui
-import me.ghluka.medved.gui.components.commitEditingColor
+import me.ghluka.medved.gui.helpers.commitEditingColor
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.input.CharacterEvent
@@ -54,7 +54,7 @@ internal object InputHelper {
                 key == GLFW.GLFW_KEY_HOME -> f.home(shift)
                 key == GLFW.GLFW_KEY_END -> f.end(shift)
             }
-            f.clampScroll(gui.PNL_W - 10)
+            f.clampScroll(gui.presetFieldVisibleW)
             gui.presetNameBuffer = f.text
             return true
         }
@@ -92,7 +92,7 @@ internal object InputHelper {
                 }
                 ctrl && key == GLFW.GLFW_KEY_V -> f.insert(mc.keyboardHandler.clipboard)
             }
-            f.clampScroll(60)
+            f.clampScroll(gui.entryFieldVisibleW)
             return true
         }
 
@@ -126,7 +126,7 @@ internal object InputHelper {
                 }
                 ctrl && key == GLFW.GLFW_KEY_V -> f.insert(mc.keyboardHandler.clipboard)
             }
-            f.clampScroll(60)
+            f.clampScroll(gui.entryFieldVisibleW)
             return true
         }
 
@@ -162,7 +162,8 @@ internal object InputHelper {
     }
 
     fun handleKeyReleased(gui: ClickGui, event: KeyEvent): Boolean {
-        if (gui.listeningKeybind != null || gui.editingString != null || gui.presetFieldActive) return true
+        if (gui.listeningKeybind != null || gui.editingString != null || gui.editingColorEntry != null ||
+            gui.editingItemListSearch || gui.presetFieldActive) return true
         val inputKey = InputConstants.getKey(event)
         val mc = Minecraft.getInstance()
         val physHeld = GLFW.glfwGetKey(mc.window.handle(), event.key()) == GLFW.GLFW_PRESS
@@ -175,19 +176,19 @@ internal object InputHelper {
             val ch = event.codepointAsString()
             if (ch.matches(Regex("[^</*?\"\\>:|]+"))) {
                 gui.presetField.insert(ch)
-                gui.presetField.clampScroll(gui.PNL_W - 10)
+                gui.presetField.clampScroll(gui.presetFieldVisibleW)
                 gui.presetNameBuffer = gui.presetField.text
             }
             return true
         }
         if (gui.editingColorEntry != null) {
             gui.entryField.insert(event.codepointAsString())
-            gui.entryField.clampScroll(60)
+            gui.entryField.clampScroll(gui.entryFieldVisibleW)
             return true
         }
         if (gui.editingString != null) {
             gui.entryField.insert(event.codepointAsString())
-            gui.entryField.clampScroll(60)
+            gui.entryField.clampScroll(gui.entryFieldVisibleW)
             return true
         }
         if (gui.editingItemListSearch) {
